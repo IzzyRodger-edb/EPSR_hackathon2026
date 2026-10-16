@@ -1,0 +1,39 @@
+$(SRCdir)/chains.inc
+$(SRCdir)/chemical_symbols.inc
+$(SRCdir)/clustercom.inc
+$(SRCdir)/clusters.inc
+$(SRCdir)/clusters_multibond.inc
+$(SRCdir)/commands.inc
+$(SRCdir)/coord.inc
+$(SRCdir)/delta_chisq.inc
+$(SRCdir)/directory_name.inc
+$(SRCdir)/en_atom.inc
+$(SRCdir)/epsr16.inc
+$(SRCdir)/epsr_dimension.inc \
+$(SRCdir)/epsrinput_par.inc \
+$(SRCdir)/iresetnumbers.inc \
+$(SRCdir)/lattice.inc \
+$(SRCdir)/lgamma.inc \
+$(SRCdir)/lmncom.inc \
+$(SRCdir)/local_density.inc \
+$(SRCdir)/molecom.inc \
+$(SRCdir)/parameter.inc \
+$(SRCdir)/partials.inc \
+$(SRCdir)/plotato.inc \
+$(SRCdir)/plot_pars.inc \
+$(SRCdir)/potential_par.inc \
+$(SRCdir)/ran1com.inc \
+$(SRCdir)/readmole.inc \
+$(SRCdir)/sears91_gudrun.inc \
+$(SRCdir)/setup_changeato.inc \
+$(SRCdir)/sharm.inc \
+$(SRCdir)/sharm_sdf.inc \
+$(SRCdir)/swapatoms.inc \
+$(SRCdir)/symbols.inc \
+$(SRCdir)/system_commands.inc \
+$(SRCdir)/torangles.inc \
+$(SRCdir)/triangles.inc \
+$(SRCdir)/version.inc \
+$(SRCdir)/weights.inc \
+$(SRCdir)/wrcom.inc \
+$(SRCdir)/X-rayf0.inc \

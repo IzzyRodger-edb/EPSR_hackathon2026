@@ -1,0 +1,155 @@
+#-----------------------------------------------------------------------
+SHELL=/bin/sh
+#
+# Fortran compiler and compilation flags
+#
+#FC=g77
+FC=gfortran
+#FC=ifort
+
+FFLAGC=-Wall -ffixed-line-length-none -Wno-unused-label -O2
+FFLAGS=-Wall -ffixed-line-length-none -Wno-unused-label -O2
+
+# Where we get the sources from
+
+SRCDIR=.
+
+# Where we get the PGXtal sources from
+
+pgxtaldir=$(SRCDIR)/PGXtal
+
+# Where we put the binaries
+
+BINDIR=$(SRCDIR)/../../../EPSR/bin
+
+# PGPLOT and other libraries
+
+PGPLOT_LIB= -Wl,--subsystem,console -LC:\MinGW\lib $(BINDIR)\PGPLOT\PGPLOTlib\libpgplot.a \
+	-lmingw32 -lgcc -lmsvcrt -luser32 -lkernel32 -lgdi32
+
+#
+# Routine lists.
+#
+
+SHELLOBJSF90=lngamma_mod.o 
+
+SHELLOBJS=auxiliary_routines.o plotsharm_routines.o parse.o
+
+MAPGRQUADOBJS=mapgrquad.o 
+
+MAP2DOBJS=map2dplot.o \
+	myplot2db3.o mypgxtal24oct2002.o pgcell.o dsqinf.o
+
+MAP3DOBJS=map3dplotquad.o \
+	myplot3d.o mypgxtal24oct2002.o pgcell.o dsqinf.o
+
+MAP3DROTOBJS=map3dplotquadrot.o \
+	myplot3d.o mypgxtal24oct2002.o pgcell.o dsqinf.o
+
+MAP3DNOAXESOBJS=map3dplotquad.o \
+	myplot3d_noaxes.o mypgxtal24oct2002.o pgcell.o dsqinf.o
+
+MAP3DROTNOAXESOBJS=map3dplotquadrot.o \
+	myplot3d_noaxes.o mypgxtal24oct2002.o pgcell.o dsqinf.o
+
+PGPLOTATOOBJS=mypgplotato.o \
+	myplot3d_pgplotato.o mypgxtal24oct2002.o pgcell.o dsqinf.o
+
+#-----------------------------------------------------------------------
+# Rules for compiling the .o files
+#-----------------------------------------------------------------------
+
+all: shellobjsf90 shellobjs mapgr map2d map3d map3drot map3d_noaxes map3drot_noaxes pgplotato
+
+shellobjsf90: $(SHELLOBJSF90)
+
+shellobjs: $(SHELLOBJS)
+
+mapgr: $(MAPGRQUADOBJS)
+
+	$(FC) $(FFLAGS) -o $(BINDIR)/mapgr $(MAPGRQUADOBJS) $(SHELLOBJS) $(SHELLOBJSF90)
+
+map2d: $(MAP2DOBJS)
+
+	$(FC) $(FFLAGS) -o $(BINDIR)/map2d $(MAP2DOBJS) $(SHELLOBJS) $(SHELLOBJSF90) $(PGPLOT_LIB)
+
+map3d: $(MAP3DOBJS)
+
+	$(FC) $(FFLAGS) -o $(BINDIR)/map3d $(MAP3DOBJS) $(SHELLOBJS) $(SHELLOBJSF90) $(PGPLOT_LIB)
+
+map3drot: $(MAP3DROTOBJS)
+
+	$(FC) $(FFLAGS) -o $(BINDIR)/map3drot $(MAP3DROTOBJS) $(SHELLOBJS) $(SHELLOBJSF90) $(PGPLOT_LIB)
+
+map3d_noaxes: $(MAP3DNOAXESOBJS)
+
+	$(FC) $(FFLAGS) -o $(BINDIR)/map3d_noaxes  $(MAP3DNOAXESOBJS) $(SHELLOBJS) $(SHELLOBJSF90) $(PGPLOT_LIB)
+
+map3drot_noaxes:  $(MAP3DROTNOAXESOBJS)
+
+	$(FC) $(FFLAGS) -o $(BINDIR)/map3drot_noaxes  $(MAP3DROTNOAXESOBJS) $(SHELLOBJS) $(SHELLOBJSF90) $(PGPLOT_LIB)
+
+pgplotato:  $(PGPLOTATOOBJS)
+
+	$(FC) $(FFLAGS) -o $(BINDIR)/pgplotato  $(PGPLOTATOOBJS) $(SHELLOBJS) $(SHELLOBJSF90) $(PGPLOT_LIB)
+
+clean: 
+	rm *.o
+
+#
+# OBJECT MAKE FILES ---------------------------------------------
+#
+
+$(SHELLOBJSF90): %.o: %.f90
+	$(FC) $(FFLAGC) -c $<
+
+$(SHELLOBJS): %.o: %.f
+	$(FC) $(FFLAGC) -c $<
+
+$(MAPGRQUADOBJS): %.o: %.f
+	$(FC) $(FFLAGC) -c $<
+
+map2dplot.o: $(SRCDIR)/map2dplot.f $(SRCDIR)/molecom.inc \
+            $(SRCDIR)/clustercom.inc 
+	$(FC) $(FFLAGC) -c $(FFLAGC) $(SRCDIR)/map2dplot.f
+
+map3dplotquad.o: $(SRCDIR)/map3dplotquad.f $(SRCDIR)/molecom.inc \
+            $(SRCDIR)/clustercom.inc 
+	$(FC) $(FFLAGC) -c $(FFLAGC) $(SRCDIR)/map3dplotquad.f
+
+map3dplotquadrot.o: $(SRCDIR)/map3dplotquadrot.f $(SRCDIR)/molecom.inc \
+            $(SRCDIR)/clustercom.inc 
+	$(FC) $(FFLAGC) -c $(FFLAGC) $(SRCDIR)/map3dplotquadrot.f
+
+mypgplotato.o: $(SRCDIR)/mypgplotato.f \
+            $(SRCDIR)/molecom.inc $(SRCDIR)/clustercom.inc 
+	$(FC) $(FFLAGC) -c $(FFLAGC) $(SRCDIR)/mypgplotato.f
+
+#
+#   PGXTAL ROUTINES -------------------------------------
+#   
+
+dsqinf.o: $(pgxtaldir)/dsqinf.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/dsqinf.f
+
+mypgxtal.o: $(pgxtaldir)/mypgxtal.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/mypgxtal.f
+
+myplot3d.o: $(pgxtaldir)/myplot3d.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/myplot3d.f
+
+myplot3d_pgplotato.o: $(pgxtaldir)/myplot3d_pgplotato.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/myplot3d_pgplotato.f
+
+myplot3d_noaxes.o: $(pgxtaldir)/myplot3d_noaxes.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/myplot3d_noaxes.f
+
+myplot2db3.o: $(pgxtaldir)/myplot2db3.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/myplot2db3.f
+
+mypgxtal24oct2002.o: $(pgxtaldir)/mypgxtal24oct2002.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/mypgxtal24oct2002.f
+
+pgcell.o: $(pgxtaldir)/pgcell.f
+	$(FC) $(FFLAGC) -c $(pgxtaldir)/pgcell.f
+

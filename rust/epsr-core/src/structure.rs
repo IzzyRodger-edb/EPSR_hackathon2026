@@ -19,6 +19,7 @@ use crate::fortran::text::parse;
 use crate::fortran::{F1, F2, F3};
 use crate::neighbour::minimagec;
 use crate::state::{State, MCOEFF, MPZ};
+use rayon::prelude::*;
 
 /// `function j1qr(q, r)` (real*8 result).
 fn j1qr(q: f32, r: f32) -> f64 {
@@ -638,26 +639,40 @@ impl State {
     pub fn gensq(&self, nq: i32, sofq: &mut F3<f32>, wav: &F3<f32>) {
         let d = &self.dist;
         let m = &self.mol;
-        for ic in 1..=m.npairs {
-            let jt = m.n2extr[ic];
-            for i in 1..=nq {
-                let mut sum1: f32 = 0.0;
-                let mut sum2: f32 = 0.0;
-                let mut sum3: f32 = 0.0;
-                for j in 2..=d.npt1 {
-                    let add1 = wav[(1, j, ic)];
-                    if add1.abs() > 0.0 {
-                        sum1 += add1 * d.foqols[(j, i)];
+        // Pairs are independent; within a pair the Q and r summation order is
+        // unchanged, so the result is identical at any thread count.
+        let cols: Vec<Vec<(f32, f32)>> = (1..=m.npairs)
+            .into_par_iter()
+            .map(|ic| {
+                let jt = m.n2extr[ic];
+                let mut col = Vec::with_capacity(nq as usize);
+                for i in 1..=nq {
+                    let mut sum1: f32 = 0.0;
+                    let mut sum2: f32 = 0.0;
+                    let mut sum3: f32 = 0.0;
+                    for j in 2..=d.npt1 {
+                        let add1 = wav[(1, j, ic)];
+                        if add1.abs() > 0.0 {
+                            sum1 += add1 * d.foqols[(j, i)];
+                        }
                     }
+                    for j in 2..=d.npt1 {
+                        let add2 = (wav[(2, j, ic)] - d.ycoh[j]) * m.natomsphere[jt];
+                        sum2 += add2 * d.foqols[(j, i)];
+                        sum3 += wav[(2, j, ic)];
+                    }
+                    if sum3 <= 0.0 {
+                        sum2 = 0.0;
+                    }
+                    col.push((sum1, sum2));
                 }
-                for j in 2..=d.npt1 {
-                    let add2 = (wav[(2, j, ic)] - d.ycoh[j]) * m.natomsphere[jt];
-                    sum2 += add2 * d.foqols[(j, i)];
-                    sum3 += wav[(2, j, ic)];
-                }
-                if sum3 <= 0.0 {
-                    sum2 = 0.0;
-                }
+                col
+            })
+            .collect();
+        for ic in 1..=m.npairs {
+            let col = &cols[(ic - 1) as usize];
+            for i in 1..=nq {
+                let (sum1, sum2) = col[(i - 1) as usize];
                 sofq[(1, i, ic)] = sum1;
                 sofq[(2, i, ic)] = sum2;
             }

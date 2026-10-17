@@ -1,0 +1,13 @@
+# Build artefacts of the Rust extension (cargo) and of uv/maturin
+target/
+.venv/
+dist/
+*.so
+*.pyd
+# Python caches
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+# Output of the example scripts
+work/

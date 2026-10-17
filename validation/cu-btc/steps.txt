@@ -1,0 +1,16 @@
+# Cu-BTC (HKUST-1): one cubic unit cell, 24 Cu2 paddlewheels + 32 benzene-tricarboxylate linkers
+# (624 atoms, a = 26.3336 A), 300 K, fitted to the NIMROD data of the empty framework, with Bragg
+# peaks calculated up to Q = 5 1/A.  Inputs converted from experimental_data/cu-btc (see README.md).
+# --- setup: the crystal positions are kept (no randomise)
+run readpdb CuBTC.pdb < readpdb.stdin       # molecules, bonds and angle constraints (vdW factor 0.68)
+run changeato CuBTC.ato < changeato.stdin   # Dissolve force field, 300 K, Monte Carlo step sizes
+run nwts CuBTC.NWTS.dat                     # neutron weights (natural isotopes)
+# --- EPSR: scratch start (no .pcof), then equilibrate on the reference potential only (ereq = 0)
+run epsr CuBTC.EPSR.inp                     # niter 1, ireset 1, iinit 1: creates .pcof, .inpa and all outputs
+set CuBTC.EPSR.inp niter 99
+run epsr CuBTC.EPSR.inp
+# --- switch on the empirical potential (ereq 10 kJ/mol, the EPSR test-case value) and refine
+set CuBTC.pcof ereq 10.0
+set CuBTC.EPSR.inp niter 100
+run epsr CuBTC.EPSR.inp
+run epsr CuBTC.EPSR.inp                     # restart from the files written by the previous run

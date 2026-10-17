@@ -1,0 +1,92 @@
+[build-system]
+requires = ["maturin>=1.5,<2"]
+build-backend = "maturin"
+
+[project]
+name = "epsr-py"
+version = "0.1.0"
+description = "Python interface to the Rust port of EPSR (Empirical Potential Structure Refinement)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.7"]
+pandas = ["pandas>=2.0"]
+progress = ["tqdm>=4.60"]
+all = ["matplotlib>=3.7", "pandas>=2.0", "tqdm>=4.60"]
+
+[dependency-groups]
+dev = [
+    "maturin>=1.5,<2",
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pytest-xdist>=3.8.0",
+    "black>=26.10.1",
+    "isort>=9.0.2",
+]
+
+[tool.maturin]
+# Mixed Rust/Python project: the pure-Python package `epsr/` sits next to this file
+# and the extension is installed as `epsr._core`.
+module-name = "epsr._core"
+bindings = "pyo3"
+profile = "release"
+
+[tool.uv]
+# Rebuild the extension whenever the bindings or the Rust engine change.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "../rust/epsr-core/Cargo.toml" },
+    { file = "../rust/epsr-core/src/**/*.rs" },
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: long-running tests (case replays, refinements on experimental data)",
+    "experimental: refinements of real neutron data from experimental_data/",
+]
+# --dist loadgroup keeps the tests of one experimental case on one worker under -n.
+addopts = "-ra --dist loadgroup"
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+extend-exclude = "target"
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["epsr"]
+known_local_folder = ["epsr_cases", "epsr_workflow", "conftest"]
+skip_glob = ["target/*", ".venv/*"]
+
+[tool.ruff]
+# Linting only: formatting is done by black, import order by isort.
+line-length = 88
+target-version = "py310"
+extend-exclude = ["target", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "UP", "B", "SIM", "NPY", "N"]
+# black owns line length; it leaves long docstrings and comments alone.
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+files = ["epsr"]

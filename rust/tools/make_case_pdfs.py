@@ -27,6 +27,7 @@ No third-party packages: the PDF is written directly (standard Type 1 fonts
 Helvetica / Helvetica-Bold / Courier, WinAnsiEncoding), with text wrapped
 using the Adobe font metrics and the font size reduced until the page fits.
 """
+
 import json
 import os
 import re
@@ -36,31 +37,275 @@ import zlib
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # ---------------------------------------------------------------- font metrics
-_HELV = dict(zip(range(32, 127), [
-    278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278,
-    556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
-    1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778,
-    667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556,
-    333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556,
-    556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584]))
-_HELVB = dict(zip(range(32, 127), [
-    278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278,
-    556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611,
-    975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778,
-    667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556,
-    333, 556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611,
-    611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584]))
+_HELV = dict(
+    zip(
+        range(32, 127),
+        [
+            278,
+            278,
+            355,
+            556,
+            556,
+            889,
+            667,
+            191,
+            333,
+            333,
+            389,
+            584,
+            278,
+            333,
+            278,
+            278,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            278,
+            278,
+            584,
+            584,
+            584,
+            556,
+            1015,
+            667,
+            667,
+            722,
+            722,
+            667,
+            611,
+            778,
+            722,
+            278,
+            500,
+            667,
+            556,
+            833,
+            722,
+            778,
+            667,
+            778,
+            722,
+            667,
+            611,
+            722,
+            667,
+            944,
+            667,
+            667,
+            611,
+            278,
+            278,
+            278,
+            469,
+            556,
+            333,
+            556,
+            556,
+            500,
+            556,
+            556,
+            278,
+            556,
+            556,
+            222,
+            222,
+            500,
+            222,
+            833,
+            556,
+            556,
+            556,
+            556,
+            333,
+            500,
+            278,
+            556,
+            500,
+            722,
+            500,
+            500,
+            500,
+            334,
+            260,
+            334,
+            584,
+        ],
+    )
+)
+_HELVB = dict(
+    zip(
+        range(32, 127),
+        [
+            278,
+            333,
+            474,
+            556,
+            556,
+            889,
+            722,
+            238,
+            333,
+            333,
+            389,
+            584,
+            278,
+            333,
+            278,
+            278,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            556,
+            333,
+            333,
+            584,
+            584,
+            584,
+            611,
+            975,
+            722,
+            722,
+            722,
+            722,
+            667,
+            611,
+            778,
+            722,
+            278,
+            556,
+            722,
+            611,
+            833,
+            722,
+            778,
+            667,
+            778,
+            722,
+            667,
+            611,
+            722,
+            667,
+            944,
+            667,
+            667,
+            611,
+            333,
+            278,
+            333,
+            584,
+            556,
+            333,
+            556,
+            611,
+            556,
+            611,
+            556,
+            333,
+            611,
+            611,
+            278,
+            278,
+            556,
+            278,
+            889,
+            611,
+            611,
+            611,
+            611,
+            389,
+            556,
+            333,
+            611,
+            556,
+            778,
+            556,
+            556,
+            500,
+            389,
+            280,
+            389,
+            584,
+        ],
+    )
+)
 # cp1252 characters outside ASCII that the summaries may use
-_EXTRA = {0xC5: (667, 722), 0xB0: (400, 400), 0xD7: (584, 584), 0x96: (556, 556), 0x97: (1000, 1000),
-          0xB1: (584, 584), 0xB2: (333, 333), 0xB3: (333, 333), 0xB7: (278, 278), 0xE9: (556, 556),
-          0xF6: (556, 611), 0xFC: (556, 611), 0xE4: (556, 556), 0xB5: (556, 611), 0x92: (222, 278),
-          0x91: (222, 278), 0x93: (333, 500), 0x94: (333, 500), 0x85: (1000, 1000), 0xD6: (778, 778),
-          0xBD: (834, 834), 0x95: (350, 350), 0xC3: (667, 722), 0xE5: (556, 556)}
-_SUBST = {"ρ": "rho", "θ": "theta", "ω": "omega", "φ": "phi", "ψ": "psi", "Δ": "Delta", "α": "alpha",
-          "β": "beta", "γ": "gamma", "λ": "lambda", "σ": "sigma", "ε": "epsilon", "π": "pi", "χ": "chi",
-          "μ": "µ", "≈": "~", "≥": ">=", "≤": "<=", "→": "->", "←": "<-", "⇒": "=>", "∝": "~",
-          "⟨": "<", "⟩": ">", "∞": "inf", "√": "sqrt", "≠": "/=", "·": "·", "−": "-", "…": "...",
-          "Å": "Å", "‘": "'", "’": "'", "“": '"', "”": '"', "×": "×"}
+_EXTRA = {
+    0xC5: (667, 722),
+    0xB0: (400, 400),
+    0xD7: (584, 584),
+    0x96: (556, 556),
+    0x97: (1000, 1000),
+    0xB1: (584, 584),
+    0xB2: (333, 333),
+    0xB3: (333, 333),
+    0xB7: (278, 278),
+    0xE9: (556, 556),
+    0xF6: (556, 611),
+    0xFC: (556, 611),
+    0xE4: (556, 556),
+    0xB5: (556, 611),
+    0x92: (222, 278),
+    0x91: (222, 278),
+    0x93: (333, 500),
+    0x94: (333, 500),
+    0x85: (1000, 1000),
+    0xD6: (778, 778),
+    0xBD: (834, 834),
+    0x95: (350, 350),
+    0xC3: (667, 722),
+    0xE5: (556, 556),
+}
+_SUBST = {
+    "ρ": "rho",
+    "θ": "theta",
+    "ω": "omega",
+    "φ": "phi",
+    "ψ": "psi",
+    "Δ": "Delta",
+    "α": "alpha",
+    "β": "beta",
+    "γ": "gamma",
+    "λ": "lambda",
+    "σ": "sigma",
+    "ε": "epsilon",
+    "π": "pi",
+    "χ": "chi",
+    "μ": "µ",
+    "≈": "~",
+    "≥": ">=",
+    "≤": "<=",
+    "→": "->",
+    "←": "<-",
+    "⇒": "=>",
+    "∝": "~",
+    "⟨": "<",
+    "⟩": ">",
+    "∞": "inf",
+    "√": "sqrt",
+    "≠": "/=",
+    "·": "·",
+    "−": "-",
+    "…": "...",
+    "Å": "Å",
+    "‘": "'",
+    "’": "'",
+    "“": '"',
+    "”": '"',
+    "×": "×",
+}
 
 
 def clean(s):
@@ -136,16 +381,33 @@ class Page:
         name = {"R": "F1", "B": "F2", "C": "F3", "I": "F4"}[font]
         col = "%.3f %.3f %.3f rg " % color if color else ""
         esc = enc(s).replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)")
-        self.ops.append(b"BT " + col.encode() + ("/%s %.2f Tf %.2f %.2f Td (" % (name, size, x, y)).encode()
-                        + esc + b") Tj ET")
+        self.ops.append(
+            b"BT "
+            + col.encode()
+            + ("/%s %.2f Tf %.2f %.2f Td (" % (name, size, x, y)).encode()
+            + esc
+            + b") Tj ET"
+        )
 
     def rule(self, y, gray=0.6, w=0.6):
-        self.ops.append(("%.2f G %.2f w %.2f %.2f m %.2f %.2f l S 0 G" % (gray, w, self.ML, y, self.W - self.MR, y)).encode())
+        self.ops.append(
+            (
+                "%.2f G %.2f w %.2f %.2f m %.2f %.2f l S 0 G"
+                % (gray, w, self.ML, y, self.W - self.MR, y)
+            ).encode()
+        )
 
     def band(self, y, h, rgb):
-        self.ops.append(("%.3f %.3f %.3f rg %.2f %.2f %.2f %.2f re f 0 g" % (rgb + (self.ML - 6, y, self.W - self.ML - self.MR + 12, h))).encode())
+        self.ops.append(
+            (
+                "%.3f %.3f %.3f rg %.2f %.2f %.2f %.2f re f 0 g"
+                % (rgb + (self.ML - 6, y, self.W - self.ML - self.MR + 12, h))
+            ).encode()
+        )
 
-    def para(self, text, size=None, indent=0, bullet=None, font="R", lead=1.22, color=None):
+    def para(
+        self, text, size=None, indent=0, bullet=None, font="R", lead=1.22, color=None
+    ):
         size = size or self.size
         x0 = self.ML + indent
         maxw = self.W - self.MR - x0
@@ -175,7 +437,14 @@ class Page:
         for i, ln in enumerate(lines):
             self.need(size * lead)
             if i == 0 and bullet:
-                self.text(x0 - (17 if len(bullet) > 1 else 9), self.y, bullet, "R", size, color)
+                self.text(
+                    x0 - (17 if len(bullet) > 1 else 9),
+                    self.y,
+                    bullet,
+                    "R",
+                    size,
+                    color,
+                )
             x = x0
             for w, f, fs, spw in ln:
                 x += spw
@@ -209,7 +478,15 @@ def number_citations(summ, bib):
     out = dict(summ)
     for f in fields:
         if out.get(f):
-            out[f] = pat.sub(lambda m: "[" + ",".join(str(num.get(k, "?")) for k in re.findall(r"@([A-Za-z0-9_]+)", m.group(1))) + "]", out[f])
+            out[f] = pat.sub(
+                lambda m: "["
+                + ",".join(
+                    str(num.get(k, "?"))
+                    for k in re.findall(r"@([A-Za-z0-9_]+)", m.group(1))
+                )
+                + "]",
+                out[f],
+            )
     out["refs"] = order
     return out, bad
 
@@ -227,8 +504,10 @@ def build(case, summ, meta, bib, size):
         tsize -= 0.25
     pg.text(pg.ML + tw, pg.y - 6, title, "B", tsize)
     pg.y -= 30
-    info = (f"Program(s): {meta['programs']}   |   chained passes: {meta['passes']}   |   "
-            f"verification: {meta['result']}")
+    info = (
+        f"Program(s): {meta['programs']}   |   chained passes: {meta['passes']}   |   "
+        f"verification: {meta['result']}"
+    )
     pg.para(info, size=size * 0.92, color=(0.25, 0.25, 0.25))
     pg.heading("What this case tests")
     pg.para(summ["purpose"])
@@ -257,9 +536,15 @@ def build(case, summ, meta, bib, size):
             pg.para(r, size=size * 0.85, indent=20, bullet=f"[{i}]", lead=1.15)
     # footer
     pg.rule(pg.MB - 8, 0.75, 0.4)
-    pg.text(pg.ML, pg.MB - 19, f"EPSR Fortran-to-Rust port - verification case ex{case}. "
-            f"Source: rust/docs/case_summaries/ex{case}.json, rendered by rust/tools/make_case_pdfs.py.",
-            "R", 6.8, (0.4, 0.4, 0.4))
+    pg.text(
+        pg.ML,
+        pg.MB - 19,
+        f"EPSR Fortran-to-Rust port - verification case ex{case}. "
+        f"Source: rust/docs/case_summaries/ex{case}.json, rendered by rust/tools/make_case_pdfs.py.",
+        "R",
+        6.8,
+        (0.4, 0.4, 0.4),
+    )
     return pg
 
 
@@ -268,11 +553,25 @@ def pdf_bytes(pg, title):
     objs = []
     objs.append(b"<< /Type /Catalog /Pages 2 0 R >>")
     objs.append(b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
-    objs.append(("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] /Resources << /Font << "
-                 "/F1 5 0 R /F2 6 0 R /F3 7 0 R /F4 8 0 R >> >> /Contents 4 0 R >>" % (pg.W, pg.H)).encode())
-    objs.append(b"<< /Length %d /Filter /FlateDecode >>\nstream\n" % len(content) + content + b"\nendstream")
+    objs.append(
+        (
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %.2f %.2f] /Resources << /Font << "
+            "/F1 5 0 R /F2 6 0 R /F3 7 0 R /F4 8 0 R >> >> /Contents 4 0 R >>"
+            % (pg.W, pg.H)
+        ).encode()
+    )
+    objs.append(
+        b"<< /Length %d /Filter /FlateDecode >>\nstream\n" % len(content)
+        + content
+        + b"\nendstream"
+    )
     for base in ("Helvetica", "Helvetica-Bold", "Courier", "Helvetica-Oblique"):
-        objs.append(("<< /Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding >>" % base).encode())
+        objs.append(
+            (
+                "<< /Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding >>"
+                % base
+            ).encode()
+        )
     t = enc(title).replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)")
     objs.append(b"<< /Title (" + t + b") /Producer (make_case_pdfs.py) >>")
     out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
@@ -284,7 +583,10 @@ def pdf_bytes(pg, title):
     out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
     for o in offs:
         out += b"%010d 00000 n \n" % o
-    out += b"trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R >>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, len(objs), xref)
+    out += (
+        b"trailer\n<< /Size %d /Root 1 0 R /Info %d 0 R >>\nstartxref\n%d\n%%%%EOF\n"
+        % (len(objs) + 1, len(objs), xref)
+    )
     return bytes(out)
 
 
@@ -307,26 +609,46 @@ def case_meta(d, n, results):
     else:
         ok, k = res
         np_ = "1 pass" if k == 1 else f"all {k} passes"
-        result = (f"ALL IDENTICAL ({np_})" if ok else "DIFFERENCES - see README.md")
-        tail = (f" Result of the final regression run of the complete port: {'every file identical in ' + np_ if ok else 'differences found'}.")
+        result = f"ALL IDENTICAL ({np_})" if ok else "DIFFERENCES - see README.md"
+        tail = f" Result of the final regression run of the complete port: {'every file identical in ' + np_ if ok else 'differences found'}."
     patch = ""
     if {"readxyz", "readpdb"} & set(progs):
-        patch = (" `readxyz`/`readpdb` crash (SIGSEGV) as compiled from the original source, so the reference build adds an "
-                 "explicit INTERFACE block for `ctype` (`rust/tools/build_patched_readxyz_readpdb.sh`); the port behaves "
-                 "like the patched program.")
+        patch = (
+            " `readxyz`/`readpdb` crash (SIGSEGV) as compiled from the original source, so the reference build adds an "
+            "explicit INTERFACE block for `ctype` (`rust/tools/build_patched_readxyz_readpdb.sh`); the port behaves "
+            "like the patched program."
+        )
     elif {"sharm", "sdf"} & set(progs) or n == 122:
-        patch = (" A run-time FORMAT in the original source (`sharm_rev2.f`/`sdf_rev2.f`, and `sharm_diffuse` for `epsr`) lacks "
-                 "a comma after the Hollerith `1h(` and is rejected by current gfortran, so the reference build inserts that "
-                 "comma (originals kept as `*.orig`); the port behaves like the patched program.")
-    masks = ("only the date line of `.out` and the wall-clock columns of `fort.35` are masked" if "epsr" in progs
-             else "no masking except where noted below")
+        patch = (
+            " A run-time FORMAT in the original source (`sharm_rev2.f`/`sdf_rev2.f`, and `sharm_diffuse` for `epsr`) lacks "
+            "a comma after the Hollerith `1h(` and is rejected by current gfortran, so the reference build inserts that "
+            "comma (originals kept as `*.orig`); the port behaves like the patched program."
+        )
+    masks = (
+        "only the date line of `.out` and the wall-clock columns of `fort.35` are masked"
+        if "epsr" in progs
+        else "no masking except where noted below"
+    )
     calls = "1 program call" if cmds == 1 else f"{cmds} program calls"
-    chain = ("run once" if rep == 1 else f"repeated {rep} times, each pass reading the files written by the previous one")
-    std = (f"`commands.txt` ({calls}, {chain}) was run with the Fortran reference build (`rust/tools/build_fortran_reference.sh`: the original "
-           f"sources, gfortran -O2 -fno-tree-vectorize, single thread) and with the Rust `epsr-rs` on identical copies of "
-           f"the inputs, and every file written was compared byte for byte (`rust/tools/run_ex_test.sh`, "
-           f"`compare_outputs.py`; {masks}). The Fortran output is stored in `fortran_reference.tar.gz`." + patch + tail)
-    return {"programs": ", ".join(progs), "passes": rep, "result": result, "standard": std}
+    chain = (
+        "run once"
+        if rep == 1
+        else f"repeated {rep} times, each pass reading the files written by the previous one"
+    )
+    std = (
+        f"`commands.txt` ({calls}, {chain}) was run with the Fortran reference build (`rust/tools/build_fortran_reference.sh`: the original "
+        f"sources, gfortran -O2 -fno-tree-vectorize, single thread) and with the Rust `epsr-rs` on identical copies of "
+        f"the inputs, and every file written was compared byte for byte (`rust/tools/run_ex_test.sh`, "
+        f"`compare_outputs.py`; {masks}). The Fortran output is stored in `fortran_reference.tar.gz`."
+        + patch
+        + tail
+    )
+    return {
+        "programs": ", ".join(progs),
+        "passes": rep,
+        "result": result,
+        "standard": std,
+    }
 
 
 def main():
@@ -337,17 +659,22 @@ def main():
     i = 0
     while i < len(args):
         if args[i] == "--root":
-            root = args[i + 1]; i += 2
+            root = args[i + 1]
+            i += 2
         elif args[i] == "--results":
-            results_file = args[i + 1]; i += 2
+            results_file = args[i + 1]
+            i += 2
         else:
-            sel.append(int(args[i])); i += 1
+            sel.append(int(args[i]))
+            i += 1
     sdir = os.path.join(HERE, "..", "docs", "case_summaries")
     bib = json.load(open(os.path.join(sdir, "references.json"), encoding="utf-8"))
     results = {}
     if results_file:
         for line in open(results_file):
-            m = re.match(r"EPSR-test-ex(\d+): (ALL IDENTICAL|DIFFERENCES)\D*(\d+)", line)
+            m = re.match(
+                r"EPSR-test-ex(\d+): (ALL IDENTICAL|DIFFERENCES)\D*(\d+)", line
+            )
             if m:
                 k = int(m.group(3)) if m.group(2) == "ALL IDENTICAL" else 0
                 results[int(m.group(1))] = (m.group(2) == "ALL IDENTICAL", k)
@@ -368,12 +695,14 @@ def main():
         d = folders[n]
         jf = os.path.join(sdir, f"ex{n}.json")
         if not os.path.exists(jf):
-            print(f"ex{n}: no summary {jf}"); nfail += 1
+            print(f"ex{n}: no summary {jf}")
+            nfail += 1
             continue
         summ = json.load(open(jf, encoding="utf-8"))
         summ, missing = number_citations(summ, bib)
         if missing:
-            print(f"ex{n}: unknown reference keys {missing}"); nfail += 1
+            print(f"ex{n}: unknown reference keys {missing}")
+            nfail += 1
             continue
         meta = case_meta(d, n, results)
         size = 9.6
@@ -383,9 +712,14 @@ def main():
                 break
             size -= 0.15
         if pg.overflow:
-            print(f"ex{n}: WARNING text does not fit on one page"); nfail += 1
+            print(f"ex{n}: WARNING text does not fit on one page")
+            nfail += 1
         with open(os.path.join(d, f"EPSR-test-ex{n}.pdf"), "wb") as f:
-            f.write(pdf_bytes(pg, f"EPSR-test-ex{n}: {clean(summ['title']).replace('`', '')}"))
+            f.write(
+                pdf_bytes(
+                    pg, f"EPSR-test-ex{n}: {clean(summ['title']).replace('`', '')}"
+                )
+            )
         print(f"ex{n}: EPSR-test-ex{n}.pdf (font {size:.2f} pt)")
     return 1 if nfail else 0
 

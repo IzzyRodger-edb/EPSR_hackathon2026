@@ -11,25 +11,33 @@ GUDRUN (nrtype 5) .mint01 files of the base test case.
 Point-mode Q values are the bin centres 0.5*(Q(i)+Q(i+1)) of the histogram Q.
 usage (in the case folder): python3 scripts/make_data.py
 """
+
 import sys
+
 
 def read_mint(fn):
     rows = []
     for line in open(fn):
-        if '#' in line or not line.strip():
+        if "#" in line or not line.strip():
             continue
         q, s, e = (float(x) for x in line.split()[:3])
         rows.append((q, s, e))
     return rows
 
+
 def e14(x):
     return f"{x:14.6E}"
 
+
 def centres(rows):
-    return [(0.5 * (rows[i][0] + rows[i + 1][0]), rows[i][1], rows[i][2]) for i in range(len(rows) - 1)]
+    return [
+        (0.5 * (rows[i][0] + rows[i + 1][0]), rows[i][1], rows[i][2])
+        for i in range(len(rows) - 1)
+    ]
+
 
 def genie(fn, title, rows):
-    with open(fn, 'w') as f:
+    with open(fn, "w") as f:
         f.write(f" {title}\n")
         f.write(" GENIE SHOW DATA listing\n")
         f.write(f" {len(rows)} points\n")
@@ -37,12 +45,13 @@ def genie(fn, title, rows):
         for i, (q, s, e) in enumerate(rows, 1):
             f.write(f"{i:7d}{e14(q)}{e14(s)}{e14(e)}\n")
 
-d2o = read_mint('D6DMSO_D2O.mint01')
-with open('D6DMSO_D2O.nrt1', 'w') as f:
+
+d2o = read_mint("D6DMSO_D2O.mint01")
+with open("D6DMSO_D2O.nrt1", "w") as f:
     for q, s, e in centres(d2o):
         f.write(f" {q:.7E} {s:.7E}\n")
-hdo = read_mint('D6DMSO_HDO.mint01')
-genie('D6DMSO_HDO.nrt3', 'D6DMSO HDO histogram data', hdo)
-h2o = centres(read_mint('D6DMSO_H2O.mint01'))
+hdo = read_mint("D6DMSO_HDO.mint01")
+genie("D6DMSO_HDO.nrt3", "D6DMSO HDO histogram data", hdo)
+h2o = centres(read_mint("D6DMSO_H2O.mint01"))
 h2o.append((h2o[-1][0] + 0.05, 9.99, 0.0))  # rubbish last point, ignored by EPSR
-genie('D6DMSO_H2O.nrt4', 'D6DMSO H2O point data', h2o)
+genie("D6DMSO_H2O.nrt4", "D6DMSO H2O point data", h2o)

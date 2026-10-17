@@ -13,6 +13,7 @@ import platform
 import re
 import shlex
 import shutil
+import sys
 import tarfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -35,10 +36,15 @@ IS_GLIBC = platform.system() == "Linux" and platform.libc_ver()[0] == "glibc"
 
 
 def _load(name: str, path: Path) -> ModuleType:
+    """Import a script from ``rust/tools`` without writing ``__pycache__`` into ``rust/``."""
     spec = importlib.util.spec_from_file_location(name, path)
     assert spec and spec.loader, path
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    saved, sys.dont_write_bytecode = sys.dont_write_bytecode, True
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.dont_write_bytecode = saved
     return mod
 
 

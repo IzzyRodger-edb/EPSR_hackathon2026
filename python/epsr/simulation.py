@@ -447,24 +447,28 @@ class Simulation:
         return self._sim.r_grid()
 
     # ---------------------------------------------------------------- partials
-    def _select(self, arr: F32, pair: PairKey | None) -> F32:
-        return arr if pair is None else arr[self.pair_index(pair)]
+    def _select(self, arr: F32, pair: str | PairKey | None, b: str | None) -> F32:
+        return arr if pair is None else arr[self.pair_index(pair, b)]
 
-    def gr_inter(self, pair: PairKey | None = None) -> F32:
-        """Running-average intermolecular partial g(r): ``(n_pairs, nr)``, or ``(nr,)`` for one pair."""
-        return self._select(self._sim.gr_inter(), pair)
+    def gr_inter(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
+        """Running-average intermolecular partial g(r).
 
-    def gr_intra(self, pair: PairKey | None = None) -> F32:
+        ``(n_pairs, nr)``, or ``(nr,)`` for one pair given as an index, two labels
+        (``gr_inter("O", "H")``) or a label tuple.
+        """
+        return self._select(self._sim.gr_inter(), pair, b)
+
+    def gr_intra(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
         """Running-average intramolecular partial g(r)."""
-        return self._select(self._sim.gr_intra(), pair)
+        return self._select(self._sim.gr_intra(), pair, b)
 
-    def sq_inter(self, pair: PairKey | None = None) -> F32:
+    def sq_inter(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
         """Running-average intermolecular partial S(Q): ``(n_pairs, nq)``."""
-        return self._select(self._sim.sq_inter(), pair)
+        return self._select(self._sim.sq_inter(), pair, b)
 
-    def sq_intra(self, pair: PairKey | None = None) -> F32:
+    def sq_intra(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
         """Running-average intramolecular partial S(Q)."""
-        return self._select(self._sim.sq_intra(), pair)
+        return self._select(self._sim.sq_intra(), pair, b)
 
     def current_gr(self) -> F32:
         """``(2, n_pairs, nr)`` histograms of the current configuration (0 = inter, 1 = intra)."""

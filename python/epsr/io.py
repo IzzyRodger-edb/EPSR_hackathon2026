@@ -200,13 +200,16 @@ def _block_keywords() -> set[str]:
 def read_keyword_file(path: str | PathLike[str]) -> KeywordFile:
     """Parse an EPSR keyword file.
 
-    Lines are ``keyword  value(s)  description``; values are separated from the
+    The optional first line is the title (``<name>  Title of this file``). Lines are ``keyword  value(s)  description``; values are separated from the
     description by a run of at least 8 blanks (the files EPSR writes use 15).
     A line ``q`` ends the keyword section.
     """
     path = Path(path)
     lines = path.read_text(encoding="latin-1").splitlines()
-    title = lines[0].split()[0] if lines and lines[0].split() else ""
+    # EPSR writes a title line "<name>   Title of this file"; .pcof files have none.
+    has_title = bool(lines) and (lines[0].rstrip().endswith("Title of this file") or len(lines[0].split()) == 1)
+    title = lines[0].split()[0] if has_title else ""
+    start = 1 if has_title else 0
     blockkw = _block_keywords()
     values: dict[str, str] = {}
     descr: dict[str, str] = {}
@@ -214,7 +217,7 @@ def read_keyword_file(path: str | PathLike[str]) -> KeywordFile:
     block_keyword: str | None = None
     current = values
     trailer: list[str] = []
-    for i, line in enumerate(lines[1:], start=1):
+    for i, line in enumerate(lines[start:], start=start):
         w = line.split()
         if not w:
             continue

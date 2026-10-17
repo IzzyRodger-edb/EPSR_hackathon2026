@@ -1,1 +1,1 @@
-Never run git commit or any other git write operations. I handle all git manually.
+Never run git push. I handle all git pushes manually.

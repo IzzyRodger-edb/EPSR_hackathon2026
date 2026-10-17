@@ -2,8 +2,13 @@
   "permissions": {
     "deny": [
       "Bash(git push *)",
+      "Bash(rm -rf /)",
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf ~)",
+      "Bash(rm -rf ~/*)",
+      "Bash(rm -rf $HOME*)",
+      "Bash(rm -rf /mnt/*)",
       "Bash(sudo *)",
-      "Bash(rm -rf *)",
       "Bash(curl *)",
       "Bash(wget *)",
       "Bash(cat .env*)",

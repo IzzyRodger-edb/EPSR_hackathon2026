@@ -161,6 +161,17 @@ Build/test: `pip install maturin numpy && maturin develop --release -m rust/epsr
 (checked by the test `epsr_is_send` in `tests/test_case.rs`) and can be
 stored in a `#[pyclass]` and used inside `allow_threads`.
 
+The engine uses **rayon** internally (the data-parallel loops in `gensq`,
+`atogen`, `fmolec1`, `press`, `stog` and the chi² of `fit_expansion`).
+Results are byte-identical at any thread count (enforced by
+`tests/thread_invariance.rs`), so this changes nothing about determinism.
+Inside `allow_threads` it is transparent; the pool size follows
+`RAYON_NUM_THREADS` (default: the CPU count).  Several `Simulation` objects
+running concurrently from Python threads share the one global rayon pool —
+that is correct (no state leaks between simulations; every parallel task
+re-syncs the thread-local lattice before using it), but they compete for
+the same workers, so per-simulation wall time will not scale independently.
+
 Returning copies (`to_pyarray`) is simplest and cheap (e.g. 21 pairs × 600
 points for the test case).  Arrays are `float32`, which is the precision EPSR computes in.
 

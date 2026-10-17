@@ -1,0 +1,14 @@
+[package]
+name = "epsr-api-driver"
+version = "0.1.0"
+edition = "2021"
+description = "Runs a validation case's steps.txt through the epsr-core library API (the calls a Python wrapper makes)"
+
+[dependencies]
+epsr-core = { path = "../../rust/epsr-core" }
+
+# standalone: not a member of the rust/ workspace
+[workspace]
+
+[profile.release]
+debug = false

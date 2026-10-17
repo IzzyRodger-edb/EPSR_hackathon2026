@@ -1,0 +1,16 @@
+# Silica: 1500 Si + 3000 O at 0.0664 atoms/A^3, 298 K, fit to one neutron dataset (NIMROD).
+# --- setup
+run makemole Si                     # single-atom "molecules"
+run makemole O
+run mixato < mixato.stdin           # 1500 Si + 3000 O at 0.0664 atoms/A^3 -> silica.ato
+run randomise silica              # random positions and orientations
+run nwts SiO2.NWTS.dat             # neutron weights (natural isotopes)
+# --- EPSR: scratch start (no .pcof), then equilibrate on the reference potential only (ereq = 0)
+run epsr silica.EPSR.inp          # niter 1, ireset 1, iinit 1: creates .pcof, .inpa and all outputs
+set silica.EPSR.inp niter 99
+run epsr silica.EPSR.inp
+# --- switch on the empirical potential (EReq 50 kJ/mol as in the Dissolve example) and refine
+set silica.pcof ereq 50.0
+set silica.EPSR.inp niter 100
+run epsr silica.EPSR.inp
+run epsr silica.EPSR.inp          # restart from the files written by the previous run

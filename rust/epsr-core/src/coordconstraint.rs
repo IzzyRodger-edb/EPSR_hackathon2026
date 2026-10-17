@@ -703,8 +703,11 @@ impl CoordConstraint {
                         j += 1;
                         let ja2 = self.iabondcc[(j, ia)];
                         let jm2 = m.mref[ja2];
-                        // NB: the Fortran uses adistcc(i,ia) (not j) for the second distance.
-                        let tb2 = self.adistcc[(i, ia)];
+                        // Bug fix (deliberate divergence): the Fortran uses
+                        // adistcc(i,ia) here, building the angle from the same
+                        // arm twice; its own comment says this is the
+                        // separation of ia and ja2, i.e. index j.
+                        let tb2 = self.adistcc[(j, ia)];
                         let mut xdif = (m.xadd[jm1] + m.xa[ja1]) - (m.xadd[jm2] + m.xa[ja2]);
                         let mut ydif = (m.yadd[jm1] + m.ya[ja1]) - (m.yadd[jm2] + m.ya[ja2]);
                         let mut zdif = (m.zadd[jm1] + m.za[ja1]) - (m.zadd[jm2] + m.za[ja2]);

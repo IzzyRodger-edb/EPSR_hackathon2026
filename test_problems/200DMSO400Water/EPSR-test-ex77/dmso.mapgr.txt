@@ -1,0 +1,15 @@
+dmso
+shcoeffs    dmso.SHARM.h01
+nsmoo       3.0 2 1 1
+mirrorsym   no
+nviews      3
+view 1
+grtype      1
+theta_phi   0 0 0 0 0
+view 2
+grtype      3
+theta_phi   35 125 15 75 135
+view 3
+grtype      3
+theta_phi   180 0 90 180 270
+q

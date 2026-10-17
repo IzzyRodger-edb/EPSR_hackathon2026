@@ -1,0 +1,25 @@
+{
+  "title": "Complete reset (ireset 1)",
+  "purpose": "Exercises the complete reset of an EPSR [@soper1996,@soper2005] simulation, `ireset 1` in the `.EPSR.inp` file: the empirical potential, the automatic `ereq` control and the accumulated averages are discarded and default pair potentials are generated, which users do to restart a refinement from the reference potential only [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (`pressreq/ereqstep/erequnit` := 0, reset of `ireset` after the run), `inita` (accumulators restarted, `.inpa` not read)",
+    "`read_and_save_files.f`: `read_pcof` (EP coefficients reset, default pair potentials)",
+    "`molfit.f`: `molfit` (no step-size adaptation while `ireset` = 1)"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::setup`, `Epsr::iterate`",
+    "`structure.rs`: `State::inita`, `reset_accumulators`",
+    "`pcof.rs`: `read_pcof`, `default_pair_potentials`; `montecarlo.rs`: `molfit`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. After the reset the run continues with zero EP amplitude, i.e. the configuration evolves under the reference potential alone. The pair table is rebuilt from the atom types of the `.ato` (21 pairs) with zero EP coefficients and, as `rminfac` is 0, no repulsive cores.",
+  "inputs": "Copy of EPSR-test with only `ireset 1` (instead of 0) in `200DMSO400Water.EPSR.inp`.",
+  "verification": "Three chained passes. Pass 1 performs the reset and the Fortran writes `ireset 0` back to the `.inp`, so passes 2-3 test the normal continuation from reset files. Evidence in the stored Fortran reference: `ereq` = 0 and `ereqstep 0.000 0.000` in the final `.pcof`, the `.erg` history restarted (3 lines instead of 940 + 3), and no `delfit.dat` written (no EP fit). The 26 files written are identical after every pass.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

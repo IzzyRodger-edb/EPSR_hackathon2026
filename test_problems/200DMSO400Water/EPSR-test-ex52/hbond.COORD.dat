@@ -1,0 +1,21 @@
+hbond               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       20
+nsumt       0
+ndist       3
+distribution 1
+atom1       O1
+atom2       H1
+rmin        1.4
+rmax        2.4
+distribution 2
+atom1       S
+atom2       O1
+rmin        2.5
+rmax        4.5
+distribution 3
+atom1       O
+atom2       H1
+rmin        1.2
+rmax        2.5
+q

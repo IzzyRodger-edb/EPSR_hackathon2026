@@ -1,0 +1,10 @@
+# writexyz on the 600-molecule box: centre molecule 5, slab |x|,|y|<=8, -6<=z<=6, Euler angles 30 45 60,
+# atom type 4 (DMSO H) excluded; run twice -> two blocks in 200DMSO400Waterappend.xyz
+writexyz 200DMSO400Water.ato append 5 8 8 -6 6 30 45 60 4
+writexyz 200DMSO400Water.ato append 5 8 8 -6 6 30 45 60 4
+# whole box, no rotation, nothing excluded, separate numbered files (+ .nblock counter)
+writexyz 200DMSO400Water noappend 0 100 100 -100 100 0 0 0 0
+writexyz 200DMSO400Water noappend 0 100 100 -100 100 0 0 0 0
+# all parameters from stdin (append: y), single molecule, types 3 and 4 excluded
+writexyz DMSO.ato < writexyz_dmso.stdin
+repeat 1

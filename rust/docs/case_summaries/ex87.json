@@ -1,0 +1,25 @@
+{
+  "title": "dockato: Qv site as first atom / first atom type",
+  "purpose": "`dockato` [@epsrmanual] builds larger molecules from `.ato` building blocks: copies of the first molecule of a docking file are bonded onto free sites of a docked file, removing one atom of each to form the new bond. With the Qv site as the first atom and first atom type, its removal shifts the remaining atom types (shift branch of `clean_atom_types`).",
+  "fortran": [
+    "`dockato.f`: `dockato` (driver, parameters from command line or stdin), `rotatem`, `random_rotatem`, `search_unsaturated`, `find_valence`",
+    "`dockato.f`: `test_overlap`, `bond_molecule` (ROT/DIH groups), `replace_references`, `add_neighbours`, `remove_atoms`, `clean_atom_types`",
+    "`ato_manipulation_rev4.f`: `get_direct_bonds`, `get_rotgrp`, `centreofmass`, `ftype`; `ato_read_and_save.f`: `moloutc`"
+  ],
+  "rust": [
+    "`tools/dockato.rs`: `run`, `rotatem`, `random_rotatem`, `search_unsaturated`, `find_valence`, `test_overlap`",
+    "`tools/dockato.rs`: `bond_molecule`, `replace_references`, `add_neighbours`, `remove_atoms`, `clean_atom_types`, `get_direct_bonds`, `get_rotgrp`",
+    "`ato.rs`: `State::moloutc` (ROT/DIH groups), `State::ftype`; `rng.rs`: `Ran1::ran1`"
+  ],
+  "system": "A water molecule (SPC/E parameters [@berendsen1987]) with a dummy `Qv` atom bonded to O1 at 1.45 Å, listed as atom 1. Atom `atomd` of the new molecule is placed on `atomv`, the molecule is rotated so that its `atomdr` neighbour lies on the `atomvr` neighbour of `atomv` (equal bond lengths required), an optional second (dihedral) rotation about the new bond uses `atomdrr`/`atomvrr` (random angle in [dminrr, dmaxrr] from `ran1`, the Park-Miller generator with Bays-Durham shuffle [@parkmiller1988,@numrec1992], or a fixed dihedral that creates a DIH group when dminrr = dmaxrr), overlaps are tested with a distance factor, `atomd` and `atomvr` are removed and the new rotational group, bonds and atom types are updated. As in ex86 the Qv atoms are removed and an O-O bond is formed.",
+  "inputs": "`WaterQvA.ato` created like `WaterQv.ato` of ex86 but with Qv as atom 1 and first atom type. Run 1: random 20-340°, factor 1.0, ndock 3 (only one site available); run 2: rotation only on the docking side (atomvrr = 0), overlaps allowed.",
+  "verification": "Each run writes one new `.ato` file (coordinates, bonds, rotational groups, atom types and the random-number state), compared byte for byte with the stored Fortran output. Both outputs hold 6 atoms (two O1, four H1, renumbered as types 1 and 2 after the Qv type is removed) and one ROT group.",
+  "notes": "Fortran behaviour reproduced: in `peroxideA.ato` the re-created Qv type gets the stale parameters of the last type slot (those of H1: mass 2, charge 0.4238).",
+  "refs": [
+    "epsrmanual",
+    "berendsen1987",
+    "parkmiller1988",
+    "numrec1992",
+    "gfortran"
+  ]
+}

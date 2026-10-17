@@ -1,0 +1,26 @@
+{
+  "title": "Pressure control through the repulsive cores (control-p p)",
+  "purpose": "Exercises the `p` variant of `control-p` in the `epsr` engine [@soper1996,@soper2005,@epsrmanual]: instead of changing the box, the minimum distance `rminex` of every pair with an exponential repulsive core is scaled after each iteration, which changes the effective excluded volume and so the pressure at fixed density.",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (pressure block, `pfac`), `multiply_pcoefex` (scales `rminex`, rewrites the pair symbol)",
+    "`epsr_standalone_rev3.f`: `generate_rp` (exponential repulsive core), `repulsivept` (`rminex > 0` branches)",
+    "`ato_manipulation_rev4.f`: `press`; `read_and_save_files.f`: `read_pcof`, `save_files_others`"
+  ],
+  "rust": [
+    "`pressure.rs`: `control_pressure`, `multiply_pcoefex`",
+    "`potential.rs`: `generate_rp`, `repulsivept`; `energy.rs`: `press`",
+    "`pcof.rs`: `read_pcof`, `write_pcof_pairs`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case two pairs carry a repulsive core (`rminex pcoefex coordex`): DMSO O - water O1 `2.6 0.5 0` and O1-O1 `2.7 0 0`. After each iteration `pfac = 1/(1+0.01*clip(pressd))` multiplies `rminex` of every eligible pair and the reference potential is regenerated.",
+  "inputs": "`scripts/make_inputs.sh`: `.EPSR.inp` with `control-p p 0.0 0.01`, `ntimes 2`, `niter 2`; `.pcof` with the two core lines above (all other pairs 0 as in EPSR-test). `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 2`.",
+  "verification": "The feature is active: in the stored Fortran reference `.pcof` after four iterations O-O1 has `rminex` 2.4985 and O1-O1 2.5946, and the O1-O1 amplitude has been grown from 0 to 0.038 by `repulsivept`. The README reports gcov evidence: `multiply_pcoefex` is called in every iteration and the `rminex` multiplication executes 8 times (the one-word branch of the symbol rewrite is not reached).",
+  "notes": "The pair symbol is rewritten with a list-directed write of `rminex` followed by the remaining words of the old value, as in the Fortran.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

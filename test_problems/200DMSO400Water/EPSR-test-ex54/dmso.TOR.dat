@@ -1,0 +1,24 @@
+dmso               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       72
+nsumt       0
+ndist       3
+torangles 1
+atom1       S
+ltyp1       1
+ltyp2       2
+ltyp3       4 4
+ltyp4       5 5
+torangles 2
+atom1       S
+ltyp1       1
+ltyp2       3
+ltyp3       2 2
+ltyp4       8 9
+torangles 3
+atom1       O1
+ltyp1       1
+ltyp2       2
+ltyp3       3 3
+ltyp4       3 3
+q

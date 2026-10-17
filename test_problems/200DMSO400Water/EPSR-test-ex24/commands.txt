@@ -1,0 +1,5 @@
+epsrwts 200DMSO400Water.ato < case1.stdin
+epsrwts 200DMSO400Water < case2.stdin
+epsrwts 200DMSO400Water.ato < case3.stdin
+epsrwts 200DMSO400Water.ato < case4.stdin
+repeat 1

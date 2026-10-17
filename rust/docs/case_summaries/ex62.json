@@ -1,0 +1,21 @@
+{
+  "title": "chains: H-bond chains, multi-criterion distribution",
+  "purpose": "Exercises `chains` [@epsrmanual], which finds chains of bonded molecules with the shortest-path criterion of Franzblau [@franzblau1991] as cited in the Fortran: a bond requires an atom1-atom2 pair in one molecule and atom3 in another within three distance windows (and optionally an atom2-atom1-atom3 angle range); chains start at molecules with one neighbour, and histograms of neighbour numbers and chain lengths are written.",
+  "fortran": [
+    "`chains_sp_criterion.f`: `run_chains`, `find_chains` (bond search, chain search, histograms)",
+    "`chains_routines.f`: `match` (wildcard `*`), `shortest_path`",
+    "`read_and_save_files.f`: `outgofz`, `save_files_others`; `setup_symbols_generic.f`: `setup_symbols_chains` (computed `nsize` default)"
+  ],
+  "rust": [
+    "`tools/chains.rs`: `run_chains_or_rings`, `read_criteria`, `find_bonds`, `find_chains`, `shortest_path`, `fmatch`",
+    "`tools/clusters.rs`: `outgofz`, `open_input_with`; `symbols.rs`: `setup_input_file`, `read_input_file`, `save_inp_file`; `output.rs`: `r_int`; `symtab_tools.rs`: `CHAINS`"
+  ],
+  "system": "Analysed configuration: `200DMSO400Water.ato`, an unchanged copy of the EPSR-test box of 200 dimethyl sulphoxide (DMSO; atom types S, O, C, H) and 400 water molecules (O1, H1): 3200 atoms, DMSO mole fraction 1/3, 300 K, cubic box of side 33.1213 Å (0.0881 atoms/Å³), the EPSR model of the deuterated DMSO-water neutron data (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), cf. [@soperluzar1992]. Distribution 1: water-water hydrogen bonds O1(-H1)···O1 with O-H 0.8-1.2 Å, O···O 2.5-3.3 Å, H···O 1.5-2.4 Å and H-O···O angle 0-30°. Distribution 2: two criteria (`iw` loop), `O1 H1 O*` (`*` matches DMSO O and water O1, angle 0-35°) and `O1 H1 S` (0-180°, angle test skipped because the cosine range is >= 1.9). Reference `fort.14`: mean neighbour numbers 1.37 and 2.25.",
+  "inputs": "`hbchain.CHAINS.dat`: `nsize 40`, `nsumt 0`, two distributions as above. `200DMSO400Water.ato` copied unchanged from EPSR-test; the keyword file was written by hand (the Fortran program creates no template when the named file does not exist; keywords and defaults from `setup_symbols_generic.f`).",
+  "verification": "`repeat 2` with `nsumt 0` (accumulation over the two runs; reference `nsumt 2`). Exercises the bond search, `shortest_path`, the chain search and both histograms. Compared after each pass: `hbchain.CHAINS.n01`, the rewritten `hbchain.CHAINS.dat`, and `fort.14` (mean and spread of each histogram, written after unit 14 was closed, see ex60). The configuration is the same in every pass, so the chained passes test the read-back of the accumulated file and the running-average arithmetic.",
+  "refs": [
+    "epsrmanual",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

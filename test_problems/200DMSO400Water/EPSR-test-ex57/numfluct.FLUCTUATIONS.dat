@@ -1,0 +1,13 @@
+numfluct               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       60
+nsumt       0
+nsamples    3000
+ndist       3
+size 1
+rmax        4.0
+size 2
+rmax        6.5
+size 3
+rmax        10
+q

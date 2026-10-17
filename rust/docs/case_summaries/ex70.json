@@ -1,0 +1,31 @@
+{
+  "title": "sharm, mapgr, mapgrentropy: water-water, chained 6 times",
+  "purpose": "Exercises the spherical-harmonic analysis chain of EPSR [@epsrmanual] for two identical molecules: `sharm` coefficients of water around water, reconstruction of g(r, omega) by `mapgr` and the entropy estimate of `mapgrentropy`, including the accumulation of coefficients over successive configurations.",
+  "fortran": [
+    "`sharm_rev2.f`: `run_sharm` (keywords, `nsumt` rule), `sharm` (centres, axes, pair loop, averaged molecules)",
+    "`sharm_routines_rev1.f`: `get_l_and_n_values`, `form_cgcoeffs`, `form_eulerangles`, `form_dlmn`, `form_sum_prod_dlmn_cgcoeff`",
+    "`auxiliary_routines.f`: `dlm`, `cgcoef`, `rotateeuler`; `read_and_save_files.f`: `outgofzs_sharm` (`.h0n` files, averaging); `process_symbols.f`: `check_symbol`",
+    "`mapgrquad.f`: `run_mapgr`; `plotsharm_routines.f`: `smoosharm`, `sumoverm2`; `plot_routines.f`: `find_plot_par`",
+    "`mapgrentropy.f`: `run_mapgrentropy` (entropy sums); `auxiliary_routines.f`: `initran1`, `saveran1`"
+  ],
+  "rust": [
+    "`tools/sharm.rs`: `run`, `sharm`, `read_axis`, `read_l_values`, `average_molecule`",
+    "`tools/sharm_routines.rs`: `Sharm` methods with the Fortran names (incl. `outgofzs_sharm`), `dlm`, `cgcoef`, `form_eulerangles`, `rotateeuler`",
+    "`tools/mapgr.rs`: `run`; `tools/sharm_routines.rs`: `Coeffs::read`, `Coeffs::angular`, `smoosharm`, `sumoverm2`, `check_symbol_mapgr`; `output.rs`: `w_int`",
+    "`tools/mapgrentropy.rs`: `run`, `initran1`; `rng.rs`: `Ran1::ran1`"
+  ],
+  "system": "The EPSR-test configuration `200DMSO400Water.ato`: 200 DMSO (atoms S, C, C, O, 6 H) and 400 water molecules (O1, H1, H1; SPC/E parameters [@berendsen1987]), 3200 atoms at 300 K in a cubic box of side 33.12 Å, a model of the DMSO-water mixtures of Soper and Luzar [@soperluzar1992]. `sharm` expands the orientational pair correlation function of a central and a second molecule type in rotation matrices coupled by Clebsch-Gordan coefficients; the coefficients g(l1,l2,l;n1,n2;r) are averages over all molecule pairs [@soper1994,@graygubbins1984]. Here central and second molecule are water (centre = mass centre of O1/H1, z axis towards the H-H midpoint, y axis from H 2); atom-s = atom-c gives `ldistinct = 0`, so only l2 <= l1 terms; l1, l2 = 0-2, l = 0-4, n steps 2 (C2v symmetry) give 38 coefficients. `mapgr` rebuilds g(r) along chosen directions and relative orientations from the coefficients (grtype 1 radial, 2 spatial, 3 full orientational). `mapgrentropy` adds to the ideal-gas entropy the two-body excess term, an integral of r²·(g - 1 - g ln g) [@baranyai1989], for the radial, spatial and full g, sampling random orientations with `ran1` [@parkmiller1988].",
+  "inputs": "Input files written by hand from the keyword tables (`setup_symbols_*`), one `keyword value` per line, ended by `q`; `200DMSO400Water.ato` copied from EPSR-test. `water.SHARM.dat` (nr 100, rmax 10), `water.mapgr.txt` (3 views, smoothing 1/1/1), `water.mapgrentropy.dat` (200 trials, 0.0334 molecules/Å³, 298 K).",
+  "verification": "Six passes: the calculation runs when `nsumt` is a multiple of 5, i.e. in pass 1 (new accumulation) and pass 6, which reads back the previous `.h01` and averages it with `fc1 = fc2 = 0.5`; passes 2-5 only advance `nsumt` (6 at the end, `ncoeffs 38` written back). `ran1.dat` carries the random-number state through the chain. Compared: `.h01`, both xyz files, updated `.SHARM.dat`, `.mapgr.g01`, entropy files, `negativegr.txt`, `ran1.dat`. Reference build: `sharm`/`sdf` were rebuilt with one comma inserted in the run-time title format (`'(1h(,'//il1fmt`), since gfortran 15.2 otherwise stops with \"Missing comma between descriptors\" before writing the coefficients; all other programs are the unmodified reference binaries. Also masked: characters 31-45 of the `*.mapgr.g01` data lines, the error column of `g_centres(r)`, which `mapgrquad.f` never sets (uninitialised in the Fortran, 0 in the port).",
+  "notes": "The port writes the coefficient titles `(l1,l2,l;n1,n2)` as older gfortran versions did.",
+  "refs": [
+    "epsrmanual",
+    "soper1994",
+    "graygubbins1984",
+    "soperluzar1992",
+    "berendsen1987",
+    "baranyai1989",
+    "parkmiller1988",
+    "gfortran"
+  ]
+}

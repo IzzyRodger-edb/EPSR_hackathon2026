@@ -1,0 +1,24 @@
+{
+  "title": "Diffuse scattering (diffuse, sharm_diffuse)",
+  "purpose": "Exercises the `diffuse` option of the `epsr` engine [@soper1996,@soper2005,@epsrmanual]: for a crystal, the scattering at non-Bragg reciprocal-lattice points is expanded in spherical harmonics and averaged over Q bins and over runs.",
+  "fortran": [
+    "`ato_manipulation_rev4.f`: `sharm_diffuse`, `initialise_diffuse_values` (module `diffuse_mod`), `bragginten`",
+    "`read_and_save_files.f`: `outgofzs_sharm` (running averages of the coefficients)",
+    "`epsr_standalone_rev3.f`: `runepsr17` (`diffuse` keyword)"
+  ],
+  "rust": [
+    "`bragg.rs`: `Bragg::read_keywords`, `bragginten`, `sharm_diffuse`",
+    "`tools/sharm_routines.rs`: `outgofzs_sharm`"
+  ],
+  "system": "The DMSO/water crystal of ex120: 5 × 4 × 4 cubic 6.84 Å unit cells of 2 DMSO + 4 water in an orthorhombic 34.20 × 27.36 × 27.36 Å box (480 molecules, 2560 atoms, 21 atom-type pairs, 300 K). The atom types are those of EPSR-test, so its `.pcof`, weights and three D-DMSO/water neutron data files are used unchanged; for the crystal they are numerical input only, not a physical model of measured data. With `diffuse 2 2 1 4 2 1` the non-Bragg points (h or k odd) are expanded in spherical harmonics with l = 0, 2, 4 and m = 0..l [@graygubbins1984]; only (h,k,0) reflections are used.",
+  "inputs": "Outputs of a Fortran `epsr` pre-run with `iinit 1` (accumulators, `.ato`, `.erg`, `DIFFUSE.h01` files), keeping only the `d01` and `d02` coefficient files; `scripts/make_case.sh` regenerates them. Keywords: `ntimes 2`, `qwidthqmax 0.01 2.2`, `mplicities 5 4 4 1 1 0`, `hklqmin 0.0 10.0 0.1`, `diffuse 2 2 1 4 2 1`, `nsumt 1`, `iinit 0`.",
+  "verification": "The reference was made with a Fortran build in which a comma is inserted in the run-time title FORMAT of `sharm_diffuse` (`1h(` without comma); with gfortran >= 14 the unpatched `epsr` stops there with \"Missing comma between descriptors\" in pass 1. `d01` and `d02` are read and averaged, the missing `d03` sets `nsums = -1` and switches the running averages to `nesum` mode; pass 2 starts with `nsumt -1`. Exercised per the README: `bragginten` keeping the hkl arrays, the coefficients `dlm` (gfortran intrinsics `cosd`/`sind`/`atan2d`, inversion image for h > 0), averaging per Q bin and `smood`. The `DIFFUSE.h01` files are compared with all other outputs.",
+  "notes": "`sharm_diffuse` indexes `intenhkl(nhkl,npairs)` as `intenhkl(ip,ib)`, valid only while nhkl <= npairs; `qbraggmax` keeps nhkl = 15 <= 21. The port reads the same element and reports larger cases as unsupported.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "epsrmanual",
+    "graygubbins1984",
+    "gfortran"
+  ]
+}

@@ -1,0 +1,7 @@
+# append to an existing file whose last block is incomplete -> file restarted at block 1
+writexyz DMSO.ato append 1 5 5 -5 5 0 90 0 0
+# append to an existing file with 2 complete blocks (and extra blank lines) -> block 3
+writexyz WaterMolecule.ato append 0 50 50 -50 50 10 0 0 0
+# existing .nblock counter (7) -> 200DMSO400Water00008.xyz; nmolcentre > nmol; exclusion list stops at a non-integer word
+writexyz 200DMSO400Water.ato noappend 999 6 7 -8 9 -20 30 -40 4 abc 3
+repeat 1

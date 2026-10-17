@@ -1,0 +1,13 @@
+water
+fnameato    200DMSO400Water.ato
+mpixel      8
+rmax        6
+nsumt       0
+atom-c      O1 H1
+axisc1      z 2 3
+axisc2      y 2
+atom-s      O1 H1
+axiss1      z 2 3
+axiss2      y 2
+averagemol  y
+q

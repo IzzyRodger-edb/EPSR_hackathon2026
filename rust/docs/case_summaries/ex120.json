@@ -1,0 +1,23 @@
+{
+  "title": "Bragg peaks, Gaussian broadening, Debye-Waller factor (orthorhombic box)",
+  "purpose": "Exercises the Bragg-peak calculation of the `epsr` engine [@soper1996,@soper2005,@epsrmanual], which lets EPSR be applied to crystalline samples by adding the sharp Bragg scattering that a small periodic box cannot represent.",
+  "fortran": [
+    "`ato_manipulation_rev4.f`: `bragginten` (reciprocal lattice, hkl list, `.bragg`), `crystfrac`",
+    "`epsr_standalone_rev3.f`: `runepsr17` (keywords; `.inten`, Debye-Waller factor, truncation, replacement of the partial S(Q))",
+    "`ato_manipulation_rev4.f`: `atogen`; `epsr_standalone_rev3.f`: `gensq`"
+  ],
+  "rust": [
+    "`bragg.rs`: `Bragg::read_keywords`, `bragginten`, `structure_and_lattice`, `bragg_peaks`",
+    "`structure.rs`: `atogen`, `gensq`; `epsr.rs`: `Epsr::iterate`"
+  ],
+  "system": "A molecular crystal of DMSO and water: a cubic 6.84 Å unit cell with 2 DMSO + 4 water molecules (from `mixato`, `randomise` and 200 Monte Carlo cycles of `epsr` with `potfac 0`), replicated with `makelatticeato` 5 × 4 × 4 into an orthorhombic 34.20 × 27.36 × 27.36 Å box (480 molecules, 2560 atoms, 300 K, written as a general non-cubic box). The atom types are those of EPSR-test, so its `.pcof`, weights and three D-DMSO/water neutron data files are used unchanged; for the crystal they are numerical input only, not a physical model of measured data. For a crystal the simulation box holds only a few unit cells, so the Bragg part of the structure factor [@squires1978] is computed from the reciprocal lattice: intensities per atom pair and reflection are broadened into peaks, divided by the number of unit cells, damped by a Debye-Waller factor and replace the intermolecular partial S(Q) up to `qbraggmax`. Gaussian peaks of width 0.01 + fwhmq·Q, Debye-Waller parameter 0.1.",
+  "inputs": "`scripts/make_case.sh FORTRAN_BUILD_DIR OUT` (with `make_dmso_water_crystal.sh`, `setkw.py`) regenerates all inputs, verified byte-identical. Keywords changed from EPSR-test: `iinit 1`, `ntimes 2`, `qwidthqmax 0.01 3.0`, `mplicities 5 4 4`, `hklqmin 0.0 10.0 0.1` (all reflections, `rminbragg` 10 Å). `commands.txt`: `repeat 2`.",
+  "verification": "Per the README `bragginten` enumerates 153 reflections at 8 distinct Q values, and both the Q, Qb > 0 and the Q = 0 broadening branches are taken. The `.bragg` and `.inten` files are compared together with every other output; since the Bragg term replaces the partial S(Q) it also feeds the EP refinement, the fits and all accumulated files. Pass 2 re-reads all files written by pass 1.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "epsrmanual",
+    "squires1978",
+    "gfortran"
+  ]
+}

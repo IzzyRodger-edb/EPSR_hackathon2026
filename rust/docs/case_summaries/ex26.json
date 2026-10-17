@@ -1,0 +1,19 @@
+{
+  "title": "changeato: editing .ato parameters, box density and bonds",
+  "purpose": "Exercises `changeato`, the interactive editor with which an EPSR user changes a configuration (`.ato`) file before or between simulations: global Monte Carlo parameters, the density (rescaling the box), the Lennard-Jones and charge parameters of an atom type, bond constraints and atom labels, and the removal of whole molecule types [@epsrmanual]. The case drives the keyword loop with scripted standard input and checks each command and the save/exit logic.",
+  "fortran": [
+    "`changeato.f`: `changeato`; `setup_symbols_generic.f`: `setup_symbols_changeato`",
+    "`process_symbols.f`: `process_symbols`, `process_commands`, `check_symbol`, `change_symbol_changeato`, `write_symbols_changeato`, `save_files_changeato`",
+    "`process_symbols.f`: `change_bond`, `add_bond`, `remove_bond`, `change_label` (random choice with `ran1`), `remove_molecule_types`, `remove_molecule`, `cleanup_types`",
+    "`ato_manipulation_rev4.f`: `change_boxsize`, `ftype`; `read_and_save_files.f`: `save_files`, `force_save_files`; `ato_read_and_save.f`: `minitc`, `moloutc`"
+  ],
+  "rust": [
+    "`tools/changeato.rs`: `run`, `process_symbols`, `process_commands`, `check_symbol`, `change_symbol_changeato`, `write_symbols_changeato`, `change_boxsize`, `save_files`",
+    "`tools/changeato.rs`: `change_bond`, `add_bond`, `remove_bond`, `change_label`, `remove_molecule_types`, `remove_molecule`, `cleanup_types`",
+    "`ato.rs`: `minitc`, `moloutc`, `ftype`; `rng.rs`: `ran1`"
+  ],
+  "system": "Two EPSR-test configurations: the mixture of 200 DMSO and 400 water molecules (3200 atoms, 300 K, cubic box 33.1213 Å, 0.0881 atoms/Å³) and the single-molecule DMSO file (10 atoms, box 21.544 Å). In `MixA` the density is raised to 0.09 atoms/Å³, which shrinks the cubic box to 32.8828 Å and moves the molecular centres with it, the temperature is set to 298 K and the step sizes, `vibtemp`, `angtemp`, `dihtemp`, `ecore` and `dcore` are changed, and the Lennard-Jones/charge parameters of atom type 2 (C) are edited. In `DMSOB` a bond length is changed, a bond added and one removed, half of the methyl H atoms are relabelled `HM` and the density is set to 0.05 (box 5.848 Å). In `MixC` all 400 water molecules are removed, leaving 200 DMSO.",
+  "inputs": "`MixA.ato`, `MixC.ato` = `EPSR-test/200DMSO400Water.ato`, `DMSOB.ato` = `EPSR-test/DMSO.ato`; commands in `caseA/B/C.stdin`. They include invalid actions: changing the fixed `natomtypes`, a non-numeric value, the unknown symbol `Xx`, `cgmolfac 0.5` (raised to 1), and `n` to revert `temp 310`.",
+  "verification": "One pass of three `changeato` calls; compared files: `MixA.ato`, `DMSOnew.ato` (the overwrite was refused and a new name given) and `MixC.ato`. The reference headers confirm the edits: `MixA.ato` 600 molecules, box 32.882828 Å, 298 K; `DMSOnew.ato` box 5.8480353 Å; `MixC.ato` 200 molecules. The random relabelling uses the random-number state stored in the `.ato` file, so identical labels also verify the generator.",
+  "refs": ["epsrmanual", "gfortran"]
+}

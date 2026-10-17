@@ -1,0 +1,11 @@
+chain               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       80
+npix        100
+voidmax     500.0
+nsumt       99
+ndist       1
+void 1
+radius      2.2
+include     S O
+q

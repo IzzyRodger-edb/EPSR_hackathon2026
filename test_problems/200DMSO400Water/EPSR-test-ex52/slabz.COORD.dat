@@ -1,0 +1,13 @@
+slabz               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       12
+nsumt       -1
+atom-z      O1
+ndist       1
+distribution 1
+atom1       O1
+atom2       O1
+rmin        2.0
+rmax        3.4
+rminrmaxc   0.0 1.0
+q

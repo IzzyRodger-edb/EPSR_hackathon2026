@@ -1,0 +1,3 @@
+# readpdb: CONECT merging (non-contiguous and contiguous), dummy M site -> Q atom, bonds/angles, DIH groups
+readpdb mixture.pdb < readpdb.stdin
+repeat 1

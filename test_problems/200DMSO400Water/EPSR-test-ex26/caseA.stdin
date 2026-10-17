@@ -1,0 +1,39 @@
+temp 298
+tol 0.2
+stepmi 0.05
+stepri 2.0
+stepr 3.0
+stepm 0.15
+vibtemp 70
+angtemp 2.0
+dihtemp 5.0
+ecore 1.0
+dcore 0.5
+rho 0.09
+box cubic
+natomtypes 7
+temp abc
+temp 310
+n
+atom 2
+epsilon 0.8
+sigma 3.7
+atmass 12.5
+charge -0.1
+qradius 0.2
+atsymbol Xx
+atsymbol C
+iexchange 0
+natomsph 2.0
+radminsph 0.5
+radmaxsph 1.5
+cgmolfac 0.5
+atom 6
+iexchange 1
+atlabel HW
+d
+0.25
+bond n
+save
+y
+e

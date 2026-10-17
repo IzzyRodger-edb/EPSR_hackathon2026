@@ -1,0 +1,26 @@
+{
+  "title": "nwts: neutron weights of the three EPSR-test samples",
+  "purpose": "Exercises `nwts`, the keyword-driven program that turns the isotopic composition of a sample into the neutron weights of every atom-type pair which `epsr` needs to compare its simulated partial structure factors with a measured differential cross section [@soper2005,@epsrmanual]. This case recomputes the three `.wts` files that the EPSR-test refinement actually uses, so it checks the standard single-sample path end to end.",
+  "fortran": [
+    "`nwts.f`: `nwts` (component and isotope loop, exchange averaging, writing `<run>tot.wts`)",
+    "`process_symbols.f`: `check_symbol` (`symbol_setup.eq.'nwts'` branch: `fnameato` sets components, labels and symbols from the `.ato` file); `setup_symbols_generic.f`: `setup_symbols_nwts`",
+    "`read_and_save_files.f`: `read_input_file`, `read_ato` (via `fnameato`), `save_files_others` (rewrites the `.NWTS.dat` file)",
+    "`ato_manipulation_rev4.f`: `scatt_len` (table `sears91_gudrun.inc`); `ato_read_and_save.f`: `minitc`, `moloutc`"
+  ],
+  "rust": [
+    "`tools/nwts.rs`: `run`, `check_symbol_extra`, `scatt_len`, `read_isotopes`; `tools/sears91.rs` (scattering-length table)",
+    "`symbols.rs`: `read_input_file`, `save_inp_file`; `symtab_tools.rs`: keyword table `NWTS`",
+    "`ato.rs`: `read_ato`, `minitc`, `moloutc`"
+  ],
+  "system": "The EPSR-test mixture of 200 deuterated dimethyl sulphoxide and 400 water molecules (3200 atoms, 300 K, cubic box 33.12 Å) with six atom types: S, C, O and methyl H of DMSO, O1 and H1 of water. The three samples are d6-DMSO in D2O (H and H1 = 2H), d6-DMSO in H2O (H1 natural) and d6-DMSO in the null-scattering H2O/D2O mixture (H1 = 0.64 natural H + 0.36 2H), the isotope-substitution set of Soper and Luzar [@soperluzar1992] measured on ISIS SANDALS. `nwts` looks up the bound coherent scattering length of each isotope [@sears1992], averages the abundances, replaces the lengths of exchangeable H1 by the mean over all exchangeable hydrogens, and writes for each pair the intra- and intermolecular products of concentrations and scattering lengths in the Faber-Ziman convention [@faberziman1965] (`output 1`: per atom, `normtot 0`: not normalised).",
+  "inputs": "`200DMSO400Water.ato` and `DMSODWater{D,H,Null}.NWTS.dat` copied unchanged from EPSR-test (`nsamples 1`, `iexchange 1` for H1 only); `commands.txt` runs `nwts` once per file.",
+  "verification": "The stored reference holds the three files the Fortran writes with new content, `DMSODWater{D,H,Null}.NWTStot.wts` (the rewritten `.NWTS.dat` and `.ato` files come out unchanged). These Fortran weights are themselves byte-identical to the `.NWTStot.wts` files shipped with EPSR-test (checked with `cmp`), so the port reproduces the weights used by the EPSR-test refinement, e.g. 0.0811 for S-S and 0.4417 for C-C of the null sample.",
+  "refs": [
+    "soper2005",
+    "epsrmanual",
+    "soperluzar1992",
+    "sears1992",
+    "faberziman1965",
+    "gfortran"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "title": "alignmole on a box, stdin input",
+  "purpose": "Exercises `alignmole` [@epsrmanual] on several molecules with longer runs: the `ran1` sequence [@parkmiller1988,@numrec1992] carried over molecules and runs, the step-size adaptation every `niter/10` iterations, axis atoms given on the command line or re-read from stdin, axis and iteration count from stdin, and one-atom molecules for which `rotatm` does nothing.",
+  "fortran": [
+    "`alignmole.f`: `alignmole` (Monte Carlo loop, downhill-only acceptance, step-size adaptation every `niter/10` trials), `displacement` (mean square distance from the axis)",
+    "`molfit.f`: `rotatm` (random rotation of a molecule about its centre); `auxiliary_routines.f`: `ran1`",
+    "`ato_read_and_save.f`: `minitc`, `moloutc` (reading / rewriting the `.ato`, random-number state included)"
+  ],
+  "rust": [
+    "`tools/alignmole.rs`: `run`, `displacement`",
+    "`tools/groupc_common.rs`: `rotatm`, `moloutc`; `rng.rs`: `Ran1::ran1`",
+    "`ato.rs`: `State::minitc`"
+  ],
+  "system": "`box.ato`: 6 molecules in the order DMSO, water, DMSO, water, water, DMSO (39 atoms) in a cubic 25 Å box, each placed so that its first atom sits exactly at the molecule centre; with axis atoms `1 1` the displacement is identically zero, so every rotation is accepted while the molecules still rotate. `atoms.ato`: three one-atom molecules in a 20 Å box. Rotational step size 0.3 from the `box.ato` header.",
+  "inputs": "`box.ato` from a helper script (a one-off script that was not kept; the generated file is the input). Commands: `alignmole box.ato y 30 1 1` (step adapted at iterations 3, 6, ..., 30); `alignmole box.ato x 20 7 < box_atoms.stdin` (a single axis atom is not enough, the list `1 1` is read from stdin); `alignmole atoms.ato < atoms.stdin` (axis `z`, 20 iterations, all atoms).",
+  "verification": "Files compared: `box.ato` after both runs (coordinates and random-number state after 6 × 50 rotations) and `atoms.ato`. Compared against the original Fortran binary.",
+  "notes": "Limitation of the Fortran: a rejected trial rotation restores the molecule from the work arrays `xr, yr, zr`, which are allocated but never assigned, so uninitialised heap memory is copied into the coordinates; such runs cannot be reproduced (the port uses zero-filled arrays and prints a warning), and this case is designed so that no rotation is rejected. `niter < 10` makes the Fortran divide by zero (`naccum = niter/10`); the port reports an input error.",
+  "refs": [
+    "epsrmanual",
+    "parkmiller1988",
+    "numrec1992",
+    "gfortran"
+  ]
+}

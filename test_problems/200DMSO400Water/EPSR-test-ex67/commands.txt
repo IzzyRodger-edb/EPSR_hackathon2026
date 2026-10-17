@@ -1,0 +1,2 @@
+repeat 2
+lsi mix.LSI.dat

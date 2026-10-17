@@ -1,0 +1,8 @@
+# water (O-H bond entries set to 1.10 A) docked onto the C-H sites of DMSO: C-O bond formed,
+# random second rotation referenced to the nearest DMSO H; docked-site answers from stdin
+dockato WaterOH110.ato H1 O1 H1 3 10 DMSO.ato < dmso_random.stdin
+# fixed dihedral relative to the S atom -> DIH group, overlaps allowed
+dockato WaterOH110.ato H1 O1 H1 4 10 DMSO.ato C H S 180 180 yes dmsodih
+# no second rotation, overlap factor 0.9
+dockato WaterOH110.ato H1 O1 0 6 10 DMSO.ato C H 0 0 0 0.9 dmsonorot
+repeat 1

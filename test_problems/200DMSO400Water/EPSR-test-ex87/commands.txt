@@ -1,0 +1,6 @@
+# Qv bonding site listed as the FIRST atom (and first atom type): when the Qv atoms are
+# removed the remaining atom types are shifted down (clean_atom_types shift branch)
+dockato WaterQvA.ato Qv O1 H1 3 10 WaterQvA.ato O1 Qv H1 20 340 1.0 peroxideA
+# random rotation only on the docking side (atomvrr = 0), overlaps allowed
+dockato WaterQvA.ato Qv O1 H1 1 10 WaterQvA.ato O1 Qv 0 0 180 yes peroxideB
+repeat 1

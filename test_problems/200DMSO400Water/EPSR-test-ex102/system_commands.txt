@@ -1,0 +1,20 @@
+system_binaries C:\EPSR26\EPSR\bin
+system_jmol "C:\Program Files\Java\jre1.8.0_321\bin\javaw.exe" -jar C:\EPSR26\EPSR\bin\Jmol.jar
+system_gnu start C:\EPSR26\EPSR\bin\gnuplot\bin\gnuplot.exe 
+system_mopac C:\EPSR26\EPSR\bin\MOPAC_7.exe
+system_ls  dir/b
+system_cd  cd/d
+system_md  md
+system_edit "notepad"
+system_del  del
+system_termination \
+system_join  &&
+system_bin_ext .exe
+system_plot2d  map2d.exe
+system_plot3d  map3drot.exe
+system_plotato pgplotato.exe
+system_pgout /GIF
+gnu_pointtype 8
+gnu_pointsize 0.3
+
+

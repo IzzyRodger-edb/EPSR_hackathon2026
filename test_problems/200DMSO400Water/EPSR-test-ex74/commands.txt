@@ -1,0 +1,3 @@
+sdf sc.SDF.dat
+mapgr sc.mapgr.txt
+repeat 1

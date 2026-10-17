@@ -1,0 +1,5 @@
+sharm watdmso.SHARM.dat
+sharm orient.SHARM.dat
+mapgr watdmso.mapgr.txt
+mapgrentropy orient.mapgrentropy.dat
+repeat 2

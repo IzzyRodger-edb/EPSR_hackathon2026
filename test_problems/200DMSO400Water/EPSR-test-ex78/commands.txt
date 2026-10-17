@@ -1,0 +1,4 @@
+sdf dmsotest.SDF.dat
+sdf watso.SDF.dat
+mapgrentropy watso.mapgrentropy.dat
+repeat 2

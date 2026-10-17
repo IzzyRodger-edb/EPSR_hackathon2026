@@ -1,0 +1,22 @@
+{
+  "title": "readxyz: cell from the file, many elements, error paths",
+  "purpose": "Exercises `readxyz` [@epsrmanual] when the second line of the `.xyz` file defines the cell (`<word> a b c alpha beta gamma`), all branches of the default-parameter selection (H, O, N, C and other elements), the end of the coordinate list at a short line, the fallback to stdin when line 2 is not numeric, and the two error exits that write no `.ato` file.",
+  "fortran": [
+    "`readxyz.f`: `run_readxyz` (command line, file search), `readxyz` (parsing of the `.xyz` file, cell from line 2 or stdin, one molecule per atom)",
+    "`auxiliary_routines.f`: `convertalphabetagamma` (a b c alpha beta gamma -> EPSR cell angles)",
+    "`ato_manipulation_rev4.f`: `ctype`, `ftype` (atom types with default parameters), `centreofmass`",
+    "`ato_read_and_save.f`: `moloutc` (writing the `.ato`, non-cubic header)"
+  ],
+  "rust": [
+    "`tools/readxyz.rs`: `run`, `readxyz`, `set_type_parameters` (the `ctype` calls)",
+    "`tools/groupc_common.rs`: `convertalphabetagamma`, `setup_lattice`, `centreofmass`, `moloutc`, `chsymbol`/`chatwt` (103 elements)",
+    "`ato.rs`: `State::ctype`, `State::ftype`"
+  ],
+  "system": "Hand-made coordinate sets, no physical simulation. `mixture.xyz`: 12 atoms of 9 elements (N, H, Na, Cl, C, O, K, Br, F; an NH3-like group, a CO2-like triple and isolated atoms) in a triclinic cell 18.5 × 19.0 × 21.2 Å, 88°, 92.5°, 105°. `titled.xyz`: a water molecule and an S atom (4 atoms) in a hexagonal cell 12 × 13 × 14 Å, 90°, 90°, 120°. Default parameters: O eps 0.65 kJ/mol, sigma 3.1 Å; N 0.7, 3.2; C 0.8, 3.7; other elements 0.8, 3.2 with the tabulated atomic mass; H 0, 0, mass 2.",
+  "inputs": "`readxyz mixture.xyz` (cell on line 2; coordinate list ended by a blank line); `readxyz titled.xyz < titled.stdin` (line 2 has seven non-numeric words -> read error -> cell from stdin); `readxyz badlabel.xyz` (label `Xx` is not a chemical symbol -> 'Problems with .xyz file'); `readxyz short.xyz` (5 atoms announced, 2 given).",
+  "verification": "Outputs compared: `mixture.ato` (12 molecules, EPSR cell angles 105°, 2.866°, 150.735° in the header) and `titled.ato` (120°, 0°, 0°); for the two error cases both programs write no file. Fortran reference: the original `readxyz`/`readpdb` binaries crash (SIGSEGV) at the first call of `ctype`, which has optional arguments but is called with 11 of its 13 arguments without an explicit interface (gfortran passes the hidden character lengths where `radmaxsph`/`pseudofacsph` are expected). The reference was therefore produced with an explicit `INTERFACE` block for `ctype` added to the program (no other change; absent arguments mean `radmaxsphere = 0.5*sigcor`, `pseudofacmol = 1`), built by `rust/tools/build_patched_readxyz_readpdb.sh`; the comparison is against this patched build, not the original binary.",
+  "refs": [
+    "epsrmanual",
+    "gfortran"
+  ]
+}

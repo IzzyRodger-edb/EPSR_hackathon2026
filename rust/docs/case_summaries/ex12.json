@@ -1,0 +1,25 @@
+{
+  "title": "Modified Morse additional potentials (addpottype modmorse)",
+  "purpose": "Same additional pair potentials as ex11, but with `addpottype modmorse` in the `.pcof`, which makes the `epsr` engine [@soper1996,@soper2005] evaluate the first additional term of each pair with EPSR's `gauss6pot` well instead of a Gaussian; further terms stay Gaussian [@epsrmanual].",
+  "fortran": [
+    "`read_and_save_files.f`: `read_pcof` (`(r, w, h)` triples after `rminex pcoefex coordex`; negative r or w sets `efacp` = 0), `save_files_others` (`(3(1x,f10.5),N(1x,f9.4,1x,f9.4,1x,e11.4))` format)",
+    "`epsr_standalone_rev3.f`: `generate_rp` (`addpotential = 'modmorse'` branch for the first term), `ptgnsq`, `generate_ep`",
+    "`ato_manipulation_rev4.f`: `gauss6pot`, `chsph`"
+  ],
+  "rust": [
+    "`pcof.rs`: `read_pcof`, `write_pcof_pairs`",
+    "`potential.rs`: `generate_rp`, `gauss6pot`, `chsph`, `ptgnsq`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. Additional terms on S-O1 (two terms: r 3.5 Å, w 0.2 Å, h 0.3 and r 4.5 Å, w 0.3 Å, h -0.2), C-C (r -3.0, w 0.3, h 0.1) and water O-H (r 1.8, w 0.15, h -0.5). The first term of each pair becomes |h|·gauss6pot(r; r0, w): with x = r/r0, exp(-(x²-1)/(2w²)) minus the sixth power of EPSR's charged-sphere overlap function, w capped at 0.29. The C-C pair again has its EP switched off (`efacp` = 0).",
+  "inputs": "The ex11 `.pcof` with `addpottype modmorse` (instead of `Gaussian`) in its header; all other files as in EPSR-test.",
+  "verification": "Two chained passes. The `.pcof` written by the Fortran keeps `addpottype modmorse` and the triples; all 27 output files are identical after both passes.",
+  "notes": "Fortran behaviour reproduced: the sign of h is dropped for the modified-Morse term (|h| is used, so the O-H well with h = -0.5 becomes positive), and widths above 0.29 are clamped.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

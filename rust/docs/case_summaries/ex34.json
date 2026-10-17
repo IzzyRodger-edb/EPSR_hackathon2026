@@ -1,0 +1,25 @@
+{
+  "title": "fmole: prompts, repulsive core, missing template",
+  "purpose": "Exercises further `fmole` paths [@epsrmanual]: the file name and number of shakes typed on stdin, the intramolecular repulsive core potential switched on through the `ecore dcore` line of the `.ato` file, and a molecule whose template file is missing. This complements the standard route of ex33 for the geometry relaxation used before EPSR runs [@soper2005].",
+  "fortran": [
+    "`fmole.f`: `fmole` (stdin prompts), `initpt_fmole`, `update_ato` (template cannot be opened: bonds kept)",
+    "`ato_manipulation_rev4.f`: `generate_mp` (repulsive core from `ecore`, `dcore`), `fmolec1`, `adjust_intra_wts`",
+    "`molfit.f`: `molfit`; `file_and_directory_commands.f`: `search_for_files` (file prompt / directory listing), `get_full_filename`",
+    "`ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`)"
+  ],
+  "rust": [
+    "`tools/fmole.rs`: `run`, `initpt_fmole`, `update_ato`",
+    "`potential.rs`: `generate_mp`; `energy.rs`: `fmolec1`, `adjust_intra_wts`; `montecarlo.rs`: `molfit`",
+    "`tools/setup_common.rs`: `search_for_files`, `get_full_filename`, `command_text`, `read_text`; `ato.rs`: `minitc`, `moloutc`, `ftype`"
+  ],
+  "system": "Single molecules of the EPSR-test system [@soperluzar1992] at 300 K: one dimethyl sulphoxide molecule (10 atoms, box 21.544 Å) and one water molecule (3 atoms, box 14.422 Å). In `DMSOcore.ato` the `ecore dcore` line is set to 0.3 2.5 (instead of 0 0), so the repulsive Weeks-Chandler-Andersen-type core of `generate_mp` [@wca1971] acts on the non-bonded H...H pairs in addition to the harmonic bond and angle restraints.",
+  "inputs": "`DMSO.ato` from EPSR-test; `DMSOcore.ato` = `DMSO.ato` with `ecore dcore = 0.3 2.5` (the only changed line); `Water.ato` = `WaterMolecule.ato` renamed, so its template is absent. Commands: `fmole < fmole1.stdin` (file `DMSOcore` typed — no listing — and 150 shakes asked on stdin) and `fmole Water < fmole2.stdin` (30 shakes); `update_ato` cannot open the template and keeps the bonds of the file.",
+  "verification": "Two program calls in one pass; compared outputs: the rewritten `DMSOcore.ato` and `Water.ato` and the empty `dirlist.txt`, identical including coordinates and the random-number state.",
+  "refs": [
+    "epsrmanual",
+    "soper2005",
+    "soperluzar1992",
+    "wca1971",
+    "gfortran"
+  ]
+}

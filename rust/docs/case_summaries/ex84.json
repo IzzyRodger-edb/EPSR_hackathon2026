@@ -1,0 +1,26 @@
+{
+  "title": "dockato: water docked into the 200 DMSO + 400 water box",
+  "purpose": "`dockato` [@epsrmanual] builds larger molecules from `.ato` building blocks: copies of the first molecule of a docking file are bonded onto free sites of a docked file, removing one atom of each to form the new bond. This case docks into a full simulation box, where the overlap test uses minimum-image distances.",
+  "fortran": [
+    "`dockato.f`: `dockato` (driver, parameters from command line or stdin), `rotatem`, `random_rotatem`, `search_unsaturated`, `find_valence`",
+    "`dockato.f`: `test_overlap`, `bond_molecule` (ROT/DIH groups), `replace_references`, `add_neighbours`, `remove_atoms`, `clean_atom_types`",
+    "`ato_manipulation_rev4.f`: `get_direct_bonds`, `get_rotgrp`, `centreofmass`, `ftype`; `ato_read_and_save.f`: `moloutc`; `minimagec.f`: `minimagec`"
+  ],
+  "rust": [
+    "`tools/dockato.rs`: `run`, `rotatem`, `random_rotatem`, `search_unsaturated`, `find_valence`, `test_overlap`",
+    "`tools/dockato.rs`: `bond_molecule`, `replace_references`, `add_neighbours`, `remove_atoms`, `clean_atom_types`, `get_direct_bonds`, `get_rotgrp`",
+    "`ato.rs`: `State::moloutc` (ROT/DIH groups), `State::ftype`; `rng.rs`: `Ran1::ran1`"
+  ],
+  "system": "The EPSR-test configuration `200DMSO400Water.ato`: 200 DMSO (atoms S, C, C, O, 6 H) and 400 water molecules (O1, H1, H1; SPC/E parameters [@berendsen1987]), 3200 atoms at 300 K in a cubic box of side 33.12 Å, a model of the DMSO-water mixtures of Soper and Luzar [@soperluzar1992]. Atom `atomd` of the new molecule is placed on `atomv`, the molecule is rotated so that its `atomdr` neighbour lies on the `atomvr` neighbour of `atomv` (equal bond lengths required), an optional second (dihedral) rotation about the new bond uses `atomdrr`/`atomvrr` (random angle in [dminrr, dmaxrr] from `ran1`, the Park-Miller generator with Bays-Durham shuffle [@parkmiller1988,@numrec1992], or a fixed dihedral that creates a DIH group when dminrr = dmaxrr), overlaps are tested with a distance factor, `atomd` and `atomvr` are removed and the new rotational group, bonds and atom types are updated. A single water is bonded O-O onto one water of the box.",
+  "inputs": "`WaterMolecule.ato` and `200DMSO400Water.ato` from EPSR-test, all parameters on the command line, one molecule per run (ndock = 1): run 1 dihedral 30-150°, factor 1.0; run 2 factor 0.6; run 3 overlaps allowed, fixed dihedral 60° (DIH group).",
+  "verification": "Each run writes one new `.ato` file (coordinates, bonds, rotational groups, atom types and the random-number state), compared byte for byte with the stored Fortran output. With factor 1.0, hundreds of candidate water sites are rejected by `test_overlap` before one is accepted (README). Each output keeps 600 molecules and holds 3201 atoms (one water added, two H removed) and 401 rotational groups.",
+  "notes": "Fortran behaviour reproduced: `nal(imv)` of the docked molecule is extended although the new atoms are at the end of the atom list, so molecule atom ranges overlap. With ndock > 1 on this box the Fortran writes `moltemplate(0)` (out of bounds); the port refuses that case, hence ndock = 1.",
+  "refs": [
+    "epsrmanual",
+    "soperluzar1992",
+    "berendsen1987",
+    "parkmiller1988",
+    "numrec1992",
+    "gfortran"
+  ]
+}

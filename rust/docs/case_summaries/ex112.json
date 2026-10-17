@@ -1,0 +1,25 @@
+{
+  "title": "Three-body potentials on DMSO, zero amplitudes, molecule shakes",
+  "purpose": "Exercises three-body groups centred on DMSO in the `epsr` engine [@soper1996,@soper2005,@epsrmanual], groups with zero amplitude, and the interplay of triplet energies with methyl internal rotations and intramolecular moves.",
+  "fortran": [
+    "`threebody_mod.f90`: `find_triplets`, `en_mole_triplets`, `pr_mole_triplets`, `save_threeb_energies`, `get_triplet_pot_cons`",
+    "`read_and_save_files.f`: `read_pcof` (`tb` lines), `save_files_others` (re-reads and writes them)",
+    "`ato_manipulation_rev4.f`: `fmolec1`, `press` (three-body energy/pressure); `molfit.f`: `en_change`"
+  ],
+  "rust": [
+    "`threebody.rs`: `read_pcof_threebody`, `write_pcof_threebody`, `find_triplets`, `en_mole_triplets`, `pr_mole_triplets`, `save_threeb_energies`, `en_change_triplets`",
+    "`energy.rs`: `fmolec1`, `en_change`, `press`; `pcof.rs`: `read_pcof`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. A `tb A1 A2 A3 amp awidth rwidth rmax12 rmax32 s12 s23 s13 ang1 amp1 ...` line in the `.pcof` adds an angular energy `amp*ampN*0.5*((cos theta - cosN)/awidth)²` to every triplet A1-A2-A3 (A2 the centre) within the distance limits, for the requested angle N closest to theta; the flags select same or different molecules. Groups: DMSO S-C-O (107°, amplitude 0), C-S-C (97°, angle amplitude 0) and methyl C-H···O1(water) contacts (180° and 150°).",
+  "inputs": "EPSR-test with the three `tb` lines appended to the `.pcof`; `.EPSR.inp` with `ntimes 6` and `intra 3` (several molecule shakes per pass). `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 2`.",
+  "verification": "The zero-amplitude groups find triplets but contribute nothing (`abs(threebamp) > 0` tests, \"Energy for each triplet\" = 0). The methyl H atoms move in internal rotations, so `save_threeb_energies` after accepted internal rotations is exercised; intramolecular moves do not update triplet energies and `fmolec1` is re-run after each shake.",
+  "notes": "Reproduced: `read_pcof` stores cosines and width 1.0, but `save_files_others` re-reads the `tb` symbol at the end of each iteration and stores angles and width in radians, so later iterations use different triplet energies.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

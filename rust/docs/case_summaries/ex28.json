@@ -1,0 +1,21 @@
+{
+  "title": "makemole: building the EPSR-test molecules",
+  "purpose": "Exercises `makemole`, which converts a molecule template (`.mol`, here of the `.gmol` type) into a single-molecule `.ato` file: it turns the bond lengths and bond angles into the intramolecular distance constraints that EPSR uses to keep molecules flexible but intact, sets up rotational groups and attaches the reference-potential parameters [@epsrmanual]. These single molecules are the building blocks from which `makeato`/`mixato` build the simulation box.",
+  "fortran": [
+    "`makemole.f` -> `ato_manipulation_rev4.f`: `makemole` (template reading, constraints, `changelabel`, `potential` lines, box from `density`)",
+    "`ato_manipulation_rev4.f`: `get_rotgrp` (atoms that move with a rotation about a bond), `ftype`",
+    "`ato_read_and_save.f`: `moloutc` (writing the `.ato` file)"
+  ],
+  "rust": [
+    "`tools/makemole.rs`: `run`, `get_rotgrp`, `get_whole_rotgrp`",
+    "`ato.rs`: `ftype`, `moloutc`"
+  ],
+  "system": "The two molecules of EPSR-test. Dimethyl sulphoxide: 10 atoms (S, two C, O, six H) with 9 bonds, 15 angles, the two methyl rotational groups (`rot 1 2`, `rot 1 3`) and Lennard-Jones + charge parameters (S: epsilon 0.84517 kJ/mol, sigma 3.56 Å, q = +0.54 e; O: q = -0.54 e). Water: O1 and two H1 with O-H 0.976 Å and H-O-H 104.5°, SPC/E Lennard-Jones and charges (epsilon 0.65 kJ/mol, sigma 3.166 Å, q(O) = -0.8476 e) [@berendsen1987]. Both files specify 300 K, `vibtemp 65`, `density 0.001` atoms/Å³, so the single molecules sit in cubic boxes of 21.544 Å (DMSO) and 14.422 Å (water).",
+  "inputs": "`DMSO.mol` and `WaterMolecule.mol` copied from EPSR-test; the second command gives the file name without the `.mol` extension. No standard input is needed because every bond, angle and potential is specified.",
+  "verification": "One pass of two `makemole` calls; compared files: `DMSO.ato` and `WaterMolecule.ato` (the rewritten `.mol` files come out unchanged). The `.ato` files contain the per-atom constraint lists (e.g. 9 constraints for S) and the rotational groups, so identical files verify the constraint derivation. They differ from the `.ato` files stored in EPSR-test, which were processed further after `makemole`.",
+  "refs": [
+    "epsrmanual",
+    "berendsen1987",
+    "gfortran"
+  ]
+}

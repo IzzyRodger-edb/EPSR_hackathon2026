@@ -1,0 +1,8 @@
+# EPSR-style bonding sites: a "Qv" dummy atom marks the site on each molecule.
+# Qv(docking) is placed on O1(docked), the docking O1 is rotated onto the docked Qv,
+# both Qv atoms are removed and an O-O bond is formed. The Qv atom type vanishes;
+# the second docking finds no free site.
+dockato WaterQv.ato Qv O1 H1 2 10 WaterQv.ato O1 Qv H1 0 360 1.0 peroxide
+# same with a fixed dihedral (H-O-O-H = 110 deg) -> DIH group; answers from stdin
+dockato WaterQv.ato Qv O1 H1 1 10 WaterQv.ato < fixed.stdin
+repeat 1

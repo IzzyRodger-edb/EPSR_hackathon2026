@@ -1,0 +1,4 @@
+makelattice NaCl.cell 2 2 2 < ml1.stdin
+makelattice < ml2.stdin
+makelattice < ml3.stdin
+repeat 1

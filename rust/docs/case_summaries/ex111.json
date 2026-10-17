@@ -1,0 +1,25 @@
+{
+  "title": "Three-body potentials: several groups, several angles",
+  "purpose": "Exercises several simultaneous three-body groups in the `epsr` engine [@soper1996,@soper2005,@epsrmanual]: inter- and intramolecular triplets, more than one requested angle per group, negative amplitudes and lines that must be ignored.",
+  "fortran": [
+    "`threebody_mod.f90`: `find_triplets`, `en_mole_triplets`, `pr_mole_triplets`, `save_threeb_energies`, `get_triplet_pot_cons`",
+    "`read_and_save_files.f`: `read_pcof` (`tb` lines), `save_files_others` (re-reads and writes them)",
+    "`ato_manipulation_rev4.f`: `fmolec1`, `press` (three-body energy/pressure); `molfit.f`: `en_change`"
+  ],
+  "rust": [
+    "`threebody.rs`: `read_pcof_threebody`, `write_pcof_threebody`, `find_triplets`, `en_mole_triplets`, `pr_mole_triplets`, `save_threeb_energies`, `en_change_triplets`",
+    "`energy.rs`: `fmolec1`, `en_change`, `press`; `pcof.rs`: `read_pcof`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. A `tb A1 A2 A3 amp awidth rwidth rmax12 rmax32 s12 s23 s13 ang1 amp1 ...` line in the `.pcof` adds an angular energy `amp*ampN*0.5*((cos theta - cosN)/awidth)²` to every triplet A1-A2-A3 (A2 the centre) within the distance limits, for the requested angle N closest to theta; the flags select same or different molecules. Groups: water O1···O1···O1 network angle on three different molecules (109.5° and 60°); intramolecular water H1-O1-H1 (104.5°); water O1-H1···O(DMSO) with five angles (180°-100°, one amplitude negative).",
+  "inputs": "EPSR-test with five lines appended to the `.pcof`: the three `tb` groups, a comment line and a truncated `tb O1 H1` line; `niter 2`. `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 3`.",
+  "verification": "Exercised: nearest-angle selection with several angles, `im1 /= im2` neighbour bookkeeping, the purely intramolecular group (no triplet neighbours), the `ia3 /= ia1` rule for different end types, rejection of lines that are not valid `tb` groups, and the run-time output FORMAT for 5 angles (`*(1x,f7.2)`, unlimited repeat). The README quotes a three-body energy of ~712 kJ/mol per molecule in the last `.out`.",
+  "notes": "Reproduced: `read_pcof` stores cosines and width 1.0, but `save_files_others` re-reads the `tb` symbol at the end of each iteration and stores angles and width in radians, so later iterations use different triplet energies. The negative amplitude is made positive by `read_pcof` but re-read without `abs`, so it is negative from the second iteration and written back as -0.50.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

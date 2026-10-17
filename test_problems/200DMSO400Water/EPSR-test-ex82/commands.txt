@@ -1,0 +1,5 @@
+# no second rotation (atoms '0', angles 0 0), "nooverlaps" (= factor 1.0)
+dockato WaterMolecule.ato H1 O1 0 3 10 WaterMolecule.ato O1 H1 0 0 0 nooverlaps waternorot
+# second rotation atom only on docking molecule (atomvrr = 0): random rotation by the angle itself
+dockato WaterMolecule.ato H1 O1 H1 3 10 WaterMolecule.ato O1 H1 0 10 170 1.0 waterhalf
+repeat 1

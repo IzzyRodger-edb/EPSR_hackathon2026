@@ -1,0 +1,25 @@
+{
+  "title": "Tethered molecules and dihedral (DIH) groups",
+  "purpose": "Exercises two `.ato` features of the `epsr` engine [@soper1996,@soper2005]: tethered molecules, whose tether atom must stay within `tol` of a fixed point, and `DIH` rotational groups, whose rotations carry a dihedral-angle restraint. Users tether molecules to model adsorption sites or fixed solutes and use DIH groups to keep a conformation [@epsrmanual].",
+  "fortran": [
+    "`ato_read_and_save.f`: `minitc` (`T00001` flag, `tol`, DIH groups), `moloutc` (writes them back), `normalise_coordinates` (wrapping of tether points)",
+    "`molfit.f`: `check_tethered` (move rejection), `en_mole_dihedral`, `en_dihedral`, `molfit`",
+    "`ato_manipulation_rev4.f`: `en_tethered`, `fmolec1` (`ftethered` reported in `.out`)"
+  ],
+  "rust": [
+    "`ato.rs`: `State::minitc`, `moloutc`, `normalise_coordinates`",
+    "`energy.rs`: `check_tethered`, `en_tethered`, `en_change_tethered`, `en_mole_dihedral`, `en_dihedral`",
+    "`montecarlo.rs`: `molfit`; `epsr.rs`: `wrap_molecules`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. In this case atom 1 (S) of each of the first 20 DMSO molecules is tethered to the initial molecular centre with tolerance `tol` = 0.5 Å, and both methyl groups of all 200 DMSO molecules are `DIH` groups about the C-S axis with an O-S-C-H dihedral target of 180°, restrained by (cos phi - cos phi0)² + (sin phi - sin phi0)².",
+  "inputs": "Copy of EPSR-test with only the `.ato` changed: `tol` 0.5 (first value of header line 2), the 20 first DMSO lines get `T00001` and tether coordinates equal to their centres, and every `ROT` group is turned into a `DIH` group with one dihedral `4 5 180.000` / `4 8 180.000`.",
+  "verification": "Three chained passes, each re-reading the tether flags, tether points and DIH groups written by `moloutc`. In the Fortran reference the `.out` reports a non-zero tethered energy (7.0E-06 per molecule), the molecule centres moved while the tether points are unchanged, and the 20 `T00001` flags and 400 DIH groups are written back. All 27 output files are identical after every pass.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Container forces (rmaxex / pcoefexmax)",
+  "purpose": "Exercises the container-force module of the `epsr` engine of EPSR [@soper1996,@soper2005]: a pair line in the `.pcof` file with five numbers (`rminex pcoefex coordex rmaxex pcoefexmax`) attaches every atom of one type to the nearest pseudo (Q) site of another type once it is further than `rmaxex` away. The case checks reading and writing of these lines, the extra energy term in the Monte Carlo acceptance, and the feedback of the number of escaped atoms into the force amplitude between passes.",
+  "fortran": [
+    "`containerforces_mod.f90`: `get_containerforce_list`, `en_containerforce`, `dist_containerforce`",
+    "`read_and_save_files.f`: `read_pcof` (5-number pair lines), `save_files_others` (writing them back)",
+    "`epsr_standalone_rev3.f`: `generate_rp` (builds the container lists), `repulsivept` (`pcoefexmax := potexmax`)",
+    "`ato_manipulation_rev4.f`: `fmolec1` (container energy per molecule), `atogen` (count of atoms beyond `rmaxex`); `molfit.f`: `en_change`"
+  ],
+  "rust": [
+    "`containerforces.rs` (new): `ContainerForces`, `get_containerforce_list`, `en_containerforce`, `dist_containerforce`",
+    "`pcof.rs`: `read_pcof`, `write_pcof_pairs`; `potential.rs`: `generate_rp`, `generate_mp`, `repulsivept`",
+    "`energy.rs`: `fmolec1`, `en_change`; `structure.rs`: `atogen`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case each DMSO molecule carries one extra, massless and uncharged Q site at its sulphur position, and the container force pulls any water oxygen further than 4 Å from the nearest DMSO Q site back towards it, with an exponential energy pcoefexmax·exp((r - rmaxex)/(expecf·sqrt(rmaxex))).",
+  "inputs": "Generated from EPSR-test by `scripts/make_ex15.py ../../../EPSR-test . 4.0 0.5`: Q site and Q atom type added to every DMSO in the `.ato` file, the seven Q-x pairs added to the `.pcof` file (28 pairs), Q-O1 given `rmaxex = 4.0` and `pcoefexmax = 0.5`, and `iinit 1` (the stored accumulators of EPSR-test have only 21 pairs).",
+  "verification": "The force is active: after pass 1 the Fortran (and the port) writes `pcoefexmax = 98` for Q-O1, the number of water oxygens found beyond 4 Å, so pass 2 runs with a much stronger force; the container energy enters `fmolec1` and every move decision of `en_change`. The 27 files written (configuration `.ato` with the random-number state, `.pcof`, energies, g(r), S(Q), potentials, `.out`) are identical after both passes.",
+  "notes": "Fortran behaviour reproduced deliberately: `ergold_container` is only updated by `fmolec1`, never after an accepted move.",
+  "refs": ["soper1996", "soper2005", "soperluzar1992", "berendsen1987", "epsrmanual", "gfortran"]
+}

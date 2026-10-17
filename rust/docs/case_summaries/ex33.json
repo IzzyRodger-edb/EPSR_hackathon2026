@@ -1,0 +1,27 @@
+{
+  "title": "mixato + fmole: intramolecular shaking",
+  "purpose": "Exercises `fmole`, the EPSR tool [@epsrmanual] that relaxes molecular geometries by intramolecular Monte Carlo [@metropolis1953] before an EPSR run [@soper1996,@soper2005], following the standard route: build a box with `mixato`, then shake it, and shake a single molecule including rotations of its rotational groups.",
+  "fortran": [
+    "`fmole.f`: `fmole`, `initpt_fmole` (intramolecular potential tables), `update_ato` (refresh from templates)",
+    "`molfit.f`: `molfit` (atom moves, `rotati` internal rotations); `ato_manipulation_rev4.f`: `fmolec1`, `adjust_intra_wts`, `generate_mp`, `makemole`",
+    "`cellneighbourlist.f`: `initialise_cellneighbourlist`; `minimagec.f`: `minimagec`",
+    "`mixato.f`: `mixato`; `ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`)"
+  ],
+  "rust": [
+    "`tools/fmole.rs`: `run`, `initpt_fmole`, `update_ato`, `read_template`, `makemole_template`",
+    "`montecarlo.rs`: `molfit`; `energy.rs`: `fmolec1`, `adjust_intra_wts`; `potential.rs`: `generate_mp`",
+    "`neighbour.rs`: `initialise_cellneighbourlist`, `minimagec`; `tools/mixato.rs`: `run`; `ato.rs`: `minitc`, `moloutc`, `ftype`"
+  ],
+  "system": "Molecules of the EPSR-test DMSO-water system [@soperluzar1992]: a box of 10 DMSO + 20 water (160 atoms) at 0.1 atoms/Å³ and 300 K, cubic side 11.696 Å (`mixbox.ato`), and a single DMSO molecule (`DMSO.ato`, box 21.544 Å) with two methyl rotational groups. `fmole` moves atoms under the intramolecular energy only (harmonic bond and angle restraints plus the repulsive core of `generate_mp`) with a Metropolis test; internal rotations are used only for a single molecule: `fmole.f` sets `stepri = 0` when nmol > 1, since intermolecular forces are not defined in `fmole`.",
+  "inputs": "`DMSO.ato` and `WaterMolecule.ato` from EPSR-test and `mixato.stdin` (2 files, 10 DMSO, 20 water, density 0.1, output `mixbox`). Commands: `mixato < mixato.stdin`, `fmole mixbox.ato 50` (50 shakes of the 30-molecule box; templates read by `update_ato`), `fmole DMSO 200` (200 shakes with CH3 rotations; the whole-molecule and rotation step sizes are set to zero during `fmole` and restored afterwards, so the step-size line of the `.ato` is unchanged).",
+  "verification": "Three program calls in one pass. Compared outputs: `mixbox.ato`, the rewritten `DMSO.ato` and `dirlist.txt` — coordinates, step sizes and random-number state are all identical. The shakes are effective: the atom coordinates of `DMSO.ato` in the Fortran reference differ from the input file (e.g. the first atom's offset changes from -0.2807 to -0.2054 Å in x).",
+  "notes": "No `.mol` files are present, so the `makemole` call that `fmole` makes for each template does nothing, as in the Fortran; the port stops with an \"unsupported\" error if a `.mol` file exists.",
+  "refs": [
+    "epsrmanual",
+    "metropolis1953",
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

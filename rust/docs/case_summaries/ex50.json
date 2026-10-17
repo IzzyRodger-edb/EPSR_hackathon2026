@@ -1,0 +1,26 @@
+{
+  "title": "partials: all 21 site-site g(r), chained accumulation",
+  "purpose": "Exercises `partials`, the EPSR analysis program [@epsrmanual] that computes the intermolecular site-site radial distribution functions g(r) of every pair of atom types of an `.ato` configuration and averages them over successive configurations (`nsumt`). This is how an EPSR user obtains the partial g(r) of the refined model [@soper2005].",
+  "fortran": [
+    "`partials.f`: `run_partials` (keywords, normalisation, pair list), `find_partials` (minimum-image pair histograms)",
+    "`read_and_save_files.f`: `read_input_file`, `initgofz`, `outgofz` (histogram file, running average and spread), `save_files_others`; `auxiliary_routines.f`: `r_int`",
+    "`setup_symbols_generic.f`: `setup_symbols_partials` (keyword table); `ato_read_and_save.f`: `normalise_coordinates`"
+  ],
+  "rust": [
+    "`tools/partials.rs`: `run`, `find_partials`",
+    "`tools/anal_common.rs`: `outgofz`, `write_fort14`",
+    "`symbols.rs`: `setup_input_file`, `read_input_file`, `save_inp_file`; `output.rs`: `r_int`; `symtab_tools.rs`: `PARTIALS`"
+  ],
+  "system": "Analysed configuration: `200DMSO400Water.ato`, an unchanged copy of the EPSR-test box of 200 dimethyl sulphoxide (DMSO; atom types S, O, C, H) and 400 water molecules (O1, H1): 3200 atoms, DMSO mole fraction 1/3, 300 K, cubic box of side 33.1213 Å (0.0881 atoms/Å³), the EPSR model of the deuterated DMSO-water neutron data (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), cf. [@soperluzar1992]. With no centre atom (`atom-c`, `atom-z`, `atom-r` all `*`) the program histograms all intermolecular distances of each of the 6·7/2 = 21 type pairs and divides by the ideal-gas number in each shell, giving g(r) [@hansenmcdonald2006,@allentildesley1987] on 300 points out to half the box side (`rnormalise 1.0`; the reference r grid ends at 16.56 Å).",
+  "inputs": "`all.PARTIALS.dat` written by hand from the defaults printed by the Fortran program: `nz 300`, `rnormalise 1.0`, `nsumt 0`, `atom-c/z/r *`, `ndist 1` (recomputed by the program); `200DMSO400Water.ato` copied unchanged from EPSR-test.",
+  "verification": "`repeat 2`: pass 1 starts the accumulation (`nsumt 0`), pass 2 reads `all.PARTIALS.g01` back through `r_int` and forms the running average and spread in `outgofz`. Compared after each pass: `all.PARTIALS.g01` (21 g(r) with their spreads), the rewritten `all.PARTIALS.dat` (the Fortran reference after pass 2 has `nsumt 2`, `ndist 21`) and `fort.14`, the list of the 21 pairs S-S ... H1-H1. The configuration is the same in every pass, so the chained passes test the read-back of the accumulated file and the running-average arithmetic.",
+  "notes": "`fort.14`: the Fortran writes these lines to unit 14 after `save_files_others` has closed it, so gfortran creates the default file `fort.14`; the port writes the same file.",
+  "refs": [
+    "epsrmanual",
+    "soper2005",
+    "soperluzar1992",
+    "hansenmcdonald2006",
+    "allentildesley1987",
+    "gfortran"
+  ]
+}

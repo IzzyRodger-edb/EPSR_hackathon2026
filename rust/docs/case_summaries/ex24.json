@@ -1,0 +1,24 @@
+{
+  "title": "epsrwts: interactive neutron weights",
+  "purpose": "Exercises `epsrwts`, the older interactive counterpart of `nwts`: every isotopic composition, exchange flag, substitution, mixing fraction, file name and normalisation choice is typed at prompts. It writes the same kinds of neutron weights files (single sample, first- and second-order differences) used by `epsr` [@soper2005,@epsrmanual], and the case drives all its input-validation loops from scripted standard input.",
+  "fortran": [
+    "`epsrwts.f`: `epsrwts` (prompts with `iostat` re-asking, isotope abundances, exchange averaging, `<base>tot*.wts`, `dif`, `xx/xy/yy`; isotope-resolved intramolecular H-H weights)",
+    "`ato_manipulation_rev4.f`: `scatt_len` (table `sears91_gudrun.inc`)",
+    "`ato_read_and_save.f`: `minitc`, `moloutc`; `file_and_directory_commands.f`: `get_full_filename`"
+  ],
+  "rust": [
+    "`tools/epsrwts.rs`: `run`, `rd_int_err`, `rd_real_err` (re-asking on invalid answers)",
+    "`tools/nwts.rs`: `scatt_len` (shared); `ato.rs`: `minitc`, `moloutc`"
+  ],
+  "system": "The EPSR-test mixture of 200 DMSO and 400 water molecules (3200 atoms; types S, C, O, H, O1, H1). The scripted experiments: `case1` - one sample, per atom, D on methyl H and on exchangeable H1, not normalised; `case2` - two samples per molecule with two-isotope C and H compositions, H and H1 substituted, normalised totals and difference; `case3` - three samples (second-order difference, mixing fraction 0.5) per molecule; `case4` - three samples per atom with non-exchanging H and H1 carrying the same 1H/2H mixture, S and H substituted, mixing fraction 0.3. Scattering lengths after Sears [@sears1992]; Faber-Ziman pair weights [@faberziman1965].",
+  "inputs": "`200DMSO400Water.ato` from EPSR-test and four answer files `case{1..4}.stdin`. `case2` deliberately gives an invalid sample count (5), an invalid exchange flag (7), an unknown mass number (99), a non-numeric answer (`x`) and a base name with leading blanks and extra words (`  HD2  extra`); it also names the `.ato` file without extension.",
+  "verification": "One pass of four `epsrwts` calls; 17 files compared: `D1tot.wts`, `HD2tot1/2.wts`, `HD2dif.wts`, `X3tot1/2/3.wts`, `X3xx/xy/yy.wts`, the six `X4*.wts` files and the rewritten `.ato` file. All re-asked answers lead to the same output names and values in both codes.",
+  "notes": "Reproduced Fortran behaviour: for a component with two isotopes only the last abundance is normalised (README).",
+  "refs": [
+    "soper2005",
+    "epsrmanual",
+    "sears1992",
+    "faberziman1965",
+    "gfortran"
+  ]
+}

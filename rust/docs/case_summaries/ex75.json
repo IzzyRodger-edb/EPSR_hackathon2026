@@ -1,0 +1,24 @@
+{
+  "title": "sdfcube water-water (identical), chained 6 times",
+  "purpose": "Exercises `sdfcube` [@epsrmanual], which computes the spatial density function of one molecule type around another directly on a 3D grid for visualisation, including accumulation of the cube over a chained run.",
+  "fortran": [
+    "`sdfcube.f`: `run_sdfcube`, `sdfcube` (grid histogram), `initcube`, `outcube` (cube file, accumulation)",
+    "`sharm_routines_rev1.f`: `form_eulerangles`; `auxiliary_routines.f`: `rotateeuler`; `process_symbols.f`: `check_symbol`",
+    "`setup_symbols_generic.f`: `setup_symbols_sdfcube`"
+  ],
+  "rust": [
+    "`tools/sdfcube.rs`: `run`, `sdfcube`, `initcube`, `outcube`",
+    "`tools/sharm_routines.rs`: `form_eulerangles`, `rotateeuler`, `write_mol_xyz`; `tools/sharm.rs`: `read_axis`, `average_molecule`",
+    "`symtab_tools.rs`: `SDFCUBE` keyword table"
+  ],
+  "system": "The EPSR-test configuration `200DMSO400Water.ato`: 200 DMSO (atoms S, C, C, O, 6 H) and 400 water molecules (O1, H1, H1; SPC/E parameters [@berendsen1987]), 3200 atoms at 300 K in a cubic box of side 33.12 Å, a model of the DMSO-water mixtures of Soper and Luzar [@soperluzar1992]. `sdfcube` histograms the centres of the second molecules, rotated into the frame of each central molecule (Euler angles from the axis definitions), on a cubic grid and writes the spatial density function as a Gaussian `.cube` file together with the averaged molecules (`-first.xyz`, `-second.xyz`). Here water around water (centre = mass centre of O1/H1, z axis to the H-H midpoint, y from H 2) on a 17×17×17 grid (`mpixel 8`, `rmax 6`: 0.75 Å steps, stored in bohr in the cube header).",
+  "inputs": "Input files written by hand from the keyword tables (`setup_symbols_*`), one `keyword value` per line, ended by `q`; `200DMSO400Water.ato` copied from EPSR-test. `water.SDFCUBE.dat` with `nsumt 0`, `averagemol y`.",
+  "verification": "Six passes. Pass 1 creates `water.SDFCUBE.cube`; pass 6 (`nsumt 5`) reads the step size and the old cube (`initcube`, `outcube`) and forms `fc1*old + fc*new`; final `nsumt 6`. The cube, both xyz files and the updated input file are compared after each pass. No `sharm`/`sdf` patch is involved.",
+  "notes": "Reproduced Fortran behaviour: `fc1` is computed from an uninitialised variable that gfortran -O2 folds to 1.0 (checked in the reference object code); for identical molecules `averagemol` is read from the `axiss1` value (missing `iref=iref+2`), so a single molecule is written to the xyz files.",
+  "refs": [
+    "epsrmanual",
+    "soperluzar1992",
+    "berendsen1987",
+    "gfortran"
+  ]
+}

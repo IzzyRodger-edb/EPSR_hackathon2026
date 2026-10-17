@@ -1,0 +1,21 @@
+{
+  "title": "makemole: interactive answers, rotation options and column-map format",
+  "purpose": "Exercises the less common paths of `makemole` [@epsrmanual]: missing bond lengths, angles, potential parameters and density asked on standard input, extra distance constraints, whole-molecule and intersecting rotational groups, massless charge sites, and the original column-map `.mol` format that draws the molecule as a grid of labels and bonds.",
+  "fortran": [
+    "`makemole.f` -> `ato_manipulation_rev4.f`: `makemole` (`.gmol` and column-map readers, stdin prompts, `extra`, `wholerot`, `introt`, `qradius`, `changelabel`, `pseudofac`, `.atm` map)",
+    "`ato_manipulation_rev4.f`: `get_rotgrp`, `get_whole_rotgrp`, `ftype`",
+    "`ato_read_and_save.f`: `moloutc`"
+  ],
+  "rust": [
+    "`tools/makemole.rs`: `run`, `get_rotgrp`, `get_whole_rotgrp`, `read_char_int` (column-map `map` entries)",
+    "`ato.rs`: `ftype`, `moloutc`"
+  ],
+  "system": "Three hand-made molecules. `Chain`: an ethanol-like CH3-CH2-OH chain (9 atoms) with two extra H...H distances, rotations about C1-C2 and C2-O3, a whole-molecule group and an intersection group, the hydroxyl O relabelled `OH`; the density 0.05 atoms/Å³ is typed on stdin (box 5.646 Å) and the invalid temperature -5 is ignored (300 K). `Tip4p`: a 4-site water with the TIP4P geometry and charges (O-H 0.9572 Å, H-O-H 104.52°, massless site M 0.15 Å from O carrying -1.04 e, H +0.52 e) [@jorgensen1983]; M is a Q atom excluded from the atom count, so 3 atoms at 0.1 atoms/Å³ give a 3.107 Å box at 298 K. `Grid`: ethane (2 C + 6 H) drawn on a column map with `nspace 2`, a repeat count `2H` and relative/absolute `map` entries; 8 atoms at 0.1 atoms/Å³ give a 4.309 Å box.",
+  "inputs": "`Chain.mol`, `Tip4p.mol` and `Grid.mol` written for this case; answers in `chain.stdin` (two bond lengths, four angles, the density, and the potential parameters of the labels `OH` and `HO`, which have no `potential` line) and `grid.stdin` (one missing angle, 95°).",
+  "verification": "One pass of three `makemole` calls; seven compared files: `Chain.ato`, `Chain.mol`, `Tip4p.ato`, `Tip4p.mol`, `Grid.ato`, `Grid.mol` and the atom-number map `Grid.atm`, which records the numbering of the grid entries.",
+  "notes": "Reproduced Fortran quirk: the `ROT` label of whole-molecule groups is lost (the Fortran writes the zero bytes of a newly allocated element). `pseudofac 0` is replaced by 1.",
+  "refs": [
+    "epsrmanual",
+    "gfortran"
+  ]
+}

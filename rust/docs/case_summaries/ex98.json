@@ -1,0 +1,24 @@
+{
+  "title": "revlorch: Q-space Lorch broadening",
+  "purpose": "Exercises the `revlorch` option of the `epsr` engine of EPSR [@soper1996,@soper2005], which broadens the r -> Q transform of the simulated g(r) with a Lorch-type window [@lorch1969] whose width grows linearly with Q, to mimic resolution or disorder broadening in the simulated structure factors [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (reading `lorchqwidth`, `lorchqwidthq`)",
+    "`epsr_standalone_rev3.f`: `inita` (transform matrix `foqols`: `bwidth = rr*lorchlim*(lorchqwidth + lorchqwidthq*qq)`, `lorchlim = 4.4934/rmaxgr`), function `pofr`"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::setup` (`revlorch`)",
+    "`structure.rs`: `inita` (`foqols`), `pofr`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case `revlorch 0.05 0.01` multiplies each element of the transform matrix by the single-precision window `pofr(bwidth)`, so every simulated S(Q) (`.q01`, `.u01`, `.x01`, ...) is broadened relative to the base case. With `rmaxgr` the maximum radius of the g(r), `lorchlim = 4.4934/rmaxgr` sets the scale, multiplied by the Q-dependent factor (0.05 + 0.01·Q).",
+  "inputs": "Only the `.EPSR.inp` differs from EPSR-test, edited by `scripts/make_inp.sh` (via `scripts/setkw.py`): `revlorch 0.05 0.01`.",
+  "verification": "Because the broadened matrix enters every simulated structure factor and hence the EP update, all S(Q) outputs and the subsequent potentials and configurations differ from the base case and are identical between Fortran and port in each pass. The window function `pofr` is evaluated in single precision as in the Fortran, so the transform matrix `foqols` agrees to the last bit, which the identical `.q01`, `.u01` and `.x01` files confirm.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "lorch1969",
+    "epsrmanual",
+    "soperluzar1992",
+    "berendsen1987",
+    "gfortran"
+  ]
+}

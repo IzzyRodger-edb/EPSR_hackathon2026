@@ -1,0 +1,3 @@
+makeato Ow < makeato_Ow.stdin
+makeato < makeato_Ar.stdin
+repeat 1

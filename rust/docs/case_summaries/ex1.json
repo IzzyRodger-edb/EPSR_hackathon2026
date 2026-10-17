@@ -1,0 +1,25 @@
+{
+  "title": "Exponential repulsive cores with coordination feedback",
+  "purpose": "Exercises the optional exponential repulsive core that EPSR [@soper1996,@soper2005] can add to the reference potential of a pair (`rminex pcoefex coordex` on the first line of a `.pcof` pair entry), and the feedback that adjusts its amplitude `pcoefex` between runs so that the number of close contacts approaches the requested `coordex`. Users apply it to suppress unphysical overlaps that the data alone do not prevent.",
+  "fortran": [
+    "`read_and_save_files.f`: `read_pcof` (reads `rminex pcoefex coordex`), `save_files_others` (writes them back)",
+    "`epsr_standalone_rev3.f`: `generate_rp` (adds the core to the reference potential), `repulsivept` (`pcoefex` feedback)",
+    "`ato_manipulation_rev4.f`: `atogen` (close-contact count `potex`), `fmolec1`; `molfit.f`: `en_change`"
+  ],
+  "rust": [
+    "`pcof.rs`: `read_pcof`, `write_pcof_pairs`",
+    "`potential.rs`: `generate_rp`, `repulsivept`",
+    "`structure.rs`: `atogen`; `energy.rs`: `fmolec1`, `en_change`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. Here three pairs get an extra term pcoefex·exp((rminex - r)/(expecf·sqrt(rminex))) (`expecf` 0.3): S-S (rminex 4.0 Å, pcoefex 0, coordex 0.1), water O-O (2.6 Å, 0.5, 0) and water O-H (1.5 Å, 0.2, 0.05). `atogen` counts the average number of intermolecular neighbours closer than `rminex` and `repulsivept` steps `pcoefex` up or down towards the requested coordination number.",
+  "inputs": "Copy of EPSR-test with only the `.pcof` changed: the three pair lines `S S`, `O1 O1` and `O1 H1` carry the `rminex pcoefex coordex` values above (all other pairs keep 0 0 0).",
+  "verification": "Three chained passes, so the updated `pcoefex` values are read back and used. The feedback is active: in the stored Fortran reference after pass 3, `pcoefex` is -4.68E-03 for S-S (from 0), 0.5115 for O-O (from 0.5) and 0.1914 for O-H (from 0.2); the Rust port writes the same values. All 27 output files (`.ato` with random-number state, `.pcof`, `.inp`, `.erg`, g(r), S(Q), potentials, `.out`, `delfit.dat`) are identical after every pass.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

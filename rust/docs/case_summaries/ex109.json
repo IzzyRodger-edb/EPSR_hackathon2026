@@ -1,0 +1,25 @@
+{
+  "title": "Starting from scratch: no .pcof, no accumulators",
+  "purpose": "Exercises the first `epsr` run of a new simulation [@soper1996,@soper2005,@epsrmanual]: only the `.EPSR.inp`, `.ato`, data and weights files exist, so default pair potentials, empty accumulators and every output file must be created. A second run tests atom types with zero coarse-graining value `natomsphere`.",
+  "fortran": [
+    "`read_and_save_files.f`: `read_pcof` (missing file, `npairspcof = 0` forces `ireset = iinit = 1`, default pair potentials)",
+    "`epsr_standalone_rev3.f`: `inita`, `initg` (no `.?01` files); `process_symbols.f`: `check_symbol` (caps `ncoeffp` at 1000)",
+    "`ato_read_and_save.f`: `minitc` (7-value step-size line, `natomsphere = 0`)"
+  ],
+  "rust": [
+    "`pcof.rs`: `read_pcof`, `default_pair_potentials`; `symbols.rs`: `check_symbol`",
+    "`structure.rs`: `inita`; `output.rs`: `initg`; `ato.rs`: `minitc`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. Here the simulation starts with default reference potentials, `rminex = max(rminfac*dcor, roverlap)` and zero empirical potential.",
+  "inputs": "`scripts/make_inputs.sh` from the EPSR-test files: `.pcof`, `.EPSR.inpa`, `.erg`, `.g01`, `.y01`, `.f01`, `.s01` deleted; `.ato` step-size line with 7 values (7th = `tempdihreq`); `ncoeffp 2000`, `ntimes 2`, `niter 2` in the `.EPSR.inp`. `scripts/clone_run.py nosph` and `scripts/zero_natomsphere.py` make the run `nosph` with `natomsphere` 0 for every type. `commands.txt`: both runs, `repeat 3`.",
+  "verification": "Pass 1 creates every output file (including `.pcof` and `.inpa`), passes 2 and 3 read them back. `ncoeffp 2000` is capped to 1000 (the Fortran message prints it with i3 as `***`); the `.ato` is rewritten with a 10-value step line. The README reports gcov evidence for the `npairspcof.le.0` branch, the default pair potentials and `nwords.eq.7` in `minitc`.",
+  "notes": "In `nosph` `natomrcg = natomcg = 0`, so the atom fractions stay un-normalised and several outputs contain NaN (e.g. `.erg` columns 6-8, `.r01`); this Fortran behaviour is reproduced, NaNs included. Default pair potentials do not set `efacp`.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

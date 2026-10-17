@@ -1,0 +1,24 @@
+dmsotest
+fnameato    200DMSO400Water.ato
+nr          50
+rmax        10
+nsumt       0
+ncoeffs     0
+l1values    0 1 2
+l2values    0 1 2
+lvalues     0 1 2 3
+n1step      1
+n2step      1
+atom-c      S O C C
+pairdist-c  1.53 1.8 1.8 2.65 2.65 2.7
+fracdist-c  0.15
+axisc1      z 2
+axisc2      x 3 4
+atom-s      S O C C
+pairdist-s  1 1 1 1 1 1
+fracdist-s  0.2
+axiss1      z 2
+axiss2      x 3 4
+test        15 25 35 45 55 65 75 85
+averagemol  n
+q

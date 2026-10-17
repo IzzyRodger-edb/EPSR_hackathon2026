@@ -1,0 +1,18 @@
+dmsowat
+shcoeffs    dmsowat.SHARM.h01
+nsmoo       2.5 3 2 1
+mirrorsym   no
+nviews      4
+view 1
+grtype      1
+theta_phi   0 0 0 0 0
+view 2
+grtype      2
+theta_phi   45 90 0 0 0
+view 3
+grtype      3
+theta_phi   120 200 30 60 90
+view 4
+grtype      3
+theta_phi   bad
+q

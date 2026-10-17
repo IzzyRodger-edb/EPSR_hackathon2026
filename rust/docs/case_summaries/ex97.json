@@ -1,0 +1,23 @@
+{
+  "title": "Porod scattering (porodpwr, porodadd)",
+  "purpose": "Exercises the Porod small-angle term of the `epsr` engine of EPSR [@soper1996,@soper2005]: a power-law contribution porodamp·(porodq/Q)^porodpwr [@porod1951] is added to both the data difference and the simulated fit, so that low-Q intensity from large-scale inhomogeneity is not forced into the empirical potential [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (search of `nporodq`, `porodamp(in) = datai(nporodq,in) + porodadd(in)`, Porod term in the difference `dts` and in `soqism`/`.u01` and the R-factors)"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::setup` (`porodpwr`, `nporodq`, `porodamp`)",
+    "`epsr.rs`: `Epsr::iterate` (Porod term in `dts`), `write_results` (simulated fit, `.u01`, R-factors)"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case `porodpwr 0.5 3.5` sets porodq = 0.5 1/Å and power 3.5, and `porodadd` is 0.25, 0.10 and -0.5 for the three data sets. The amplitude of each data set is the data value at `nporodq` plus `porodadd`; a non-positive amplitude disables the term for that data set.",
+  "inputs": "Only the `.EPSR.inp` differs from EPSR-test, edited by `scripts/make_inp.sh` (via `scripts/setkw.py`): `porodpwr 0.5 3.5` and `porodadd` 0.25 / 0.10 / -0.5.",
+  "verification": "The Q index nearest to porodq is `nporodq` = 11; the log reports Porod amplitudes 0.05630, 0.08910 and -0.36131, so data set 3 is negative and gets no Porod term, covering both branches. The Porod term changes the background-subtracted data, the fitted S(Q) (`.u01`) and the R-factors, all identical; the Porod amplitudes are recomputed from the data in every pass.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "porod1951",
+    "epsrmanual",
+    "soperluzar1992",
+    "berendsen1987",
+    "gfortran"
+  ]
+}

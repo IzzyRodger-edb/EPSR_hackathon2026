@@ -1,0 +1,3 @@
+# readpdb: single-atom residues (Na, Cl): the Fortran never sets nal for them (see README)
+readpdb ions.pdb < readpdb.stdin
+repeat 1

@@ -1,0 +1,26 @@
+{
+  "title": "Harmonic core and harmonic container force with gradient limit",
+  "purpose": "Exercises the harmonic repulsive core (`reppottype harmonic`) together with the harmonic container force of the `epsr` engine of EPSR [@soper1996,@soper2005], both with a gradient limit (second value of `expecf` > 0), which replaces the potential beyond the limit by its linear continuation so that energies of badly overlapping or escaped atoms stay finite [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `inita` (`harmonic`), `generate_rp` (harmonic core: linear and quadratic branch), `repulsivept`",
+    "`containerforces_mod.f90`: `en_containerforce` (harmonic branch, `rtest = rmaxex - expecfuse`), `get_containerforce_list`",
+    "`ato_manipulation_rev4.f`: `fmolec1`, `atogen`; `molfit.f`: `en_change`; `read_and_save_files.f`: `read_pcof`"
+  ],
+  "rust": [
+    "`potential.rs`: `generate_rp`, `repulsivept`; `structure.rs`: `inita`, `atogen`",
+    "`containerforces.rs`: `en_containerforce`, `get_containerforce_list`",
+    "`energy.rs`: `fmolec1`, `en_change`; `pcof.rs`: `read_pcof`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. As in EPSR-test-ex15 every DMSO carries an extra massless, uncharged Q site at its sulphur (3400 atoms) and water oxygens further than 4 Å from the nearest Q site are pulled back by a container force. Both the core and the container force are harmonic, and with `expecf 0.300 1.500` the gradient limit 1.5 makes them linear, 0.5·pcoefex·gradlimit·(2·ddiff - gradlimit), once ddiff reaches 1.5.",
+  "inputs": "`scripts/make_ex15.py ../../../EPSR-test . 4.0 0.5` (as EPSR-test-ex15: Q sites, 28 pairs, Q-O1 `rmaxex 4.0`, `pcoefexmax 0.5`, `iinit 1`), then `scripts/make_case.py`: `reppottype harmonic`, `expecf 0.300 1.500` and the repulsive-core lines of EPSR-test-ex1 (`rminex pcoefex coordex`: S-S `4.0 0 0.1`, O1-O1 `2.6 0.5 0`, O1-H1 `1.5 0.2 0.05`).",
+  "verification": "The README reports a gcov check of the Fortran: `generate_rp` executes both the linear (`ddiff >= gradlimit`) and the quadratic branch of the harmonic core, and `en_containerforce` evaluates its linear part 281 times and its quadratic part 1580 times, called from `fmolec1` and `en_change`.",
+  "notes": "Fortran quirks reproduced: the harmonic core tests `ddiff >= gradlimit` but the harmonic container force `ddiff > gradlimit`; for `expecfpwr <= 0` the container force uses `gradlimit = 1` while the core uses `gradlimit = 0` (no limit).",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

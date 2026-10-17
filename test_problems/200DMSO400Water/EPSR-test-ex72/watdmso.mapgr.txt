@@ -1,0 +1,12 @@
+watdmso
+shcoeffs    watdmso.SHARM.h01
+nsmoo       0.0 0 0 0
+mirrorsym   no
+nviews      2
+view 1
+grtype      3
+theta_phi   10 20 30 40 50
+view 2
+grtype      2
+theta_phi   170 300 0 0 0
+q

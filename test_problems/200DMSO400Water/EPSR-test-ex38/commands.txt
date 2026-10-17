@@ -1,0 +1,5 @@
+makelatticeato DMSO 2 2 2 dmso222 n
+makelatticeato WaterMolecule.ato 3 2 1 waterlat y
+makelatticeato < mla3.stdin
+makelatticeato DMSO.ato 1 1 2 dmso112 < mla4.stdin
+repeat 1

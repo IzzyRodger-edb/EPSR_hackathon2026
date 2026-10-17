@@ -1,0 +1,25 @@
+{
+  "title": "Three-body potential: water O-H···O hydrogen bond",
+  "purpose": "Exercises the three-body (triplet) potential module of the `epsr` engine [@soper1996,@soper2005,@epsrmanual], which adds angle-dependent energies to the reference potential, here to favour linear water-water hydrogen bonds.",
+  "fortran": [
+    "`threebody_mod.f90`: `find_triplets`, `en_mole_triplets`, `pr_mole_triplets`, `save_threeb_energies`, `get_triplet_pot_cons`",
+    "`read_and_save_files.f`: `read_pcof` (`tb` lines), `save_files_others` (re-reads and writes them)",
+    "`ato_manipulation_rev4.f`: `fmolec1`, `press` (three-body energy/pressure); `molfit.f`: `en_change`"
+  ],
+  "rust": [
+    "`threebody.rs`: `read_pcof_threebody`, `write_pcof_threebody`, `find_triplets`, `en_mole_triplets`, `pr_mole_triplets`, `save_threeb_energies`, `en_change_triplets`",
+    "`energy.rs`: `fmolec1`, `en_change`, `press`; `pcof.rs`: `read_pcof`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. A `tb A1 A2 A3 amp awidth rwidth rmax12 rmax32 s12 s23 s13 ang1 amp1 ...` line in the `.pcof` adds an angular energy `amp*ampN*0.5*((cos theta - cosN)/awidth)²` to every triplet A1-A2-A3 (A2 the centre) within the distance limits, for the requested angle N closest to theta; the flags select same or different molecules. Here: `tb O1 H1 O1 20.0 10.0 0.2 1.2 2.6 1 0 0 180.0 1.0`, i.e. donor O1-H1 on the same molecule (< 1.2 Å), H1···O1 acceptor on another molecule (< 2.6 Å), requested angle 180°.",
+  "inputs": "EPSR-test with the `tb` line above appended to the `.pcof` after the pair potentials and `niter 2` in the `.EPSR.inp`. `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 2`.",
+  "verification": "Exercised: the `tb` branch of `read_pcof`, `find_triplets` from `fmolec1` and `press` (same/different-molecule flags, the `ltyp1 = ltyp3 -> ia3 > ia1` rule, triplet-neighbour lists), triplet energies in `fmolec1`/`en_change`/`press`, `save_threeb_energies` after accepted moves and internal rotations, and the `.out` lines \"Three-body energy/pressure\". The stored Fortran reference `.out` reports 0.197×10^4 kJ/mol per molecule and -373.6 kbar three-body pressure; the `tb` line is rewritten in the program's own format.",
+  "notes": "Reproduced: `read_pcof` stores cosines and width 1.0, but `save_files_others` re-reads the `tb` symbol at the end of each iteration and stores angles and width in radians, so later iterations use different triplet energies. In the second iteration of each pass the triplet energy jumps from ~0.2 to ~2000 kJ/mol per molecule.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

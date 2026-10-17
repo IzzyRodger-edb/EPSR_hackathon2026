@@ -1,0 +1,3 @@
+changeato MixD.ato < caseD.stdin
+changeato WaterE.ato < caseE.stdin
+repeat 1

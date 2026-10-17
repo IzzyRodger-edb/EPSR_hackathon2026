@@ -1,0 +1,9 @@
+# alignmole on a 6-molecule box (DMSO/water, first atom of each molecule at the molecule centre) using
+# axis atoms "1 1": the displacement is identically zero, so every rotation is accepted (see README).
+# 30 iterations -> step size adapted at iterations 3,6,...,30; axis atoms given on the command line
+alignmole box.ato y 30 1 1
+# a single (invalid) axis atom on the command line -> list read again from stdin
+alignmole box.ato x 20 7 < box_atoms.stdin
+# axis and iterations from stdin, all atoms used, one-atom molecules (rotatm does nothing)
+alignmole atoms.ato < atoms.stdin
+repeat 1

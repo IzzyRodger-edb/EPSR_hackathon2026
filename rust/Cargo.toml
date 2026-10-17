@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = ["epsr-core", "epsr-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+opt-level = 3
+debug = 1
+
+# Tests run the full EPSR test case; build them optimised.
+[profile.test]
+opt-level = 3

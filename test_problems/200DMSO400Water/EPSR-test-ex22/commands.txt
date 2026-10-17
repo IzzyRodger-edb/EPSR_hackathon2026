@@ -1,0 +1,4 @@
+nwts SecondDiffA.NWTS.dat
+nwts SecondDiffB.NWTS.dat
+nwts SecondDiffC.NWTS.dat
+repeat 1

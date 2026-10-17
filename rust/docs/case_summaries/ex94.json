@@ -1,0 +1,25 @@
+{
+  "title": "nsmoop 0, refpotfac 0.8, rbroad 0.05",
+  "purpose": "Exercises three tuning options of the `epsr` engine of EPSR [@soper1996,@soper2005]: switching off the subtraction of a smooth background from the data (`nsmoop 0`), scaling the reference potential (`refpotfac`) and the exponential decay `rbroad` of the Poisson basis functions of the empirical potential [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (`nsmoop`: `ftback` not called)",
+    "`epsr_standalone_rev3.f`: `inita` (reading `refpotfac`, `rbroad`), `generate_rp` (reference LJ + Coulomb scaled by `refpotfac`)",
+    "`epsr_standalone_rev3.f`: `generate_ep`, `calc_pwrexpr_grad` (`exp(-rbroad*r)` and gradient factor `n/r-1/sigma-rbroad`)"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::setup`, `Epsr::iterate` (`nsmoop`); `structure.rs`: `ftback`",
+    "`structure.rs`: `inita`; `potential.rs`: `generate_rp`",
+    "`potential.rs`: `generate_ep`, `calc_pwrexpr_grad`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case the Lennard-Jones and Coulomb reference potentials are multiplied by 0.8, every Poisson basis function of the EP decays additionally as exp(-0.05·r), and the data are fitted without background subtraction.",
+  "inputs": "Made from EPSR-test with `scripts/make_case.py`: `.EPSR.inp` `nsmoop 0`; `.pcof` `refpotfac 0.80000` and `rbroad 0.05000000`.",
+  "verification": "The values are written back to the `.pcof` and `.EPSR.inp` and read again in the next pass, including the list-directed single-precision form of `rbroad` (`5.00000007E-02`) and `refpotfac` written with format `(f8.5)`, which are reproduced exactly. With `nsmoop 0` the difference between data and simulation enters `ptgnsq` without the `ftback` correction, and the scaled reference potential enters every Monte Carlo energy and move decision.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "title": "nwts: second-order differences (three samples)",
+  "purpose": "Exercises the three-sample path of `nwts` (`nsamples 3`): from two isotopically distinct samples and their mixture the scattering can be separated into XX, XY and YY partial weights, where Y is the substituted species (here hydrogen) and X all other atoms - the standard second-order difference analysis of H/D substitution experiments that EPSR can refine against [@soper2005,@epsrmanual].",
+  "fortran": [
+    "`nwts.f`: `nwts` (third sample from `xfrac`, `<run>tot1/2/3.wts`, `<run>xx/xy/yy.wts`, intra/intermolecular XX/XY/YY branches for exchanging and non-exchanging substituted atoms)",
+    "`process_symbols.f`: `check_symbol` (`nwts` branch: `nsamples` clamped to 1-3, `normtot`)",
+    "`ato_manipulation_rev4.f`: `scatt_len`; `read_and_save_files.f`: `read_input_file`, `read_ato`, `save_files_others`; `ato_read_and_save.f`: `minitc`, `moloutc`"
+  ],
+  "rust": [
+    "`tools/nwts.rs`: `run` (second-order block writing the `xx`/`xy`/`yy` files), `check_symbol_extra`, `read_isotopes`, `scatt_len`",
+    "`symbols.rs`: `read_input_file`, `save_inp_file`; `ato.rs`: `read_ato`, `minitc`, `moloutc`"
+  ],
+  "system": "The EPSR-test mixture of 200 DMSO and 400 water molecules (3200 atoms; atom types S, C, O, methyl H, water O1 and H1). Three hypothetical H/D experiments: `SecondDiffA` - sample 1 fully deuterated (H and exchangeable H1 = 2H), sample 2 protiated, sample 3 = 0.4 × sample 1 + 0.6 × sample 2, weights per molecule, not normalised; `SecondDiffB` - per atom, `xfrac 0.65`, <b²>-normalised, with 13C on C, methyl H natural and non-exchanging H1 30 % 1H / 70 % 2H in sample 2; `SecondDiffC` - `xfrac 0.5`, <b>²-normalised. Scattering lengths from Sears [@sears1992], Faber-Ziman pair weights [@faberziman1965], in the spirit of the DMSO/water substitution study of Soper and Luzar [@soperluzar1992].",
+  "inputs": "`SecondDiff{A,B,C}.NWTS.dat` made from `EPSR-test/DMSODWaterD.NWTS.dat` by changing keyword values; `SecondDiffC` asks for `nsamples 4`. `200DMSO400Water.ato` from EPSR-test.",
+  "verification": "One pass of three `nwts` calls; 19 files compared: for each input `tot1`, `tot2`, `tot3`, `xx`, `xy` and `yy` `.wts` files, plus the rewritten `SecondDiffC.NWTS.dat`, in which the Fortran has replaced `nsamples 4` by 3 (the other two input files are rewritten unchanged). `SecondDiffB` reaches the intramolecular YY/XY/XX branches for substituted atoms that do not exchange.",
+  "refs": ["soper2005", "epsrmanual", "sears1992", "faberziman1965", "soperluzar1992", "gfortran"]
+}

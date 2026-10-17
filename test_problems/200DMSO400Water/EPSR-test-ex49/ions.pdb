@@ -1,0 +1,15 @@
+REMARK   water, a lone Na+ and a lone Cl- (single-atom residues), one HETATM record (ignored)
+CRYST1   15.000   15.000   15.000  90.00  90.00  90.00 P 1           1
+ATOM      1  OW  HOH A   1       1.000   1.000   1.000  1.00  0.00           O
+ATOM      2  HW1 HOH A   1       1.957   1.000   1.000  1.00  0.00           H
+ATOM      3  HW2 HOH A   1       0.760   1.927   1.000  1.00  0.00           H
+ATOM      4 NA   NA  A   2       4.000  -3.000   2.500  1.00  0.00          NA
+ATOM      5  OW  HOH A   3      -2.000   3.000  -1.000  1.00  0.00           O
+ATOM      6  HW1 HOH A   3      -1.043   3.000  -1.000  1.00  0.00           H
+ATOM      7  HW2 HOH A   3      -2.240   3.927  -1.000  1.00  0.00           H
+ATOM      8 CL   CL  A   4      -4.000  -4.000   4.000  1.00  0.00          CL
+HETATM    9  C   UNK A   5       0.000   0.000   0.000  1.00  0.00           C
+ATOM     10  OW  HOH A   6       5.000   5.000   5.000  1.00  0.00           O
+ATOM     11  HW1 HOH A   6       5.957   5.000   5.000  1.00  0.00           H
+ATOM     12  HW2 HOH A   6       4.760   5.927   5.000  1.00  0.00           H
+END

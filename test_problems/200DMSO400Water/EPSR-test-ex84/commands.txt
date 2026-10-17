@@ -1,0 +1,8 @@
+# one water molecule docked onto the waters of the 200 DMSO + 400 water box, with overlap test
+# (factor 1.0: most candidate sites are rejected by overlaps before one is accepted)
+dockato WaterMolecule.ato H1 O1 H1 1 10 200DMSO400Water.ato O1 H1 H1 30 150 1.0 boxwater
+# smaller overlap factor 0.6
+dockato WaterMolecule.ato H1 O1 H1 1 10 200DMSO400Water.ato O1 H1 H1 30 150 0.6 boxwater2
+# overlaps allowed: the first water site is used, fixed dihedral -> DIH group
+dockato WaterMolecule.ato H1 O1 H1 1 10 200DMSO400Water.ato O1 H1 H1 60 60 yes boxwater3
+repeat 1

@@ -1,0 +1,25 @@
+{
+  "title": "Harmonic repulsive core (reppottype harmonic)",
+  "purpose": "Exercises the alternative, harmonic form of the short-range repulsive core of the `epsr` engine of EPSR [@soper1996,@soper2005], selected by `reppottype harmonic` in the `.pcof` file instead of the default exponential core. The core keeps molecules apart at distances below `rminex` and its amplitude `pcoefex` is adjusted from the coordination number `coordex` between iterations [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `inita` (`reppottype` -> `harmonic=.true.`), `generate_rp` (harmonic core, quadratic branch), `repulsivept` (feedback of `pcoefex`)",
+    "`read_and_save_files.f`: `read_pcof`, `save_files_others` (`.pcof` read and written back)",
+    "`ato_manipulation_rev4.f`: `fmolec1`, `atogen`; `molfit.f`: `en_change` (energies from the tabulated potential)"
+  ],
+  "rust": [
+    "`structure.rs`: `inita`; `potential.rs`: `generate_rp`, `repulsivept`",
+    "`pcof.rs`: `read_pcof`, `write_pcof_pairs`",
+    "`energy.rs`: `fmolec1`, `en_change`; `structure.rs`: `atogen`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case the repulsive core is harmonic: 0.5·pcoefex·ddiff² with ddiff = (rminex + expecfuse - r)/expecfuse and expecfuse = expecf·sqrt(rminex), applied on three pairs (`rminex pcoefex coordex`: S-S `4.0 0 0.1`, O1-O1 `2.6 0.5 0`, O1-H1 `1.5 0.2 0.05`).",
+  "inputs": "Made from EPSR-test with `scripts/make_case.py` (keyword and line edits): `.pcof` keyword `reppottype harmonic` and the repulsive-core lines of EPSR-test-ex1 (`rminex pcoefex coordex`: S-S `4.0 0 0.1`, O1-O1 `2.6 0.5 0`, O1-H1 `1.5 0.2 0.05`). All other files are those of EPSR-test.",
+  "verification": "Each pass reads back the `.ato`, `.pcof`, `.EPSR.inp`, `.inpa` and accumulators of the previous one, so the S-S `pcoefex` driven from 0 by `repulsivept` (-4.05E-03 after pass 3 in the stored Fortran `.pcof`) feeds back into `generate_rp`. Only the quadratic branch is active (second `expecf` value 0, no gradient limit); the results differ from EPSR-test-ex1, which uses the same `.pcof` lines with the exponential core. The symbol value `harmonic` is written back unchanged.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

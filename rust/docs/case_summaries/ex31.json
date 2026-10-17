@@ -1,0 +1,25 @@
+{
+  "title": "mixato: mixing molecule files into a box",
+  "purpose": "Exercises `mixato`, the EPSR setup tool [@epsrmanual] that combines single-molecule `.ato` files into one simulation box of given atomic number density, the usual first step in setting up an EPSR simulation of a liquid mixture [@soper1996,@soper2005]. This basic case types the file names directly, since no directory listing is available.",
+  "fortran": [
+    "`mixato.f`: `mixato` (molecule replication, box size from density, copying of bonds and rotational groups)",
+    "`ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`); `ato_manipulation_rev4.f`: `ftype`",
+    "`file_and_directory_commands.f`: `search_for_files` (file prompt / directory listing), `get_full_filename`",
+    "`reallocation_routines.f`: `reallocate1d_r` ... `reallocate4d_i`; `molecom_mod.f90`: `testsize_rotgrps`, `testsize_labrot`"
+  ],
+  "rust": [
+    "`tools/mixato.rs`: `run`, `SavedMol` (first molecule of each file)",
+    "`ato.rs`: `minitc`, `moloutc`, `ftype`",
+    "`tools/setup_common.rs`: `search_for_files`, `get_full_filename`, `command_text`, `read_text`"
+  ],
+  "system": "A small dimethyl sulphoxide-water mixture as in the EPSR-test system [@soperluzar1992]: 20 DMSO molecules (10 atoms each) and 40 water molecules (3 atoms each), 280 atoms at 0.1 atoms/Å³ and 300 K, giving a cubic box of side 14.736 Å (`DMSOWaterMix.ato`). As in the Fortran, every copy is placed at the position of the template molecule; randomising the positions is the job of a later program (`randomise`, ex35). Atom types, molecule templates and the random-number state of the last file read are carried over.",
+  "inputs": "`DMSO.ato` and `WaterMolecule.ato` copied from EPSR-test; `mixato.stdin`: 2 files (number asked on stdin), `DMSO` with 20 molecules, `WaterMolecule.ato` (name given with its extension) with 40 molecules, density 0.1, output `DMSOWaterMix`. No `system_commands.txt` is present, so the (empty) `system_ls` command fails, `dirlist.txt` is created empty and the names are typed.",
+  "verification": "Exercised paths: repeated `minitc` reads accumulating atom and molecule types, copying of bonds and rotational groups, the template-file existence check, the box size from the density and `moloutc` with molecule-scale factors reset to 1 for the added molecules. Both outputs, `DMSOWaterMix.ato` (60 molecules, box 0.14736127E+02 in the reference) and the empty `dirlist.txt`, are identical.",
+  "refs": [
+    "epsrmanual",
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

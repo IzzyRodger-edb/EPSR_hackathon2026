@@ -1,0 +1,23 @@
+{
+  "title": "readxyz: cell read from standard input",
+  "purpose": "Exercises the file-conversion program `readxyz`, which turns an `.xyz` coordinate file into an EPSR `.ato` configuration [@epsrmanual] in which every atom is a separate one-atom molecule, with a non-cubic box header and default Lennard-Jones parameters per element. Here the second line of the `.xyz` file holds no cell, so the six cell parameters are read from standard input, including a triclinic cell and the retry after a read error.",
+  "fortran": [
+    "`readxyz.f`: `run_readxyz` (command line, file search), `readxyz` (parsing of the `.xyz` file, cell from line 2 or stdin, one molecule per atom)",
+    "`auxiliary_routines.f`: `convertalphabetagamma` (a b c alpha beta gamma -> EPSR cell angles)",
+    "`ato_manipulation_rev4.f`: `ctype`, `ftype` (atom types with default parameters), `centreofmass`",
+    "`ato_read_and_save.f`: `moloutc` (writing the `.ato`, non-cubic header)"
+  ],
+  "rust": [
+    "`tools/readxyz.rs`: `run`, `readxyz`, `set_type_parameters` (the `ctype` calls)",
+    "`tools/groupc_common.rs`: `convertalphabetagamma`, `setup_lattice`, `centreofmass`, `moloutc`, `chsymbol`/`chatwt` (103 elements)",
+    "`ato.rs`: `State::ctype`, `State::ftype`"
+  ],
+  "system": "Single molecules from the EPSR-test DMSO/water example: one dimethyl sulphoxide molecule (10 atoms: S, 2 C, O, 6 H) and one water molecule (O, 2 H), as `.xyz` files exported from the `DMSO.ato` and `WaterMolecule.ato` templates. DMSO is placed in a triclinic cell a, b, c = 20, 22, 25 Å with alpha, beta, gamma = 80°, 95°, 100° (written by `convertalphabetagamma` as the EPSR cell angles 100°, 10.547°, 118.435°), water in a cubic 30 Å cell; temperature 300 K (default). Each element becomes one atom type with default parameters (O: eps 0.65 kJ/mol, sigma 3.1 Å; C: 0.8, 3.7; H: 0, 0 with mass 2).",
+  "inputs": "`DMSO.xyz` and `WaterMolecule.xyz` copied from EPSR-test. `readxyz DMSO.xyz < readxyz_dmso.stdin` (one line `20 22 25 80 95 100`); `readxyz WaterMolecule < readxyz_water.stdin` (no extension given; first line `bad values here` is not numeric and the cell is asked again, then `30.0 30.0` / `30.0 90 90 90` spread over two lines, list-directed read).",
+  "verification": "Outputs compared: `DMSO.ato` and `WaterMolecule.ato` (10 and 3 one-atom molecules). Fortran reference: the original `readxyz`/`readpdb` binaries crash (SIGSEGV) at the first call of `ctype`, which has optional arguments but is called with 11 of its 13 arguments without an explicit interface (gfortran passes the hidden character lengths where `radmaxsph`/`pseudofacsph` are expected). The reference was therefore produced with an explicit `INTERFACE` block for `ctype` added to the program (no other change; absent arguments mean `radmaxsphere = 0.5*sigcor`, `pseudofacmol = 1`), built by `rust/tools/build_patched_readxyz_readpdb.sh`; the comparison is against this patched build, not the original binary.",
+  "notes": "Output is a starting configuration only; the user normally regroups atoms into molecules afterwards.",
+  "refs": [
+    "epsrmanual",
+    "gfortran"
+  ]
+}

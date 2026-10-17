@@ -1,0 +1,26 @@
+{
+  "title": "Accumulator reset (iinit 1)",
+  "purpose": "Exercises `iinit 1` of the `epsr` engine [@soper1996,@soper2005]: the running averages of g(r), S(Q) and energies are set to zero and the r and Q grids recalculated, while the empirical potential is kept. Users do this after changing the system or the data so that old averages do not contaminate the new ones [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `inita` (accumulators zeroed, `.inpa` not read), `get_wts` (called with `iinit`: inverse weights recomputed), `runepsr17` (`.erg` history not read, `iinit` reset after the run)",
+    "`epsr_standalone_rev3.f`: `lsparabola1` (skipped with `iinit 1`), `norma`",
+    "`read_and_save_files.f`: `save_files_others`"
+  ],
+  "rust": [
+    "`structure.rs`: `State::inita`, `reset_accumulators`",
+    "`epsr.rs`: `Epsr::setup` (`erg_fresh`), `Epsr::iterate`",
+    "`weights.rs`: `get_wts`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. Physically nothing changes: configuration, reference potential and EP are those of EPSR-test; only the averages of g(r), S(Q), energy and pressure start again and the r and Q grids are recomputed from the input.",
+  "inputs": "Copy of EPSR-test with only `iinit 1` (instead of 0) in `200DMSO400Water.EPSR.inp`.",
+  "verification": "Three chained passes; after pass 1 the Fortran writes `iinit 0`, so passes 2-3 test the continuation. Evidence in the Fortran reference: the `.erg` file is rewritten from the start in pass 1 and has 3 lines after pass 3 (EPSR-test: 940), while `ereq` stays at 10 and the EP coefficients are kept and refined. All 27 output files are identical after every pass.",
+  "notes": "Fortran behaviour reproduced: with `iinit 1` the `.erg` unit is reopened and overwritten rather than appended.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

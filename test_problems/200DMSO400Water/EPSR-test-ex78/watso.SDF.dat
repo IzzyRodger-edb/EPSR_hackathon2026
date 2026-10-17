@@ -1,0 +1,24 @@
+watso
+fnameato    200DMSO400Water.ato
+nr          70
+rmax        14
+nsumt       5
+ncoeffs     0
+l1values    0 1 2
+l2values    0 1
+lvalues     0 1 2 3
+n1step      2
+n2step      1
+atom-c      O1 H1 H1
+pairdist-c  0.976 0.976 1.54
+fracdist-c  0.3
+axisc1      z 2 3
+axisc2      y 2
+atom-s      S O
+pairdist-s  1.53
+fracdist-s  0.1
+axiss1      z 2
+axiss2      y
+test        notest
+averagemol  y
+q

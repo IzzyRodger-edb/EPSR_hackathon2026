@@ -1,0 +1,21 @@
+{
+  "title": "writexyz: append and numbered-file modes",
+  "purpose": "Exercises `writexyz`, which exports (part of) an EPSR configuration [@epsrmanual] as `.xyz` blocks for visualisation: optionally centred on one molecule (minimum image), rotated by three Euler angles, restricted to a rectangular slab, with atom types excluded, either appended to `<file>append.xyz` or written as numbered files with a block counter.",
+  "fortran": [
+    "`writexyz.f`: `run_writexyz` (command-line words / stdin prompts), `writexyz` (selection, rotation, block counting, append / numbered files)",
+    "`ato_read_and_save.f`: `minitc` (reading the `.ato`); `minimagec.f`: `minimage` (minimum image about the centre molecule)",
+    "`ato_manipulation_rev4.f`: `centreofmass`, `rotatecoords` (Euler rotation)"
+  ],
+  "rust": [
+    "`tools/writexyz.rs`: `run`, `writexyz`, `block_atoms`",
+    "`ato.rs`: `State::minitc`; `neighbour.rs`: `minimage`",
+    "`tools/groupc_common.rs`: `centreofmass`, `rotatecoords`"
+  ],
+  "system": "The EPSR-test configuration `200DMSO400Water.ato`: 200 dimethyl sulphoxide and 400 water molecules (3200 atoms) at 300 K in a cubic box of side 33.1213 Å, and the single-molecule template `DMSO.ato` (10 atoms). No new simulation; the coordinates are only transformed: positions relative to molecule 5 (minimum image), rotated by (phi, theta, chi) = (30°, 45°, 60°), kept if |x|, |y| <= 8 Å and -6 <= z <= 6 Å, with DMSO hydrogen (type 4) removed.",
+  "inputs": "EPSR-test files and `writexyz_dmso.stdin`. Two identical slab runs (`append 5 8 8 -6 6 30 45 60 4`), two whole-box runs (`noappend 0 100 100 -100 100 0 0 0 0`), and `writexyz DMSO.ato` with every parameter from stdin (append y, centre 1, distances over two lines, angles 10 20 30, exclusion `3 4`).",
+  "verification": "Files compared: `200DMSO400Waterappend.xyz` (two blocks of 179 atoms; the second run reads the existing block and appends block 00002), `200DMSO400Water00001.xyz` and `00002.xyz` (all 3200 atoms), the counter file `200DMSO400Water.nblock`, and `DMSOappend.xyz` (all 10 atoms although types 3 and 4 are excluded: atoms of the central molecule are always written).",
+  "refs": [
+    "epsrmanual",
+    "gfortran"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "title": "Additional Gaussian pair potentials",
+  "purpose": "Exercises the additional pair potentials of the `epsr` engine [@soper1996,@soper2005]: Gaussian terms h·exp(-(r - r0)²/(2w²)) appended to a `.pcof` pair line are added to the reference potential, letting users impose known features such as hydrogen-bond wells. A negative position also excludes the pair from EP refinement [@epsrmanual].",
+  "fortran": [
+    "`read_and_save_files.f`: `read_pcof` (`(r, w, h)` triples after `rminex pcoefex coordex`; negative r or w sets `efacp` = 0), `save_files_others` (`(3(1x,f10.5),N(1x,f9.4,1x,f9.4,1x,e11.4))` format)",
+    "`epsr_standalone_rev3.f`: `generate_rp` (additional terms added to the reference potential), `ptgnsq` (EP update scaled by `efacp`), `generate_ep`"
+  ],
+  "rust": [
+    "`pcof.rs`: `read_pcof`, `write_pcof_pairs`",
+    "`potential.rs`: `generate_rp`, `ptgnsq`, `generate_ep`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. Gaussian terms are added on three pairs: S-O1 (two terms: r 3.5 Å, w 0.2 Å, h 0.3 and r 4.5 Å, w 0.3 Å, h -0.2), C-C (r -3.0, w 0.3, h 0.1) and water O-H (r 1.8, w 0.15, h -0.5). The negative position on C-C sets that pair's EP factor `efacp` to 0, so its EP is switched off and not refined, while the term itself is applied at |r| = 3.0 Å.",
+  "inputs": "Copy of EPSR-test with only three `.pcof` pair lines changed (`S O1`, `C C`, `O1 H1`): `0 0 0` followed by the triples above.",
+  "verification": "Two chained passes, so the Gaussian triples are written in the special format and read back. In the Fortran reference the C-C entry keeps its triple (written as `-3.0000 0.3000 0.1000E+00`) and its leading EP coefficient is 0, confirming `efacp` = 0. All 27 output files are identical after both passes.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

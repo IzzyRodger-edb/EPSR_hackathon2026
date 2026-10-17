@@ -1,0 +1,5 @@
+nwts FirstDiffA.NWTS.dat
+nwts FirstDiffB.NWTS.dat
+nwts FirstDiffC.NWTS.dat < diffc.stdin
+nwts WaterX.NWTS.dat < waterx.stdin
+repeat 1

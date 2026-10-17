@@ -1,0 +1,3 @@
+# readpdb: triclinic cell, bad CRYST1 angles -> cell from stdin, default vdW factor, no dihedrals
+readpdb cluster < readpdb.stdin
+repeat 1

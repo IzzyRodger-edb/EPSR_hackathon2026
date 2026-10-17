@@ -1,0 +1,25 @@
+{
+  "title": "ref_intra (EP and reference potential inside molecules) + control-p bc",
+  "purpose": "Exercises the `ref_intra` keyword of the `epsr` engine [@soper1996,@soper2005,@epsrmanual], which lets a fraction of the empirical potential and of the full reference potential act on the intramolecular structure, combined with pressure control along the b and c axes only.",
+  "fortran": [
+    "`molfit.f`: `en_atom_intra` (adds `refine_intra_fac` × EP to bonded and non-bonded intramolecular pairs)",
+    "`epsr_standalone_rev3.f`: `generate_rp` (`xav = coul_intra_fac*ecoul`), `runepsr17` (`ref_intra`, `control-p`)",
+    "`ato_manipulation_rev4.f`: `change_boxsize`, `press`"
+  ],
+  "rust": [
+    "`energy.rs`: `en_atom_intra`; `potential.rs`: `generate_rp`",
+    "`pressure.rs`: `control_pressure`, `change_boxsize`; `energy.rs`: `press`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. With `ref_intra 0.5 0.3` the intramolecular energy of bonded pairs (harmonic) and non-bonded pairs gains 0.5 × the empirical potential, and the intramolecular potential of every pair is replaced by 0.3 × the full reference potential (LJ + Coulomb + Gaussians + repulsive core). `control-p bc` scales b and c by `(1+rat)**0.5`, so the box becomes orthorhombic.",
+  "inputs": "`scripts/make_inputs.sh`: `.EPSR.inp` with `ref_intra 0.5 0.3`, `control-p bc 0.0 0.01`, `ntimes 2`, `niter 2`. `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 2`.",
+  "verification": "The README reports gcov counts of `molfit.f`: the bonded `refine_intra` line executes 51600 times, the non-bonded one 37800 times, and `xav(j,ic)=coul_intra_fac*ecoul(j,ic)` 69678 times. The stored Fortran reference `.ato` has a = 33.1213, b = c = 33.6477 Å after four iterations, written with the general-cell header and re-read in pass 2.",
+  "notes": "Reproduced: `xav(npt)` is still zeroed after the replacement and the gradient `xav1` is computed before that, as in the Fortran.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

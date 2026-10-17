@@ -1,0 +1,24 @@
+{
+  "title": "Lattice refinement of a triclinic crystal (with Bragg peaks)",
+  "purpose": "Exercises the lattice-refinement loop of the `epsr` engine [@soper1996,@soper2005,@epsrmanual], a random search over the unit-cell parameters a, b, c, alpha, beta, gamma that keeps a trial lattice when the fit to the diffraction data improves. It is the route by which EPSR refines the cell of a crystalline sample together with its structure.",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (`do while (ilatrefine.lt.nlatrefine+1)` loop, R-factor, accept/reject), `gensq`",
+    "`ato_manipulation_rev4.f`: `change_boxsize`, `atogen`, `bragginten`",
+    "`auxiliary_routines.f`: `convertphibthetacphic`, `convertalphabetagamma`; `ato_read_and_save.f`: `(un)normalise_coordinates`"
+  ],
+  "rust": [
+    "`bragg.rs`: `structure_and_lattice`, `change_boxsize`, `convertphibthetacphic`, `bragginten`",
+    "`tools/makelattice.rs`: `convertalphabetagamma`; `ato.rs`: `normalise_coordinates`, `unnormalise_coordinates`; `rng.rs`: `ran1`"
+  ],
+  "system": "The triclinic S/O1 crystal of ex121 (588 tethered atoms, 7 × 7 × 6 cells of a, b, c = 4.3, 4.8, 5.4 Å, alpha, beta, gamma = 80°, 100°, 110°, 300 K); EPSR-test `.pcof`, weights and data used unchanged as numerical input. With Bragg peaks [@squires1978] the R-factor against the three data sets depends on the lattice; trial cells are drawn with step sizes 0.2 Å and 1° and rescaled to constant density.",
+  "inputs": "`scripts/make_case.sh` regenerates the inputs (verified byte-identical). Keywords changed: `iinit 1`, `ntimes 2`, `qwidthqmax 0.02 3.0`, `mplicities 7 7 6`, `hklqmin 0.0 8.0 0.05`, `nlatrefine 3`, `latrefine 0.2 0.2 0.2 1.0 1.0 1.0`. `commands.txt`: `repeat 2`.",
+  "verification": "Per the README, in pass 1 the trials of steps 1 and 2 are accepted and step 3 rejected; in pass 2 steps 1 and 3 are rejected and step 2 accepted. The refined lattice is written to the `.ato` (stored Fortran reference: 30.224 × 33.667 × 32.641 Å box edges) and read back in pass 2. Each step runs `atogen` + `gensq` + Bragg correction and six `ran1` calls, so any difference would shift the random sequence.",
+  "notes": "Reproduced: `clatnew` is rescaled with `blatfac`; when the last trial is rejected the box is restored but S(Q) is not recomputed.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "epsrmanual",
+    "squires1978",
+    "gfortran"
+  ]
+}

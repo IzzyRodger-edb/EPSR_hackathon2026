@@ -1,0 +1,23 @@
+{
+  "title": "sdfcube DMSO-water (distinct), nsumt = 5 without a cube file",
+  "purpose": "Exercises `sdfcube` [@epsrmanual] for two different molecule types (spatial density of water around DMSO) and the start of an accumulation when no previous cube file exists.",
+  "fortran": [
+    "`sdfcube.f`: `run_sdfcube`, `sdfcube` (grid histogram), `initcube`, `outcube` (cube file, accumulation)",
+    "`sharm_routines_rev1.f`: `form_eulerangles`; `auxiliary_routines.f`: `rotateeuler`; `process_symbols.f`: `check_symbol`",
+    "`setup_symbols_generic.f`: `setup_symbols_sdfcube`"
+  ],
+  "rust": [
+    "`tools/sdfcube.rs`: `run`, `sdfcube`, `initcube`, `outcube`",
+    "`tools/sharm_routines.rs`: `form_eulerangles`, `rotateeuler`, `write_mol_xyz`; `tools/sharm.rs`: `read_axis`, `average_molecule`",
+    "`symtab_tools.rs`: `SDFCUBE` keyword table"
+  ],
+  "system": "The EPSR-test configuration `200DMSO400Water.ato`: 200 DMSO (atoms S, C, C, O, 6 H) and 400 water molecules (O1, H1, H1; SPC/E parameters [@berendsen1987]), 3200 atoms at 300 K in a cubic box of side 33.12 Å, a model of the DMSO-water mixtures of Soper and Luzar [@soperluzar1992]. `sdfcube` histograms the centres of the second molecules, rotated into the frame of each central molecule (Euler angles from the axis definitions), on a cubic grid and writes the spatial density function as a Gaussian `.cube` file together with the averaged molecules (`-first.xyz`, `-second.xyz`). Here water centres (O1) around DMSO (centre = mass centre of S, O and C; z axis towards O, x axis towards the C-C midpoint) on a 21×21×21 grid (`mpixel 10`, `rmax 8`), with the \"molecule 1 at origin\" pass of distinct types.",
+  "inputs": "Input files written by hand from the keyword tables (`setup_symbols_*`), one `keyword value` per line, ended by `q`; `200DMSO400Water.ato` copied from EPSR-test. `dmsowat.SDFCUBE.dat` with `nsumt 5` and `averagemol n`; compared with ex75 it adds distinct molecule types and a three-type central group.",
+  "verification": "One pass. With `nsumt 5` but no cube file, `initcube` resets `nsumt` to 0, so the cube is a fresh accumulation and the saved input file has `nsumt 1` (reference `dmsowat.SDFCUBE.dat`). Compared: `dmsowat.SDFCUBE.cube`, `-first.xyz`, `-second.xyz` and the updated input file.",
+  "refs": [
+    "epsrmanual",
+    "soperluzar1992",
+    "berendsen1987",
+    "gfortran"
+  ]
+}

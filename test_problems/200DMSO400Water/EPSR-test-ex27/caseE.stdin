@@ -1,0 +1,12 @@
+atom 2
+atlabel HX
+atom 1
+epsilon 0.7
+label y
+2 1
+HY
+1.0
+temp 250
+bye
+x
+y

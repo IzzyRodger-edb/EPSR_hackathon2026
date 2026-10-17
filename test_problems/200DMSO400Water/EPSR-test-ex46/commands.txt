@@ -1,0 +1,7 @@
+# bonds (bondsclus.f): mean intramolecular distances and their spread
+bonds 200DMSO400Water.ato
+bonds DMSO
+bonds WaterMolecule.ato
+# molecule types alternate (D D W W D W D): a new table whenever the type changes
+bonds alternating.ato
+repeat 1

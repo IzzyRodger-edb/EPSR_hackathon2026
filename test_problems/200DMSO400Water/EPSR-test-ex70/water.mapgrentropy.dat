@@ -1,0 +1,12 @@
+water
+shcoeffs    water.SHARM.h01
+nsmoo       0.0 1 1 1
+mirrorsym   no
+ntrials     200
+nfreq       50
+molndens    0.0334
+molmass     18
+moltemp     298
+molrot      44921.624
+molvib      0
+q

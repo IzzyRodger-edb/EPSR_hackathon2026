@@ -1,0 +1,5 @@
+repeat 2
+triangles slabz.TRI.dat
+triangles cylr.TRI.dat
+triangles centreS.TRI.dat
+triangles water.TRI.dat

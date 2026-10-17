@@ -1,0 +1,3 @@
+addato 2 < addato1.stdin
+addato < addato2.stdin
+repeat 1

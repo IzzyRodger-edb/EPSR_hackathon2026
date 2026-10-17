@@ -1,0 +1,4 @@
+# readxyz: .xyz files whose 2nd line has no cell -> cell read from stdin
+readxyz DMSO.xyz < readxyz_dmso.stdin
+readxyz WaterMolecule < readxyz_water.stdin
+repeat 1

@@ -1,0 +1,25 @@
+{
+  "title": "Pairs missing from the .pcof; ncoeffp given in the .EPSR.inp",
+  "purpose": "Exercises how the `epsr` engine [@soper1996,@soper2005,@epsrmanual] completes an incomplete potential file: atom pairs absent from the `.pcof` get default coefficients, and the number of EP coefficients to read is taken from the `.EPSR.inp` when the `.pcof` has no `ncoeffp` line. This is what happens when a user edits or adds atom types by hand.",
+  "fortran": [
+    "`read_and_save_files.f`: `read_pcof` (new pair sets, `npairspcof` 20 and 21; reading only `ncoeffp` coefficients), `save_files_others`",
+    "`process_symbols.f`: `check_symbol` (`ncoeffp` block)",
+    "`epsr_standalone_rev3.f`: `inita` (resets `ncoeffp` from `rminpt`/`rmaxpt`)"
+  ],
+  "rust": [
+    "`pcof.rs`: `read_pcof`, `write_pcof_pairs`",
+    "`symbols.rs`: `check_symbol`; `structure.rs`: `inita`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case the DMSO S - water H1 and water O1-H1 pairs are missing: they start with a zero empirical potential (`pcoefp = (1, 0, ...)`) and `rminex = max(rminfac*dcor, roverlap)` (0 here).",
+  "inputs": "`scripts/make_inputs.py`: S-H1, O1-H1 and the `ncoeffp` header line removed from the `.pcof` (19 pairs left); `ncoeffp 60` inserted in the `.EPSR.inp` before `fnameato`; `ntimes 2`, `niter 2`. `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 2`.",
+  "verification": "Only 60 coefficients per pair are read in pass 1 (61-116 stay 0); `inita` then sets `ncoeffp` to 116 and the stored Fortran reference `.pcof` has `ncoeffp 116` and 21 pairs, with S-H1 and O1-H1 appended as pairs 20 and 21 with `coulfac 0.00000`. The README reports gcov evidence: `npairspcof=npairspcof+1` executed twice, the `check_symbol` `ncoeffp` block once.",
+  "notes": "Fortran quirk reproduced: for a new pair `coulfac`, `coordex` and `efacp` are not set (COMMON, 0), so the pair has no Coulomb term and its EP is not refined in the run that creates it; it is refined from pass 2 on.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

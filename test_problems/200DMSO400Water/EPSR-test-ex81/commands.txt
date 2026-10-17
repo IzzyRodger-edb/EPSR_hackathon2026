@@ -1,0 +1,5 @@
+# fixed dihedral angle (dminrr = dmaxrr = 120): DIH groups are created
+dockato WaterMolecule.ato H1 O1 H1 4 10 WaterMolecule.ato O1 H1 H1 120 120 yes waterdih
+# fixed dihedral with overlap test (factor 0.8)
+dockato WaterMolecule.ato H1 O1 H1 4 10 WaterMolecule.ato O1 H1 H1 75 75 0.8 waterdih2
+repeat 1

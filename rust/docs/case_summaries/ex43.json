@@ -1,0 +1,21 @@
+{
+  "title": "writexyz with pre-existing output files",
+  "purpose": "Exercises the file-handling branches of `writexyz` [@epsrmanual]: scanning an existing append file block by block (including an incomplete last block and trailing blank lines), continuing a numbered series from an existing `.nblock` counter, a centre molecule beyond the number of molecules, and an exclusion list ended by a non-integer word.",
+  "fortran": [
+    "`writexyz.f`: `run_writexyz` (command-line words / stdin prompts), `writexyz` (selection, rotation, block counting, append / numbered files)",
+    "`ato_read_and_save.f`: `minitc` (reading the `.ato`); `minimagec.f`: `minimage` (minimum image about the centre molecule)",
+    "`ato_manipulation_rev4.f`: `centreofmass`, `rotatecoords` (Euler rotation)"
+  ],
+  "rust": [
+    "`tools/writexyz.rs`: `run`, `writexyz`, `block_atoms`",
+    "`ato.rs`: `State::minitc`; `neighbour.rs`: `minimage`",
+    "`tools/groupc_common.rs`: `centreofmass`, `rotatecoords`"
+  ],
+  "system": "Configurations of the EPSR-test DMSO/water example: single `DMSO.ato` (10 atoms) and `WaterMolecule.ato` (3 atoms) templates, and the 200 DMSO + 400 water box `200DMSO400Water.ato` (3200 atoms, cubic 33.1213 Å, 300 K). Transformations only: Euler rotations (0°, 90°, 0°), (10°, 0°, 0°) and (-20°, 30°, -40°); slab |x| <= 6, |y| <= 7, -8 <= z <= 9 Å about the origin for the box.",
+  "inputs": "Pre-existing files placed in the case folder: `DMSOappend.xyz` (one complete block followed by an incomplete one), `WaterMoleculeappend.xyz` (two complete blocks and extra blank lines), `200DMSO400Water.nblock` containing 7. Commands: `writexyz DMSO.ato append 1 5 5 -5 5 0 90 0 0`, `writexyz WaterMolecule.ato append 0 50 50 -50 50 10 0 0 0`, `writexyz 200DMSO400Water.ato noappend 999 6 7 -8 9 -20 30 -40 4 abc 3`.",
+  "verification": "Files compared: `DMSOappend.xyz` (the Fortran rewinds on the incomplete block, so the file is rewritten with block 00001 only), `WaterMoleculeappend.xyz` (block 00003 appended, blank lines kept), `200DMSO400Water00008.xyz` (168 atoms; centre = origin since 999 > nmol; type 4 excluded, type 3 not because the list stops at `abc`) and the updated `.nblock` (8).",
+  "refs": [
+    "epsrmanual",
+    "gfortran"
+  ]
+}

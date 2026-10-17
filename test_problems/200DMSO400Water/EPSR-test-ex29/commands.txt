@@ -1,0 +1,4 @@
+makemole Chain.mol < chain.stdin
+makemole Tip4p.mol
+makemole Grid.mol < grid.stdin
+repeat 1

@@ -1,0 +1,4 @@
+xwts Xray1.XWTS.dat
+xwts Xray2.XWTS.dat
+xwts Xray3.XWTS.dat < xwts3.stdin
+repeat 1

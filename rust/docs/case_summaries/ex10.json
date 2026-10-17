@@ -1,0 +1,25 @@
+{
+  "title": "Two X-ray data sets (nxfile = 2)",
+  "purpose": "Extends ex9 to two X-ray data sets, the `MXFILE = 2` limit of the `epsr` engine [@soper1996,@soper2005], with the alternative one-number header of the X-ray weights file and non-zero modified atomic form factors. X-ray data are weighted by Q-dependent atomic form factors instead of constant scattering lengths, so the weights, the self-scattering background and the EP update all take separate code paths.",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `get_wts` (two X-ray files, one-number header decoded into density and normalisation flags), `wxtype` (modified form factors), `wxcreate`",
+    "`epsr_standalone_rev3.f`: `runepsr17` and `ptgnsq` X-ray branches for `nxfile` = 2, `interp`",
+    "`epsr_standalone_rev3.f`: `inita` (`iinit 1`)"
+  ],
+  "rust": [
+    "`weights.rs`: `State::get_wts`, `read_xray_weights`, `wxtype`, `wxcreate`",
+    "`epsr.rs`: `Epsr::iterate`; `potential.rs`: `State::ptgnsq`",
+    "`structure.rs`: `interp`, `State::inita`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). Data set 1 is the neutron data of deuterated DMSO in D2O (SANDALS run SLS03863) [@soperluzar1992]. Data sets 2 and 3 are treated as X-ray data with Waasmaier-Kirfel form factors [@waasmaier1995]; their data files are byte-identical copies of the null-water (SLS03871) and H2O (SLS03850) neutron data, so the case tests code paths, not a physical fit. Weights file A has header `-2`, B has `3` (ex9: `1 2 1`), and modified form factors f(Q)·(1 - (alpha/f(0))·exp(-Q²/(2·delta²))) are switched on (alpha 0.5, delta 2.0 for O/O1 in A; 0.3, 1.5 for H/H1 in B).",
+  "inputs": "As ex9, but data sets 2 and 3 in the `.EPSR.inp` use `D6DMSO_HDO_xray.mint01` + `DMSOWaterA.XWTS.wts` and `DMSOWater_xray.mint01` + `DMSOWaterB.XWTS.wts` (variants of the ex9 weights file with changed header and alpha/delta values); `iinit 1`.",
+  "verification": "Two chained passes (pass 1 with `iinit 1`, pass 2 continuing). `get_wts` decodes header `-2` to normalisation by <f>² of the independent-atom form factors (`datanorm` 2) and `3` to normalisation by <f²> of the modified form factors, so both normalisation branches of `wxcreate` and the MAFF branch of `wxtype` run. `wxcreate` rewrites `X-raywts.dat` and `X-rayf0x.dat` for each X-ray set, so the files left are those of set 3; they and the 27 standard outputs (29 files) are identical after both passes.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "berendsen1987",
+    "soperluzar1992",
+    "waasmaier1995",
+    "gfortran"
+  ]
+}

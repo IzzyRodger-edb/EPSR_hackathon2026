@@ -1,0 +1,24 @@
+{
+  "title": "szeros /= 0: extrapolation of the data to Q = 0",
+  "purpose": "Exercises the `szeros` option of the `epsr` engine of EPSR [@soper1996,@soper2005]: a non-zero value fixes the Q = 0 limit of the interference differential cross section, and the data below the minimum Q are replaced by a linear extrapolation towards this limit, both for the background subtraction and for the fit of the empirical potential [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (`szerostemp = szeros - sum(ciwt*soqintra(1,:))`, linear extrapolation below `nqmin` in the difference `dts` before `ftback`)",
+    "`epsr_standalone_rev3.f`: `ptgnsq` (extrapolated `qtemp` below max(qminp/qminm, q(nqmin)), `szeros /= 0` R-factor branch), `fit_expansion`"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::iterate` (`szerostemp`, extrapolation); `structure.rs`: `ftback`",
+    "`potential.rs`: `ptgnsq`, `fit_expansion`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case `szeros` is -0.30 for data set 1, -0.12 for data set 2 and 0.0 for data set 3 (mixed case); below `nqmin` the difference is the line conss0 + grads0·(Q - Q(1)) minus the intramolecular term, joining the Q = 0 limit to the first used data point.",
+  "inputs": "Only the `.EPSR.inp` differs from EPSR-test, edited by `scripts/make_inp.sh` (via `scripts/setkw.py`): `szeros` -0.30 / -0.12 / 0.0.",
+  "verification": "`nqmin` = 8 > 1, so the extrapolation branch is taken. The extrapolated values are visible in the first columns of `delfit.dat` for data sets 1 and 2 and are zero for data set 3; the szeros /= 0 R-factor branch (summing from point 1) only affects the log. All files including `delfit.dat` are identical.",
+  "notes": "The `fit_expansion` call is the same in both Fortran branches.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

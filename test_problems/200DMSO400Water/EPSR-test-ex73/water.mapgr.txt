@@ -1,0 +1,12 @@
+water
+shcoeffs    water.SDF.h01
+nsmoo       0.0 1 1 1
+mirrorsym   no
+nviews      2
+view 1
+grtype      3
+theta_phi   0 0 0 0 0
+view 2
+grtype      3
+theta_phi   90 0 180 90 0
+q

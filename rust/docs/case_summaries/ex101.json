@@ -1,0 +1,26 @@
+{
+  "title": "Coarse graining with distributed molecule scale factors",
+  "purpose": "Exercises the coarse-graining option of the `epsr` engine of EPSR [@soper1996,@soper2005], on when the first value of `qinscalefc` is > 1: per-molecule size factors `scalefacmol` (`.ato` molecule headers) and per-type sphere parameters `natomsph radminsph radmaxsph cgmolfac` define form factors and scale the reference-potential distances of molecule pairs [@epsrmanual]. This case gives the molecules different scale factors, so the scaling of the pair energies and the binning of form factors are exercised.",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (`qinscalefc`), `inita` (coarse-graining block: bins `assignatomscalefac`, `sphereformfactor`, `intraformfactor`, `intraformfactorself`), `gaussianqr2`",
+    "`molfit.f`: `en_mole_pair`, `en_change`, `en_atom_inter_scale` (pair scale factor `scalefac`)",
+    "`ato_manipulation_rev4.f`: `atogen` (scaled `potex`, `wavinter`); `ato_read_and_save.f`: `minitc`, `moloutc`"
+  ],
+  "rust": [
+    "`coarsegrain.rs` (new): `State::inita_coarsegrain`, `gaussianqr2`, `atogen_accumulate`, `atogen_normalise`",
+    "`epsr.rs`: `Epsr::setup` (`qinscalefc`); `structure.rs`: `inita`, `atogen`",
+    "`energy.rs`: `en_mole_pair`, `en_change`, `en_atom_inter_scale`; `ato.rs`: `minitc`, `moloutc`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. Coarse graining represents atoms by uniform spheres (form factors from `gaussianqr2` of the inner and outer radius); a molecule pair scales the reference-potential distance by `scalefac = 0.5*(scalefacmol(i)+scalefacmol(j))`. Here `scalefacmol` cycles through 1.0/1.25/1.5/1.7 for DMSO and 0.8/1.0/1.2 for water, giving 4 and 3 form-factor bins with bin averaging and type minima below 1.0; `selfbroadpwr` 0.33 gives `scalefacmoluse` = (atoms per molecule)^0.33.",
+  "inputs": "Generated from EPSR-test by `scripts/make_cg.py <folder> <mode>` (edits `.EPSR.inp` keywords, the `.ato` `scalefacmol` words and type columns). Mode for this case: `.EPSR.inp` `qinscalefc 1.5 0.33`, `ntimes 3`; `.ato` scale factors as above; `.pcof` with the `rminex` values of EPSR-test-ex1 (S-S 4.0 and two water pairs), so the scaled close-contact count `potex` of `atogen` matters.",
+  "verification": "The pair scale factor changes the Monte Carlo energies: first-pass energy per molecule -30.18 kJ/mol against -39.51 kJ/mol for the same input with `qinscalefc 1.0` (README). The three form-factor files are compared byte for byte with the 27 standard outputs.",
+  "notes": "Fortran: form factors and `wavinter` are computed but never used for S(Q) (the coarse-graining code in `gensq` is commented out).",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

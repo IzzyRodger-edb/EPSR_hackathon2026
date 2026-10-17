@@ -1,0 +1,19 @@
+{
+  "title": "bonds: mean intramolecular distances",
+  "purpose": "Exercises `bonds` (`bondsclus.f`), which checks the intramolecular geometry of an EPSR configuration [@epsrmanual]: for each run of consecutive molecules of the same type it writes the matrix of mean atom-atom distances (upper triangle) and their r.m.s. spreads (lower triangle) to a `.bonds` file. This is how a user verifies that the flexible molecules keep a sensible geometry during a refinement.",
+  "fortran": [
+    "`bondsclus.f`: `bondsclus` (distance averages and spreads per run of identical molecules), main program (command line, file search)",
+    "`ato_read_and_save.f`: `minitc` (reading the `.ato`)"
+  ],
+  "rust": [
+    "`tools/bonds.rs`: `run` (averages, spreads, table output)",
+    "`ato.rs`: `State::minitc`; `tools/groupc_common.rs`: `command_text`, `get_full_filename`"
+  ],
+  "system": "The EPSR-test DMSO/water box (200 DMSO + 400 water molecules, 3200 atoms, cubic 33.1213 Å, 300 K): mean S-C 1.83 Å, S-O 1.55 Å, C-H 1.11 Å, water O-H 0.97 Å and H-H 1.55 Å, with spreads of 0.05-0.1 Å; distances from a methyl H to O or to the other methyl group spread by 0.3-0.7 Å, reflecting the methyl rotations. Also the single `DMSO.ato` and `WaterMolecule.ato` templates (spread 0), and `alternating.ato`: 7 molecules D D W W D W D in a 25 Å box.",
+  "inputs": "EPSR-test `.ato` files; `alternating.ato` made of randomly rotated, slightly distorted copies of DMSO and water by a helper script (a one-off script that was not kept; the generated file is the input). Commands `bonds 200DMSO400Water.ato`, `bonds DMSO` (no extension), `bonds WaterMolecule.ato`, `bonds alternating.ato`.",
+  "verification": "Files compared: `200DMSO400Water.bonds` (two tables, averages over 200 and 400 molecules), `DMSO.bonds`, `WaterMolecule.bonds`, and `alternating.bonds` with five tables (a new table each time the molecule type changes: DD, WW, D, W, D). Compared against the original Fortran binary.",
+  "refs": [
+    "epsrmanual",
+    "gfortran"
+  ]
+}

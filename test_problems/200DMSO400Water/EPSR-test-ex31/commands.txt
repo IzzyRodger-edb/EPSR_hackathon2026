@@ -1,0 +1,2 @@
+mixato < mixato.stdin
+repeat 1

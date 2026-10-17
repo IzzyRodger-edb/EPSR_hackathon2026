@@ -1,0 +1,13 @@
+watdmso
+shcoeffs    dmsowat
+ident       -1
+nsmoo       2
+mirrorsym   y
+nviews      2
+view 1
+grtype      2
+theta_phi   30 60 0 0 0
+view 2
+grtype      3
+theta_phi   150 10 270 100 45
+q

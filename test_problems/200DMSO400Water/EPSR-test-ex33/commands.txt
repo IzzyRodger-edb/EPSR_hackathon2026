@@ -1,0 +1,4 @@
+mixato < mixato.stdin
+fmole mixbox.ato 50
+fmole DMSO 200
+repeat 1

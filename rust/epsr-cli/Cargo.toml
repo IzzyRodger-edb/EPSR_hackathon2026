@@ -1,0 +1,13 @@
+[package]
+name = "epsr-cli"
+description = "Command-line driver for the Rust EPSR engine (equivalent of `epsr <dir> epsr <file>.EPSR.inp`)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "epsr-rs"
+path = "src/main.rs"
+
+[dependencies]
+epsr-core = { path = "../epsr-core" }

@@ -1,0 +1,12 @@
+dmsowat
+shcoeffs    dmsowat.SHARM.h01
+nsmoo       2
+mirrorsym   no
+ntrials     150
+nfreq       40
+molndens    0.0134
+molmass     78
+moltemp     298
+molrot      2000
+molvib      1.5
+q

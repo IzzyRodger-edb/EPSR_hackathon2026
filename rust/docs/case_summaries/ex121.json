@@ -1,0 +1,23 @@
+{
+  "title": "Bragg peaks with Lorentzian broadening, hklqmin cut, triclinic crystal",
+  "purpose": "Exercises the Bragg-peak calculation of the `epsr` engine [@soper1996,@soper2005,@epsrmanual] for a general triclinic lattice, with Lorentzian peak shapes and a lower Q limit for broadening.",
+  "fortran": [
+    "`ato_manipulation_rev4.f`: `bragginten` (reciprocal lattice, hkl list, `.bragg`), `crystfrac`",
+    "`epsr_standalone_rev3.f`: `runepsr17` (keywords; `.inten`, Debye-Waller factor, truncation, replacement of the partial S(Q))",
+    "`ato_manipulation_rev4.f`: `atogen`; `epsr_standalone_rev3.f`: `gensq`"
+  ],
+  "rust": [
+    "`bragg.rs`: `Bragg::read_keywords`, `bragginten`, `structure_and_lattice`, `bragg_peaks`",
+    "`structure.rs`: `atogen`, `gensq`; `epsr.rs`: `Epsr::iterate`"
+  ],
+  "system": "A triclinic crystal of tethered one-atom molecules built with `makelattice` from a cell a, b, c = 4.3, 4.8, 5.4 Å, alpha, beta, gamma = 80°, 100°, 110° with S at (0,0,0) and O1 at (0.5,0.45,0.55) (no charges), replicated 7 × 7 × 6: 588 atoms in a 30.1 × 33.6 × 32.4 Å box at 300 K. The labels S and O1 exist in the EPSR-test `.pcof` and weights, which are used unchanged (only the S-S, S-O1, O1-O1 pairs are matched); the data are numerical input only. For a crystal the simulation box holds only a few unit cells, so the Bragg part of the structure factor [@squires1978] is computed from the reciprocal lattice: intensities per atom pair and reflection are broadened into peaks, divided by the number of unit cells, damped by a Debye-Waller factor and replace the intermolecular partial S(Q) up to `qbraggmax`. A negative width selects Lorentzian peaks.",
+  "inputs": "`scripts/make_case.sh` (with `make_triclinic_crystal.sh`, `setkw.py`) regenerates the inputs, verified byte-identical. Keywords changed: `iinit 1`, `ntimes 2`, `qwidthqmax -0.02 4.0`, `mplicities 7 7 6 1 1 2` (6 words; the value 2 is reset to 1), `hklqmin 1.0 8.0 0.0` (no broadening below 1 1/Å, `rminbragg` 8 Å, no Debye-Waller factor). `commands.txt`: `repeat 2`.",
+  "verification": "Exercised: triclinic reciprocal lattice with non-zero off-diagonal components and k/l ranges depending on h and k, the Lorentzian branch, the `hklqmin` cut, the `debyewaller = 0` branch, tethered molecules in `crystfrac` and a non-cubic box. `.bragg`, `.inten` and all other outputs are identical in both passes.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "epsrmanual",
+    "squires1978",
+    "gfortran"
+  ]
+}

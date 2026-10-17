@@ -1,0 +1,16 @@
+ss               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       300
+
+chain   1
+
+atom1       S
+atom2       O
+atom3       S
+rmin12      1.3
+rmax12      1.7
+rmin13      3.5
+rmax13      5.5
+rmin23      2.5
+rmax23      5.0
+q

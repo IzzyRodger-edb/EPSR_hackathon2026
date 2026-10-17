@@ -1,0 +1,8 @@
+# readxyz: cell read from the 2nd line of the .xyz file; various elements
+readxyz mixture.xyz
+# 2nd line has 7 words that are not numbers -> cell read from stdin (hexagonal cell)
+readxyz titled.xyz < titled.stdin
+# error paths: unknown atom label / fewer atoms than announced -> no .ato written
+readxyz badlabel.xyz
+readxyz short.xyz
+repeat 1

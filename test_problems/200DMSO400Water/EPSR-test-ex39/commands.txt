@@ -1,0 +1,5 @@
+mixato < mixato.stdin
+makelatticeato mixbox 2 2 2 big n
+randomise big
+fmole < fmole.stdin
+repeat 1

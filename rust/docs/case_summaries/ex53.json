@@ -1,0 +1,24 @@
+{
+  "title": "triangles: bond-angle distributions",
+  "purpose": "Exercises `triangles`, which computes distributions of the angle atom1-atom2-atom3 for atom pairs within distance windows [@epsrmanual], either between real atoms (`ltype 1`) or with the third point the mean position of the atom3 atoms bonded to atom2 (`ltype 2`), optionally restricted by the distance from a centre type (`atom-c`, `atom-z`, `atom-r`), and an orientational order parameter per distribution.",
+  "fortran": [
+    "`triangles.f`: `run_triangles` (normalisation, order parameter), `find_triangles`",
+    "gfortran intrinsic `SIND`/`COSD` (`_gfortran_sind_r4`, `_gfortran_cosd_r4`)",
+    "`read_and_save_files.f`: `read_input_file`, `initgofz`, `outgofz` (histogram file, running average and spread), `save_files_others`; `auxiliary_routines.f`: `r_int`",
+    "`setup_symbols_generic.f`: `setup_symbols_triangles`"
+  ],
+  "rust": [
+    "`tools/triangles.rs`: `run`, `find_triangles`",
+    "`fortran/fmath.rs`: `sind_intrinsic`, `cosd_intrinsic` (re-exported by `tools/anal_common.rs`)",
+    "`tools/anal_common.rs`: `match_centre`, `outgofz`; `symbols.rs`: `setup_input_file`, `read_input_file`, `save_inp_file`; `output.rs`: `r_int`"
+  ],
+  "system": "Analysed configuration: `200DMSO400Water.ato`, an unchanged copy of the EPSR-test box (200 DMSO with atom types S, O, C, H and 400 water molecules with O1, H1; 3200 atoms, 300 K, cubic box 33.1213 Å, 0.0881 atoms/Å³), the EPSR model of DMSO-water neutron data [@soperluzar1992]. Each distribution is normalised by sin(theta) to unit area. `water.TRI.dat`: O1-O1-O1 angles between neighbouring water oxygens (O-O 2.0-3.4 Å), the signature of the tetrahedral hydrogen-bond network; O1-O1-(H1 of the middle O1); S-O1-H1 for water within 2.5-4.5 Å of S. For `ltype 1` the order parameter is q = 1 - (9/4)<(cos theta + 1/3)²>, equal to 1 for perfect tetrahedra; the reference gives q = 0.490 for O1-O1-O1. `slabz`, `cylr` and `centreS` restrict the triplets by their z, xy or 3D distance from DMSO O or S.",
+  "inputs": "Four keyword files `slabz`, `cylr`, `centreS`, `water` `.TRI.dat` (2, 2, 2 and 3 distributions; `slabz` with `nsumt -1`, the others `nsumt 0`); `200DMSO400Water.ato` copied unchanged from EPSR-test.",
+  "verification": "The four commands run in sequence, the list twice. Compared: the four `.TRI.c01` files, the rewritten `.dat` files and `fort.14` (list-directed order parameters) of the last run (`water`); the README states that `fort.14` of the other three inputs was also checked identical in separate runs. The configuration is the same in every pass, so the chained passes test the read-back of the accumulated file and the running-average arithmetic.",
+  "notes": "`triangles.f` calls `sind`/`cosd` without declaring them EXTERNAL, so gfortran 15 uses its intrinsic SIND/COSD, not the routines of `auxiliary_routines.f`; the port reproduces the libgfortran algorithm bit for bit (unit test `trig_intrinsics_match_gfortran`).",
+  "refs": [
+    "epsrmanual",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

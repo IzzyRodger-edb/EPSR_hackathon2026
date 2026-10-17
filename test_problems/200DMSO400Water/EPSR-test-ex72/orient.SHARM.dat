@@ -1,0 +1,20 @@
+orient
+fnameato    200DMSO400Water.ato
+nr          50
+rmax        10
+nsumt       0
+ncoeffs     0
+l1values    0 1 2
+l2values    0 1 2
+lvalues     0 1 2 3
+n1step      1
+n2step      1
+atom-c      S O
+axisc1      y 4
+axisc2      z 2 3
+atom-s      O1   H1
+axiss1      y 2 3
+axiss2      -z 2
+test        10 20 30 40 50 60 70 80
+averagemol  y
+q

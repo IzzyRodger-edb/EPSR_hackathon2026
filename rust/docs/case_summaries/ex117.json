@@ -1,0 +1,27 @@
+{
+  "title": "Coordination-number constraints: three-body angles",
+  "purpose": "Exercises the `angles` option of the coordination-number constraints of the `epsr` engine [@soper1996,@soper2005,@epsrmanual], which adds derived bonds between the neighbours of a constrained atom so that their mutual angle approaches a requested value.",
+  "fortran": [
+    "`coordconstraint_mod.f90`: `init_constraint`, `find_constraints`, `en_coordcon`, `en_mole_coord`, `check_coord_bonded`, `save_coord_energies`, `writecoordcons`",
+    "`molfit.f`: `en_harmonic`, `en_gauss`, `en_atom_inter_scale_coordextra`, `en_change`",
+    "`ato_manipulation_rev4.f`: `fmolec1`, `press`; `read_and_save_files.f`: `read_pcof`, `save_files_others`"
+  ],
+  "rust": [
+    "`coordconstraint.rs`: `init_constraint`, `find_constraints`, `en_coordcon`, `en_mole_coord`, `check_coord_bonded`, `save_coord_energies`, `writecoordcons`, `write_pcof_coordcons`",
+    "`coordconstraint.rs`: `en_harmonic`, `en_gauss`, `en_atom_inter_scale_coordextra`",
+    "`energy.rs`: `fmolec1`, `en_change`, `press`; `pcof.rs`: `read_pcof`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. A `coordcon atc nc cctemp ccdistort ccgaussweight ccgausswidth ats ds dsmax ...` line asks each atom of type `atc` to have `nc` neighbours of type `ats` on other molecules; `find_constraints` assigns explicit bonds and each bond adds a Morse-form energy [@morse1929] (`en_harmonic`) plus an optional harmonic/linear term; constraint-bonded pairs use the reference potential without extra Gaussians or repulsive core. Here water O1 has 2 H1 partners (1.8/2.5 Å) and every pair of its neighbours gets a derived bond whose length follows from the law of cosines with the closer of 104.5° and 109.5°, with a Gaussian term (`en_gauss`).",
+  "inputs": "EPSR-test unchanged (`ntimes 5`, `niter 1`) except one `coordcon` line appended to the `.pcof`: `coordcon O1 2 5.0 1.0 0.5 1.0 H1 1.8 2.5 angles 2.0 1.0 0.3 0.5 104.5 109.5`. `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 3`.",
+  "verification": "The line is rewritten by `save_files_others` as a 256-character record, so passes 2 and 3 re-read the program's own format; `coordcon.txt` (written by `fmolec1`) is compared too. Exercised: the derived-bond search with two angles, appending to (and reallocating) the four bond arrays, and the `.pcof` record with the `angles` part (a FORMAT with an extra `)` that gfortran ignores). Constraint energy -8.770 kJ/mol per molecule.",
+  "notes": "Also reproduced: the Fortran uses `adistcc(i,ia)` for both distances of the law of cosines. Reproduced: `save_coord_energies` is only called after accepted internal rotations, so `ergold_coord` keeps its `fmolec1` value after whole-molecule moves; the pass-2 removal search stops at slot 2; stale bond-array slots are read in pass 3.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "morse1929",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

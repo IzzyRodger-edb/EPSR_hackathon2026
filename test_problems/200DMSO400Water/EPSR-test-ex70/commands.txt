@@ -1,0 +1,4 @@
+sharm water.SHARM.dat
+mapgr water.mapgr.txt
+mapgrentropy water.mapgrentropy.dat
+repeat 6

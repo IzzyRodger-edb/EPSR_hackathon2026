@@ -1,0 +1,19 @@
+oo               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       10
+ndist       2
+
+cluster   1
+
+atom1       O1
+atom2       O1
+rmin        2.5
+rmax        3.3
+
+cluster   2
+
+atom1       C
+atom2       O1
+rmin        3.0
+rmax        3.6
+q

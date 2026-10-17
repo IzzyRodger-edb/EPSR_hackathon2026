@@ -1,0 +1,22 @@
+{
+  "title": "lsi: two distributions, wildcards, rtrimax, failed restart",
+  "purpose": "Exercises `lsi`, which computes a local structure index: for each molecule, bonded and non-bonded near neighbours are found with the bond criteria of `chains`, and the LSI is the distance of the nearest non-bonded minus that of the furthest bonded neighbour (method of Shi, Russo and Tanaka, J. Chem. Phys. 149, 224502 (2018), as cited in `lsi.f`; the LSI concept goes back to Shiratani and Sasai [@shiratani1996]). Neighbour counts, neighbour-triangle angles and r3..r6 distributions are also written.",
+  "fortran": [
+    "`lsi.f`: `run_lsi` (running averages `nbonded`, `nnonbonded`, `avbond`), `find_lsi` (bonded / non-bonded neighbours, LSI, triangles, r3..r6)",
+    "`chains_routines.f`: `match`",
+    "`read_and_save_files.f`: `outgofz`, `save_files_others`; `setup_symbols_generic.f`: `setup_symbols_lsi`"
+  ],
+  "rust": [
+    "`tools/lsi.rs`: `run`, `find_lsi`, `dfs_range` (out-of-bounds emulation)",
+    "`tools/chains.rs`: `read_criteria`, `fmatch`, `set_nsize_default`; `tools/clusters.rs`: `outgofz`",
+    "`symbols.rs`: `setup_input_file`, `read_input_file`, `save_inp_file`; `output.rs`: `r_int`; `symtab_tools.rs`: `LSI`"
+  ],
+  "system": "Analysed configuration: `200DMSO400Water.ato`, an unchanged copy of the EPSR-test box (200 DMSO with atom types S, O, C, H and 400 water molecules with O1, H1; 3200 atoms, 300 K, cubic box 33.1213 Å, 0.0881 atoms/Å³), the EPSR model of DMSO-water neutron data [@soperluzar1992]. Distribution 1: criteria `O1 H1 O1` (water donor) and `O* S H1` (an O with S in the same molecule, i.e. DMSO, to water H1), angle limits 30° and 60°, `rtrimax 3.5`. Distribution 2: S-C···O1 (water molecules have no S: the `iwmin = 0` path), `rtrimax 4.5`. LSI range -0.5 to 1.5 Å, 60 bins.",
+  "inputs": "`mix.LSI.dat`: `nsumt 2` with no `mix.LSI.n01` present, initial `nbonded 1.5 0.5` (two values, spread squared on input) and `nnonbonded 0.3` (one value). `200DMSO400Water.ato` copied unchanged from EPSR-test; the keyword file was written by hand (the Fortran program creates no template when the named file does not exist; keywords and defaults from `setup_symbols_generic.f`).",
+  "verification": "`repeat 2`. `outgofz` fails to read the missing `mix.LSI.n01` and sets nsumt = -1, so nothing is accumulated thereafter (reference `.dat`: `nsumt -1`); fc = 0.5 in run 1. The last `rtrimax` value read is the one used, as in the Fortran. Because `find_lsi` zeroes the whole `gofz` array at the start of every distribution, the 20 columns of distribution 1 in `mix.LSI.n01` are all zero (checked in the reference) — a Fortran quirk reproduced by the port. Compared after each pass: `mix.LSI.n01`, `mix.LSI.dat`.",
+  "refs": [
+    "shiratani1996",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

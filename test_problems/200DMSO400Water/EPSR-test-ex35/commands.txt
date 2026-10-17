@@ -1,0 +1,6 @@
+mixato < mixato.stdin
+randomise box
+fmole box 20
+randomise < randomise.stdin
+randomise 200DMSO400Water.ato
+repeat 1

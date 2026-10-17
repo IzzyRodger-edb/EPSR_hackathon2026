@@ -1,0 +1,23 @@
+{
+  "title": "xwts: X-ray form-factor weights",
+  "purpose": "Exercises `xwts`, the keyword-driven program that prepares the `.wts` file for an X-ray data set: for every atom type it looks up the analytic atomic form factor and stores the coefficients together with the normalisation and the modified-atomic-form-factor (MAFF) parameters that `epsr` uses to weight the partial structure factors of an X-ray measurement [@soper2005,@epsrmanual].",
+  "fortran": [
+    "`xwts.f`: `xwts` (component loop, prompt for unknown symbols, writing `<run>.wts`), `form_fact` (search of `f0_WaasKirf.dat`)",
+    "`process_symbols.f`: `check_symbol` (`symbol_setup.eq.'xwts'` branch: `fnameato` defaults, `output`/`normtot` clamped); `setup_symbols_generic.f`: `setup_symbols_xwts`",
+    "`read_and_save_files.f`: `read_input_file`, `read_ato`, `save_files_others`; `ato_read_and_save.f`: `minitc`"
+  ],
+  "rust": [
+    "`tools/xwts.rs`: `run`, `form_fact`, `check_symbol_extra`",
+    "`symbols.rs`: `read_input_file`, `save_inp_file`; `symtab_tools.rs`: table `XWTS`; `ato.rs`: `read_ato`, `minitc`"
+  ],
+  "system": "The EPSR-test mixture of 200 DMSO and 400 water molecules (3200 atoms; atom types S, C, O, H, O1, H1) seen by X-rays. The form factor of each type is the Waasmaier-Kirfel five-Gaussian fit f0(s) = sum a_i exp(-b_i s²) + c [@waasmaier1995]; each record of the `.wts` file holds c, the five (a_i, b_i) pairs and the MAFF q and delta values. `Xray1` uses neutral-atom factors with the defaults; `Xray2` uses per-molecule output, `normtot 1`, `iafformaff 2` (MAFFs used for the normalisation) and the ionic/valence factors `Cval`, `O1-`, `O2-` and `Hh+`, with MAFF parameters 0.5/0.7 on O1 and 0.3/0.45 on H1.",
+  "inputs": "`Xray{1,2,3}.XWTS.dat` written for this case (`Xray1` contains only `fnameato`); `f0_WaasKirf.dat` and `200DMSO400Water.ato` copied from EPSR-test. `xwts3.stdin` answers the prompts for the unknown symbols `Zz` and `Xx`: first the invalid `Qq`, then `S` and `Hh+`.",
+  "verification": "One pass of three `xwts` calls; compared files: `Xray{1,2,3}.XWTS.wts` (format `11(1x,f11.6)` with format reversion) and the rewritten `Xray1`/`Xray3.XWTS.dat`. The reference shows the clamping: `Xray3.XWTS.wts` starts with `1 2 1` (`output 0` -> per atom, `normtot 5` -> 2, also written back to `Xray3.XWTS.dat`), `Xray2` with `2 1 2`; the C record of `Xray3` reproduces the tabulated Waasmaier-Kirfel coefficients of C (c = 4.297983, a1 = 2.657506, b1 = 14.780758).",
+  "notes": "`f0_WaasKirf.dat` is read from the current working directory, as in the Fortran.",
+  "refs": [
+    "soper2005",
+    "epsrmanual",
+    "waasmaier1995",
+    "gfortran"
+  ]
+}

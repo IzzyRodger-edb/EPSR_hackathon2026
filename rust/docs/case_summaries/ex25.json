@@ -1,0 +1,17 @@
+{
+  "title": "epsrwtsx: interactive X-ray weights",
+  "purpose": "Exercises `epsrwtsx`, the interactive counterpart of `xwts`: for every atom type the user types the X-ray form-factor symbol and the MAFF q/delta values, then the output type, normalisation and base name. The resulting `X-ray.wts` file supplies `epsr` with the form-factor weights of an X-ray data set [@soper2005,@epsrmanual].",
+  "fortran": [
+    "`epsrwtsx.f`: `epsrwtsx` (prompts, `nrho` check, data type from `nrho`/`normx`/`iafformaff`, writing `<base>X-ray.wts`), `form_fact` (search of `f0_WaasKirf.dat`)",
+    "`ato_read_and_save.f`: `minitc`; `file_and_directory_commands.f`: `get_full_filename`"
+  ],
+  "rust": [
+    "`tools/epsrwtsx.rs`: `run`",
+    "`tools/xwts.rs`: `form_fact` (shared with `xwts`); `ato.rs`: `minitc`"
+  ],
+  "system": "The EPSR-test mixture of 200 DMSO and 400 water molecules (3200 atoms; types S, C, O, H, O1, H1) for X-ray scattering, using the Waasmaier-Kirfel analytic form factors f0(s) = sum a_i exp(-b_i s²) + c [@waasmaier1995]. `case1`: neutral-atom factors, per atom, independent-atom form factors (IAFF). `case2`: valence and ionic factors (`Cval`, `O1-`, `O2-`, `Hh+`), MAFF parameters (e.g. 0.5/0.7 for the water oxygen), `normx 2` and `iafformaff 2`. `case3`: neutral factors per molecule.",
+  "inputs": "`200DMSO400Water.ato` and `f0_WaasKirf.dat` from EPSR-test; answers in `case{1,2,3}.stdin`. `case2` gives the invalid `nrho 3`, an unknown symbol `Xx` (re-asked, answered `O1-`), one MAFF pair separated by a comma (`0.5,0.7`) and a blank line before the base name ` W2 more`; `case3` names the `.ato` file without extension.",
+  "verification": "One pass of three `epsrwtsx` calls; compared files: `W1X-ray.wts`, `W2X-ray.wts`, `W3X-ray.wts`. Their first lines show the option handling: `1 1 1` for case 1, `-1 2 2` for case 2 (the invalid `nrho 3` becomes per molecule, which the Fortran signals as -1) and `-1 1 1` for case 3.",
+  "notes": "`f0_WaasKirf.dat` is read from the current working directory, as in the Fortran.",
+  "refs": ["soper2005", "epsrmanual", "waasmaier1995", "gfortran"]
+}

@@ -1,0 +1,4 @@
+sharm dmso.SHARM.dat
+mapgr dmso.mapgr.txt
+mapgrentropy dmso.mapgrentropy.dat
+repeat 1

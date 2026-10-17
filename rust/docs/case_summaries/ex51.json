@@ -1,0 +1,24 @@
+{
+  "title": "partials: centre atom, rho(z) and rho(r)",
+  "purpose": "Exercises the three restricted modes of `partials` [@epsrmanual]: the g(r) of all atom types around one centre type (`atom-c`), the density profile along z about a centre type (`atom-z`) and the density versus distance in the xy-plane about a centre type (`atom-r`), together with the no-accumulation branch (`nsumt -1`) and the range scaling `rnormalise`.",
+  "fortran": [
+    "`partials.f`: `run_partials`, `find_partials` (centre-atom, rho(z) and rho(r) branches)",
+    "`read_and_save_files.f`: `read_input_file`, `initgofz`, `outgofz` (histogram file, running average and spread), `save_files_others`; `auxiliary_routines.f`: `r_int`",
+    "`setup_symbols_generic.f`: `setup_symbols_partials`"
+  ],
+  "rust": [
+    "`tools/partials.rs`: `run`, `find_partials`",
+    "`tools/anal_common.rs`: `match_centre`, `outgofz`, `write_fort14`",
+    "`symbols.rs`: `setup_input_file`, `read_input_file`, `save_inp_file`; `output.rs`: `r_int`"
+  ],
+  "system": "Analysed configuration: `200DMSO400Water.ato`, an unchanged copy of the EPSR-test box of 200 dimethyl sulphoxide (DMSO; atom types S, O, C, H) and 400 water molecules (O1, H1): 3200 atoms, DMSO mole fraction 1/3, 300 K, cubic box of side 33.1213 Å (0.0881 atoms/Å³), the EPSR model of the deuterated DMSO-water neutron data (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), cf. [@soperluzar1992]. `centreO1`: the 6 g(r) of every type around water O1, normalised with the O1 density, 200 points out to 0.8 of the default range; `rhozS`: number density versus the z separation from DMSO S atoms, 150 points; `rhorO`: number density versus the distance in the xy-plane from DMSO O atoms, 100 points over half the default range (`rnormalise 0.5`). Such profiles characterise the local environment of one site [@hansenmcdonald2006].",
+  "inputs": "Three keyword files: `centreO1.PARTIALS.dat` (`atom-c O1`, `nz 200`, `rnormalise 0.8`, `nsumt -1`), `rhozS.PARTIALS.dat` (`atom-z S`, `nz 150`, `nsumt 0`), `rhorO.PARTIALS.dat` (`atom-r O`, `nz 100`, `rnormalise 0.5`, `nsumt 0`); `200DMSO400Water.ato` copied unchanged from EPSR-test.",
+  "verification": "`commands.txt` runs the three inputs in sequence and the whole list twice. `centreO1` (`nsumt -1`) writes the single-configuration result in both passes and its `nsumt` stays -1; `rhozS` and `rhorO` accumulate (reference after pass 2: `nsumt 2`). Compared: the three `.PARTIALS.g01` files, the three rewritten `.dat` files and `fort.14`, which every run overwrites, so the one of `rhorO` is kept: it lists only the 6 pairs O-S ... O-H1 with O as centre.",
+  "notes": "`fort.14`: the Fortran writes these lines to unit 14 after `save_files_others` has closed it, so gfortran creates the default file `fort.14`; the port writes the same file.",
+  "refs": [
+    "epsrmanual",
+    "soperluzar1992",
+    "hansenmcdonald2006",
+    "gfortran"
+  ]
+}

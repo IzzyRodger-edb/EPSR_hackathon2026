@@ -1,0 +1,24 @@
+{
+  "title": "nwts: first-order differences and interactive corrections",
+  "purpose": "Exercises the two-sample path of `nwts`: the weights of each sample and of their first-order isotopic difference, in which only correlations involving the substituted atom types survive [@soper2005,@epsrmanual]. It also covers the input checks (option clamping, exchange flags, zero abundances) and the interactive recovery when the keyword file contains unknown mass numbers or chemical symbols.",
+  "fortran": [
+    "`nwts.f`: `nwts` (samples 1 and 2, `<run>tot1/2.wts`, `<run>dif.wts`, `normtot`/`normdif`, per-molecule factor; stdin prompts for unknown mass numbers and symbols)",
+    "`process_symbols.f`: `check_symbol` (`nwts` branch: `output` and `nsamples` clamped, `iexchange` forced to 0 for non-H atoms, `fnameato` fills default components)",
+    "`ato_manipulation_rev4.f`: `scatt_len`; `read_and_save_files.f`: `read_input_file`, `read_ato`, `save_files_others`; `ato_read_and_save.f`: `minitc`, `moloutc`"
+  ],
+  "rust": [
+    "`tools/nwts.rs`: `run`, `check_symbol_extra`, `read_isotopes`, `read_stdin_word`, `scatt_len`",
+    "`symbols.rs`: `read_input_file`, `save_inp_file`; `ato.rs`: `read_ato`, `minitc`, `moloutc`"
+  ],
+  "system": "The EPSR-test DMSO/water mixture (200 DMSO + 400 water, 3200 atoms, six atom types S, C, O, H, O1, H1) and a single water molecule (`WaterX.ato`). Hypothetical isotope-substitution experiments are set up: the methyl H as a 50/50 natural H/D mixture against pure 1H, together with the water H1 as 90 % D/10 % 1H against natural H in `FirstDiffA`, and 34S plus methyl H (D versus 1:1 H/D) substitution with an 18O entry of zero abundance in `FirstDiffB`. The weights use bound coherent scattering lengths [@sears1992] and Faber-Ziman pair products [@faberziman1965]; `normtot 1`/`2` divide by <b>² or <b²>, `output 2` gives weights per molecule (factor 3200/600 atoms per molecule).",
+  "inputs": "`FirstDiff{A,B,C}.NWTS.dat` made from `EPSR-test/DMSODWaterD.NWTS.dat` by changing keyword values; `WaterX.ato` is `EPSR-test/WaterMolecule.ato` with the symbol of O1 changed to `Ox`. Stdin: `diffc.stdin` gives the mass numbers 1 and 2 in place of 99 and 77, `waterx.stdin` gives `O` for `Ox`.",
+  "verification": "One pass of four `nwts` calls; 15 files compared (`tot1`, `tot2`, `dif` for each FirstDiff run, `WaterX.NWTStot.wts`, the rewritten `.NWTS.dat` files and `WaterX.ato`). The reference shows the checks acting: the rewritten `FirstDiffA`/`FirstDiffC` files carry `iexchange 0` for the oxygen, `FirstDiffB` carries `output 2` instead of 5, `WaterX.NWTS.dat` has been filled with two components from the `.ato` file, and `WaterX.ato` now has the symbol `O`.",
+  "notes": "As in the Fortran, the mass numbers typed on stdin are used for the weights but are not written back to `FirstDiffC.NWTS.dat`, which still lists 99 and 77.",
+  "refs": [
+    "soper2005",
+    "epsrmanual",
+    "sears1992",
+    "faberziman1965",
+    "gfortran"
+  ]
+}

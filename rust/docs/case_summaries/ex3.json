@@ -1,0 +1,26 @@
+{
+  "title": "Unbiased automatic ereq stepping (bias 0)",
+  "purpose": "Exercises the unbiased branch of EPSR's automatic EP-amplitude control [@soper1996,@soper2005,@epsrmanual]: with `bias 0` the step of `ereq` is drawn at random in both directions rather than being pushed along the quality-factor trend, which tests the random-step formula and the rounding of `ereq` to multiples of the step unit.",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` lines 2180-2262 (automatic `ereq` step, zero-bias branch), reading of `ereqstep/bias`",
+    "`epsr_standalone_rev3.f`: `lsparabola1` (trend line of the `.erg` history), `ptgnsq`",
+    "`auxiliary_routines.f`: `ran1`; `read_and_save_files.f`: `save_files_others`"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::automatic_ereq`, `Epsr::setup`",
+    "`potential.rs`: `lsparabola1`, `State::ptgnsq`; `rng.rs`: `Ran1`",
+    "`pcof.rs`: `save_pcof_file`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. The EP amplitude starts at `ereq` = 10 kJ/mol and is stepped by 2 kJ/mol without bias.",
+  "inputs": "Copy of EPSR-test with only the `.pcof` header changed: `ereqstep 2.000 1.000` (0 in EPSR-test) and `bias 0` (2 in EPSR-test).",
+  "verification": "Six chained passes with feedback of `.pcof` and `.erg`. The unbiased stepping is visible in the Fortran reference: the EP energy column of the six new `.erg` lines reads 10, 10, 12, 12, 10, 10 and the final `.pcof` has `ereq` = 8, i.e. steps both up and down. Since each step consumes `ran1` random numbers, identical output also confirms that the port draws them in the same order. All 27 output files are identical after every pass.",
+  "notes": "Fortran behaviour reproduced: the second number of `ereqstep` is ignored on input (the unit is set equal to the step), so the file is written back as `ereqstep 2.000 2.000`.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

@@ -1,0 +1,5 @@
+# alignmole: single water molecules, starting in the plane perpendicular to the target axis;
+# RNG seeds chosen so that no trial rotation is rejected (see README)
+alignmole waterz.ato z 10 all
+alignmole waterx x 10 1 2 3
+repeat 1

@@ -1,0 +1,27 @@
+{
+  "title": "Molecule size factor (sizefactor 2.0)",
+  "purpose": "Exercises the `sizefactor` option of the `epsr` engine [@soper1996,@soper2005]: molecules are shrunk relative to the box at the start of a simulation to avoid entanglement, and expanded back in steps of the decline rate over successive runs. While `sizefactor` > 1 EP refinement and intramolecular atom moves are switched off [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (`sizefactor` > 1: `potfac` := 0, `stepmi` := 0; decline by the rate after each run)",
+    "`ato_manipulation_rev4.f`: `generate_mp` (WCA-truncated intramolecular core with `dcore/sizefactor`)",
+    "`molfit.f`: `en_atom_intra` (intramolecular distances scaled by `sizefactor`), `molfit`",
+    "`ato_read_and_save.f`: `minitc` (`dmaxmol = dmax·sizefactor`)"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::setup`, `Epsr::iterate` (sizefactor decline)",
+    "`potential.rs`: `generate_mp`; `energy.rs`: `en_atom_intra`",
+    "`montecarlo.rs`: `molfit`; `ato.rs`: `minitc`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. With `sizefactor` s > 1 the intramolecular bond restraints are normalised to a box s times larger (`dmaxmol` = dmax·s), so molecules are shrunk by 1/s relative to the box, and the intramolecular non-bonded core, a Weeks-Chandler-Andersen truncated n-6 potential [@wca1971], has its diameter scaled by 1/s. Here s starts at 2 and is multiplied by the decline rate 0.9 after each run whose energy is below the threshold (0).",
+  "inputs": "Copy of EPSR-test with only `sizefactor 2.00000 0.90000 0.00000E+00` (factor, decline rate, threshold; factor 1.0 in EPSR-test) in `200DMSO400Water.EPSR.inp`.",
+  "verification": "Four chained passes, each reading the reduced factor written by the previous one. The Fortran reference shows the decline 2.0 -> 1.8 -> 1.62 -> 1.458 (value in the last `.out`) and writes `sizefactor 1.31220` to the `.inp`; as EP refinement is off, neither `.pcof` nor `delfit.dat` is written. All 25 files written are identical after every pass.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "wca1971",
+    "gfortran"
+  ]
+}

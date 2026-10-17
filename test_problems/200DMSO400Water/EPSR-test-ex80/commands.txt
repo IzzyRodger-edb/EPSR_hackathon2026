@@ -1,0 +1,5 @@
+# water onto water: random second rotation (30-90 deg), overlap factor 1.0, answers from stdin
+dockato WaterMolecule.ato H1 O1 H1 3 10 WaterMolecule.ato < dock_random.stdin
+# same, but overlaps allowed ("yes"), more molecules, output name with extension
+dockato WaterMolecule.ato H1 O1 H1 6 10 WaterMolecule.ato < dock_yes.stdin
+repeat 1

@@ -1,0 +1,15 @@
+water
+shcoeffs    water.SHARM.h01
+nsmoo       0.0 1 1 1
+mirrorsym   no
+nviews      3
+view 1
+grtype      1
+theta_phi   0 0 0 0 0
+view 2
+grtype      2
+theta_phi   30 45 0 0 0
+view 3
+grtype      3
+theta_phi   60 30 20 70 40
+q

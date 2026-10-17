@@ -1,0 +1,25 @@
+{
+  "title": "One X-ray data set",
+  "purpose": "Exercises the X-ray branch of the `epsr` engine [@soper1996,@soper2005]: a data set whose weights file is an X-ray weights file (`*.XWTS.wts`, written by the `xwts` tool). X-ray data are weighted by Q-dependent atomic form factors instead of constant scattering lengths, so the weights, the self-scattering background and the EP update all take separate code paths.",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `get_wts` (X-ray header and form-factor coefficients), `wxtype` (f(Q) and modified form factors), `wxcreate` (Q-dependent weights, writes `X-raywts.dat`, `X-rayf0x.dat`)",
+    "`epsr_standalone_rev3.f`: `runepsr17` and `ptgnsq` X-ray branches (`xfile`), `interp` (data interpolated onto the Q grid)",
+    "`epsr_standalone_rev3.f`: `inita` (`iinit 1`)"
+  ],
+  "rust": [
+    "`weights.rs`: `State::get_wts`, `read_xray_weights`, `wxtype`, `wxcreate`",
+    "`epsr.rs`: `Epsr::iterate` X-ray branches; `potential.rs`: `State::ptgnsq`",
+    "`structure.rs`: `interp`, `State::inita`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). Data sets 1 and 2 are the neutron data of deuterated DMSO in D2O and in null-scattering H2O/D2O (ISIS SANDALS runs SLS03863, SLS03871) [@soperluzar1992]. Data set 3 is treated as X-ray data: its weights use Waasmaier-Kirfel form-factor coefficients [@waasmaier1995] (`f0_WaasKirf.dat`) for S, C, O, H, normalised to <f²> with independent-atom form factors (header `1 2 1`). Its data file `DMSOWater_xray.mint01` is a byte-identical copy of the H2O neutron data (SLS03850), so the case tests the code path, not a physical X-ray fit.",
+  "inputs": "Copy of EPSR-test with `iinit 1` and data set 3 replaced by `DMSOWater_xray.mint01` + `DMSOWater.XWTS.wts` in the `.EPSR.inp`; the weights were made with `xwts` from `DMSOWater.XWTS.dat`.",
+  "verification": "Two chained passes (pass 1 with `iinit 1`, pass 2 continuing). Besides the 27 standard outputs, the X-ray files `X-raywts.dat` (1200 lines) and `X-rayf0x.dat` (600 lines) are compared; all 29 files are identical after both passes.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "berendsen1987",
+    "soperluzar1992",
+    "waasmaier1995",
+    "gfortran"
+  ]
+}

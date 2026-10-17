@@ -1,0 +1,15 @@
+sc
+shcoeffs    sc.SDF.h01
+nsmoo       0
+mirrorsym   no
+nviews      3
+view 1
+grtype      1
+theta_phi   0 0 0 0 0
+view 2
+grtype      2
+theta_phi   0 0 0 0 0
+view 3
+grtype      2
+theta_phi   90 45 0 0 0
+q

@@ -1,0 +1,13 @@
+orient
+shcoeffs    orient
+ident       -1
+nsmoo       1.0 0 1 2
+mirrorsym   y
+ntrials     60
+nfreq       25
+molndens    0.02
+molmass     30
+moltemp     300
+molrot      10000
+molvib      0
+q

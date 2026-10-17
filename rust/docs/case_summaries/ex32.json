@@ -1,0 +1,24 @@
+{
+  "title": "mixato: file selection and error paths",
+  "purpose": "Exercises the interactive file-selection dialogue shared by the EPSR setup tools [@epsrmanual] (`search_for_files`) inside `mixato`, with a real directory listing, plus the error branches for a non-existent file and a missing template. These paths matter because every box-building program of EPSR [@soper2005] selects its input files through them.",
+  "fortran": [
+    "`mixato.f`: `mixato` (number of files from the command line, template check, output name with extension)",
+    "`file_and_directory_commands.f`: `search_for_files` (answers `u`, `y`, `n`, `e`; rewind/wrap-around), `get_full_filename`",
+    "`system_commands.f`: reading `system_commands.txt` (`system_ls`, `system_termination`)",
+    "`ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`)"
+  ],
+  "rust": [
+    "`tools/mixato.rs`: `run`",
+    "`tools/setup_common.rs`: `search_for_files`, `SysCmds`, `get_full_filename`",
+    "`ato.rs`: `minitc`, `moloutc`, `ftype`"
+  ],
+  "system": "A 12-molecule box of 5 water and 7 dimethyl sulphoxide molecules (85 atoms) at 0.08 atoms/Å³ and 300 K, cubic side 10.204 Å (`mix2.ato`); the molecules are those of the EPSR-test DMSO-water system [@soperluzar1992]. The water file is `Water.ato`, a renamed copy of `WaterMolecule.ato`, so its stored template does not exist.",
+  "inputs": "`DMSO.ato`, `Water.ato` (= EPSR-test `WaterMolecule.ato` renamed), a Linux `system_commands.txt` (`system_ls ls`, `system_termination /`) and `mixato.stdin`; command `mixato 2`. Answers: `u` (go back) on the first entry, which re-positions at the end of the list, `y` accept, `n` rejections with wrap-around, `e` (leave the list) and typing `NoSuchFile` (\"Problems with .ato file ... Try again\"), then output name `mix2.out` (stored as `mix2.ato`).",
+  "verification": "The listing is real: the reference `dirlist.txt` contains `./DMSO.ato` and `./Water.ato` (from `ls ./*.ato`); the answers were chosen so that the result does not depend on the locale sort order of `ls`. The missing-template branch is taken: the water molecule type is written with template `Water` (the file name) in `mix2.ato`. Both output files are identical.",
+  "refs": [
+    "epsrmanual",
+    "soper2005",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

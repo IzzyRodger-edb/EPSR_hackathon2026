@@ -1,0 +1,3 @@
+makemole DMSO.mol
+makemole WaterMolecule
+repeat 1

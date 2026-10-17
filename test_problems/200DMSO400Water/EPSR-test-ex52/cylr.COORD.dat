@@ -1,0 +1,13 @@
+cylr               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       30
+nsumt       0
+atom-r      S
+ndist       1
+distribution 1
+atom1       O1
+atom2       O
+rmin        1.0
+rmax        3.5
+rminrmaxc   0.0 3.0
+q

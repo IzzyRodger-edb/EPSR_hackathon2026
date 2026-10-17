@@ -1,0 +1,18 @@
+{
+  "title": "changeato: keyword navigation and molecule removal",
+  "purpose": "Exercises the remaining interactive paths of `changeato` [@epsrmanual]: removing a number of molecules of chosen types from a configuration, moving through the keyword list (`d`/`u`, bare values, `atom n`), `help`, `default`, unknown commands, relabelling all atoms of a type, and the different exits (`q`, `bye`, save at the final prompt).",
+  "fortran": [
+    "`changeato.f`: `changeato`; `process_symbols.f`: `process_symbols`, `process_commands` (`d`, `u`, `help`, `default`, `save`, `q`, `bye`), `check_symbol`, `change_symbol_changeato`, `write_symbols_changeato`",
+    "`process_symbols.f`: `remove_molecule_types`, `remove_molecule`, `cleanup_types`, `change_label`, `save_files_changeato`",
+    "`read_and_save_files.f`: `save_files`; `ato_read_and_save.f`: `minitc`, `moloutc`"
+  ],
+  "rust": [
+    "`tools/changeato.rs`: `run`, `process_symbols`, `process_commands`, `check_symbol`, `change_symbol_changeato`, `write_symbols_changeato`",
+    "`tools/changeato.rs`: `remove_molecule_types`, `remove_molecule`, `cleanup_types`, `change_label`, `save_files`; `ato.rs`: `minitc`, `moloutc`"
+  ],
+  "system": "`MixD.ato` is the EPSR-test mixture of 200 DMSO and 400 water molecules (3200 atoms, 300 K, cubic box 33.1213 Å); 3 DMSO molecules are removed from the start of the file and 395 water molecules, leaving 202 molecules (197 DMSO + 5 water) in the same box, and several parameters are changed through keyword navigation (e.g. `sigma 3.4` for atom type 1). `WaterE.ato` is the single EPSR-test water molecule (box 14.422 Å) with SPC/E-type parameters [@berendsen1987]; the H type is relabelled `HX`, the epsilon of O set to 0.7 kJ/mol, all H atoms (fraction 1.0) relabelled `HY` and the temperature set to 250 K.",
+  "inputs": "`MixD.ato` = `EPSR-test/200DMSO400Water.ato`, `WaterE.ato` = `EPSR-test/WaterMolecule.ato`; commands in `caseD.stdin` and `caseE.stdin`, including a blank answer, a non-numeric value, `atom 99` (clamped to the last type) and the unknown command `unknowncmd`.",
+  "verification": "One pass of two `changeato` calls; compared files: `MixD.ato` (header: 202 molecules) and `WaterE.ato` (header: 250 K).",
+  "notes": "When molecules are removed from the start of the file, the Fortran does not renumber the bond partners and rotation-group atoms of the molecules that move down; this is reproduced exactly (README).",
+  "refs": ["epsrmanual", "berendsen1987", "gfortran"]
+}

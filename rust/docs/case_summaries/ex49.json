@@ -1,0 +1,23 @@
+{
+  "title": "readpdb: single-atom residues",
+  "purpose": "Exercises `readpdb` [@pdbformat,@epsrmanual] with residues of a single atom (ions), element names taken from columns 13-14 of the atom name with upper-case symbol matching (`NA`, `CL`), and a `HETATM` record, which `readpdb` ignores because only `ATOM` records are read.",
+  "fortran": [
+    "`readpdb.f`: `run_readpdb`, `readpdb` (CRYST1/ATOM/CONECT records, molecules from residues, bonds from van der Waals radii, angle constraints, DIH groups), `upcase`",
+    "`ato_manipulation_rev4.f`: `ctype`, `ftype`, `centreofmass`, `get_rotgrp`, `dihedral`",
+    "`auxiliary_routines.f`: `convertalphabetagamma`; `ato_read_and_save.f`: `moloutc`"
+  ],
+  "rust": [
+    "`tools/readpdb.rs`: `run`, `readpdb`, `conect` (molecule merging), `make_dihedrals`, `read_fixed`, `upcase`",
+    "`tools/readxyz.rs`: `set_type_parameters`; `ato.rs`: `State::ctype`, `State::ftype`",
+    "`tools/groupc_common.rs`: `get_rotgrp`, `dihedral`, `convertalphabetagamma`, `setup_lattice`, `centreofmass`, `moloutc` (with `DIH` groups)"
+  ],
+  "system": "A hand-made aqueous NaCl fragment in a cubic 15 Å cell: three water molecules, one Na and one Cl residue (5 molecules, 11 atoms read; a `HETATM` carbon is skipped). Bonds are found where the distance is below 0.75 × the sum of the van der Waals radii; no dihedral groups.",
+  "inputs": "`ions.pdb` written by hand; stdin `readpdb.stdin`: factor `0.75`, dihedrals `n`; `vanderWaalsRadii.txt` copied from EPSR-test.",
+  "verification": "Output compared: `ions.ato`, in which the Na and Cl molecules appear with `nato = 1` but no atom records and their centres at the origin, exactly as written by the Fortran. Fortran reference: the original `readxyz`/`readpdb` binaries crash (SIGSEGV) at the first call of `ctype`, which has optional arguments but is called with 11 of its 13 arguments without an explicit interface (gfortran passes the hidden character lengths where `radmaxsph`/`pseudofacsph` are expected). The reference was therefore produced with an explicit `INTERFACE` block for `ctype` added to the program (no other change; absent arguments mean `radmaxsphere = 0.5*sigcor`, `pseudofacmol = 1`), built by `rust/tools/build_patched_readxyz_readpdb.sh`; the comparison is against this patched build, not the original binary.",
+  "notes": "Fortran quirk reproduced: for a one-atom residue `nal` is never set (it is assigned only when a second atom is added) and keeps 0, so the loops `naf..nal` are empty and the ions are effectively lost.",
+  "refs": [
+    "pdbformat",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

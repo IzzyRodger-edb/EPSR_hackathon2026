@@ -1,0 +1,31 @@
+water               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       180
+nsumt       0
+ndist       3
+triangles 1
+atom1       O1
+atom2       O1
+atom3       O1
+ltype       1
+rmin12      2.0
+rmax12      3.4
+rmin23      2.0
+rmax23      3.4
+triangles 2
+atom1       O1
+atom2       O1
+atom3       H1
+ltype       2
+rmin12      2.0
+rmax12      3.4
+triangles 3
+atom1       S
+atom2       O1
+atom3       H1
+ltype       1
+rmin12      2.5
+rmax12      4.5
+rmin23      0.8
+rmax23      1.2
+q

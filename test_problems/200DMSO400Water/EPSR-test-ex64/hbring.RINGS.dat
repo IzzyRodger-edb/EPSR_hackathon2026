@@ -1,0 +1,34 @@
+hbring               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       12
+nsumt       0
+ndist       2
+
+ring   1
+
+atom1       O1
+atom2       H1
+atom3       O1
+rmin12      0.8
+rmax12      1.2
+rmin13      2.4
+rmax13      3.4
+rmin23      1.4
+rmax23      2.5
+ang213min   0.0
+ang213max   40.0
+
+ring   2
+
+atom1       O1 O1
+atom2       H1 H1
+atom3       O* S
+rmin12      0.8 0.8
+rmax12      1.2 1.2
+rmin13      2.4 3.0
+rmax13      3.3 3.8
+rmin23      1.4 2.0
+rmax23      2.6 3.2
+ang213min   0.0 0.0
+ang213max   40.0 180.0
+q

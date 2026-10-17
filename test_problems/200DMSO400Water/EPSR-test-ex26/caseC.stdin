@@ -1,0 +1,7 @@
+remove y
+2
+q
+atom 3
+charge -0.6
+forcesave
+q

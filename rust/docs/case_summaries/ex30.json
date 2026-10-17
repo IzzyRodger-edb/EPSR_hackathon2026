@@ -1,0 +1,25 @@
+{
+  "title": "makeato: one-atom .ato file (crashing Fortran)",
+  "purpose": "Exercises `makeato`, the EPSR setup tool [@epsrmanual] that creates a `.ato` file holding a single one-atom molecule from Lennard-Jones and charge parameters typed on stdin, the usual starting point for atomic liquids and ions in EPSR [@soper1996,@soper2005]. Both ways of giving the file name are tested: on the command line, and typed on stdin with an extension that is stripped.",
+  "fortran": [
+    "`makeato.f`: `makeato` (prompts, atom label = first 3 characters of the name, box from density); `molecom_mod.f90`: `testsize_rotgrps`",
+    "`ato_read_and_save.f`: `moloutc` (where the program crashes)",
+    "`parse.f`: `parse`; `file_and_directory_commands.f`: `get_command_from_args`"
+  ],
+  "rust": [
+    "`tools/makeato.rs`: `run`",
+    "`tools/setup_common.rs`: `command_text`, `read_text`, `read_real5` (stdin answers)",
+    "`ato.rs`: `moloutc` (check of the coarse-graining arrays, error return)"
+  ],
+  "system": "Two single atoms. `Ow`: epsilon 0.65 kJ/mol, sigma 3.16 Å, mass 15.9994, charge -0.8476 e, symbol O, 300 K, 0.1 atoms/Å³ (close to the SPC/E water oxygen [@berendsen1987]). `Argon` (typed as `Argon.ato`): epsilon 0.97 kJ/mol, sigma 3.405 Å, mass 39.948, charge 0, symbol Ar, 85 K, 0.0213 atoms/Å³ (liquid-argon density). No simulation is performed; the program only writes the box description.",
+  "inputs": "Two stdin files written for this test: `makeato_Ow.stdin` (command `makeato Ow`, seven answers: epsilon, sigma, mass, charge, symbol, temperature, density) and `makeato_Ar.stdin` (command `makeato`, file name `Argon.ato` on the first line, then the same seven answers).",
+  "verification": "The reference Fortran program crashes (SIGSEGV, exit 139) inside `moloutc`: `makeato` never calls `ctype`, so the coarse-graining arrays `natomsphere`/`pseudofacmol` are unallocated when `moloutc` reads them, and the buffered output is lost before it is flushed. Both expected outputs, `Ow.ato` and `Argon.ato`, are therefore empty (0 bytes in `fortran_reference.tar.gz`). The port reproduces this outcome: it writes the same empty files and exits with code 1 and the message `moloutc: natomsphere/pseudofacmol not allocated`. The test runner compares the files left behind, which are identical.",
+  "notes": "The case documents a bug of the original program rather than hiding it: a working `.ato` file is not produced by either implementation. Other cases (e.g. `makelattice`, ex37) build one-atom molecules through the `ctype` route instead.",
+  "refs": [
+    "epsrmanual",
+    "soper1996",
+    "soper2005",
+    "berendsen1987",
+    "gfortran"
+  ]
+}

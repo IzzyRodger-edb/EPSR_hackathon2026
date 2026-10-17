@@ -1,0 +1,15 @@
+ .gmol 0
+ atom 1 OW 0.0 0.0 0.0 3 2 3 4
+ atom 2 HW 0.9572 0.0 0.0 1 1
+ atom 3 HW -0.2399 0.9266 0.0 1 1
+ atom 4 QM 0.0889 0.1180 0.0 1 1
+bond OW HW 0.9572
+bond OW QM 0.15
+angle HW OW HW 104.52
+angle HW OW QM 52.26
+potential OW 0.65 3.154 16.0 0.0 O
+potential HW 0.0 0.0 1.008 0.52 H
+potential QM 0.0 0.0 0.0 -1.04 Q 1.0 0.0 0.0
+qradius QM 0.1
+temperature 298
+density 0.1

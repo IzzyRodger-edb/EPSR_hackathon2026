@@ -1,0 +1,27 @@
+{
+  "title": "randomise (+ mixato, fmole)",
+  "purpose": "Exercises `randomise` (subroutine of `introtcluster.f`), which gives every molecule of a box a random position and a random whole-molecule orientation using the random-number state stored in the `.ato` file — the step that turns the stacked molecules written by `mixato` into a disordered starting configuration for EPSR [@epsrmanual,@soper2005].",
+  "fortran": [
+    "`introtcluster.f`: `randomise` (random positions if `stepm > 0`, random rotations if `stepr > 0`)",
+    "`molfit.f`: `rotatm` (whole-molecule rotation); `auxiliary_routines.f`: `ran1`",
+    "`ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`), `normalise_coordinates`; `minimagec.f`: `minimagec`",
+    "`mixato.f`, `fmole.f` (box building and shaking in between); `file_and_directory_commands.f`: `search_for_files` (file prompt / directory listing), `get_full_filename`"
+  ],
+  "rust": [
+    "`tools/randomise.rs`: `run`",
+    "`tools/setup_common.rs`: `rotatm`, `search_for_files`; `rng.rs`: `Ran1::ran1`",
+    "`ato.rs`: `minitc`, `moloutc`, `normalise_coordinates`; `neighbour.rs`: `minimagec`",
+    "`tools/mixato.rs`, `tools/fmole.rs`"
+  ],
+  "system": "Dimethyl sulphoxide-water mixtures [@soperluzar1992] at 300 K: a new box of 15 DMSO + 30 water (240 atoms) at 0.09 atoms/Å³, cubic side 13.867 Å (`box.ato`), and the full EPSR-test configuration of 200 DMSO + 400 water (3200 atoms) in a cubic box of 33.1213 Å. Random numbers come from the Park-Miller generator with Bays-Durham shuffle (`ran1`) [@parkmiller1988,@numrec1992], whose state is saved in every `.ato` file.",
+  "inputs": "`DMSO.ato`, `WaterMolecule.ato`, `200DMSO400Water.ato` from EPSR-test; `mixato.stdin` (15 DMSO, 30 water, density 0.09, output `box`); `randomise.stdin` (file name `box`). Commands: `mixato`, `randomise box`, `fmole box 20`, `randomise < randomise.stdin` (name typed), `randomise 200DMSO400Water.ato`.",
+  "verification": "Five program calls in one pass, each reading the file written by the previous one, so any difference in the random-number sequence would propagate. Compared outputs: `box.ato`, `200DMSO400Water.ato` and `dirlist.txt`, all identical. The randomisation is visible in the reference: the first molecule of `box.ato` sits at (-6.03, 4.65, 6.55) Å instead of the template position near the origin written by `mixato`.",
+  "refs": [
+    "epsrmanual",
+    "soper2005",
+    "soperluzar1992",
+    "parkmiller1988",
+    "numrec1992",
+    "gfortran"
+  ]
+}

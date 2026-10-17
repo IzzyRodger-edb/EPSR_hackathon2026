@@ -1,0 +1,4 @@
+changeato MixA.ato < caseA.stdin
+changeato DMSOB.ato < caseB.stdin
+changeato MixC < caseC.stdin
+repeat 1

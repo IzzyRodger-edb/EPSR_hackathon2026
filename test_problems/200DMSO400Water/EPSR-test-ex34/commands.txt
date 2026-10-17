@@ -1,0 +1,3 @@
+fmole < fmole1.stdin
+fmole Water < fmole2.stdin
+repeat 1

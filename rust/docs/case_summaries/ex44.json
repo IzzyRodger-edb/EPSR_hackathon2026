@@ -1,0 +1,23 @@
+{
+  "title": "readpdb: CONECT merging and dihedral groups",
+  "purpose": "Exercises `readpdb`, which converts a Protein Data Bank file [@pdbformat] into an EPSR `.ato` file [@epsrmanual]: molecules from residue numbers, merged by `CONECT` records (non-contiguous and contiguous), bonds from van der Waals radii, bond-angle constraints, a dummy site for an unknown element and `DIH` rotational groups with their dihedral angles.",
+  "fortran": [
+    "`readpdb.f`: `run_readpdb`, `readpdb` (CRYST1/ATOM/CONECT records, molecules from residues, bonds from van der Waals radii, angle constraints, DIH groups), `upcase`",
+    "`ato_manipulation_rev4.f`: `ctype`, `ftype`, `centreofmass`, `get_rotgrp`, `dihedral`",
+    "`auxiliary_routines.f`: `convertalphabetagamma`; `ato_read_and_save.f`: `moloutc`"
+  ],
+  "rust": [
+    "`tools/readpdb.rs`: `run`, `readpdb`, `conect` (molecule merging), `make_dihedrals`, `read_fixed`, `upcase`",
+    "`tools/readxyz.rs`: `set_type_parameters`; `ato.rs`: `State::ctype`, `State::ftype`",
+    "`tools/groupc_common.rs`: `get_rotgrp`, `dihedral`, `convertalphabetagamma`, `setup_lattice`, `centreofmass`, `moloutc` (with `DIH` groups)"
+  ],
+  "system": "A small molecular mixture in a cubic 30 Å cell (CRYST1), 57 ATOM records in 15 residues, giving 13 molecules: two dimethyl sulphoxide molecules (coordinates from EPSR-test; one split into a heavy-atom residue and a separate H residue that CONECT merges back), nine waters, one TIP4P-like water whose `MW` site becomes a dummy `Q` atom, and one hand-made methanol split over two residues. Bonds are made where the distance is below 0.7 × the sum of the van der Waals radii (`vanderWaalsRadii.txt` from EPSR-test).",
+  "inputs": "`mixture.pdb` generated from the EPSR-test DMSO and water coordinates by a helper script (a one-off script that was not kept; the generated file is the input); atom serials start at 101 to test the serial look-up; a short `CONECT 9999` record is ignored. stdin: factor `0.7`, dihedrals `y`.",
+  "verification": "Output compared: `mixture.ato` (13 molecules, non-cubic header, DIH groups and angles). Matching required the port to print NaN as gfortran does, unsigned (`fortran/format.rs`). Fortran reference: the original `readxyz`/`readpdb` binaries crash (SIGSEGV) at the first call of `ctype`, which has optional arguments but is called with 11 of its 13 arguments without an explicit interface (gfortran passes the hidden character lengths where `radmaxsph`/`pseudofacsph` are expected). The reference was therefore produced with an explicit `INTERFACE` block for `ctype` added to the program (no other change; absent arguments mean `radmaxsphere = 0.5*sigcor`, `pseudofacmol = 1`), built by `rust/tools/build_patched_readxyz_readpdb.sh`; the comparison is against this patched build, not the original binary.",
+  "notes": "Fortran quirk reproduced: `dihedral(im,...)` is called with absolute atom numbers although it adds `naf(im)-1`, so only molecule 1 gets correct DIH angles; later molecules use unrelated atoms and the methanol values are NaN.",
+  "refs": [
+    "pdbformat",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

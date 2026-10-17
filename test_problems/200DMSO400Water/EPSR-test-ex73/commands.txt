@@ -1,0 +1,3 @@
+sdf water.SDF.dat
+mapgr water.mapgr.txt
+repeat 6

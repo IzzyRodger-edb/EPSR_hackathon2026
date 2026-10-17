@@ -1,0 +1,3 @@
+epsr 200DMSO400Water.EPSR.inp
+epsr boxa.EPSR.inp
+repeat 2

@@ -1,0 +1,25 @@
+{
+  "title": "addato: inserting molecules into a box",
+  "purpose": "Exercises `addato` [@epsrmanual], which inserts copies of molecules at random positions and orientations into an existing `.ato` box without changing its size — used e.g. to add solutes to an equilibrated solvent before an EPSR run [@soper2005]. The case covers the command-line and stdin forms and the retry branches for non-existent files.",
+  "fortran": [
+    "`addato.f`: `addato` (random insertion, template-name check, merging of molecule and atom types)",
+    "`molfit.f`: `rotatm`; `auxiliary_routines.f`: `ran1`; `ato_manipulation_rev4.f`: `ftype`",
+    "`ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`), `normalise_coordinates`; `minimagec.f`: `minimagec`",
+    "`file_and_directory_commands.f`: `search_for_files` (file prompt / directory listing), `get_full_filename`"
+  ],
+  "rust": [
+    "`tools/addato.rs`: `run`, `ask_ato`; `tools/mixato.rs`: `SavedMol`",
+    "`tools/setup_common.rs`: `rotatm`, `search_for_files`, `get_full_filename`",
+    "`ato.rs`: `minitc`, `moloutc`, `ftype`, `normalise_coordinates`; `neighbour.rs`: `minimagec`; `rng.rs`: `Ran1`"
+  ],
+  "system": "The EPSR-test configuration (200 dimethyl sulphoxide + 400 water molecules, 3200 atoms, 300 K, cubic box 33.1213 Å) [@soperluzar1992] with 5 DMSO and 10 water molecules added (`bigbox.ato`, 615 molecules), then 4 more water (`bigbox2.ato`, 619 molecules); the box side stays 33.1213 Å, so the density rises. Positions and orientations come from the `ran1` generator state stored in the `.ato` file.",
+  "inputs": "`DMSO.ato`, `WaterMolecule.ato`, `200DMSO400Water.ato` from EPSR-test. `addato 2 < addato1.stdin`: add `DMSO.ato` (name with extension) ×5 and `WaterMolecule` ×10 to `200DMSO400Water`, output `bigbox`. `addato < addato2.stdin`: number of files asked (1), a non-existent file to add (`NoFile`, retried), `WaterMolecule` ×4, a non-existent target (`NoFile2`, retried), target `bigbox.ato`, output `bigbox2`.",
+  "verification": "Two program calls in one pass, the second reading the output of the first. Compared outputs: `bigbox.ato`, `bigbox2.ato`, `dirlist.txt`, all identical (header lines 615 and 619 molecules, box 0.33121300E+02 in the reference).",
+  "notes": "As in the Fortran, the template of every added molecule type becomes the name of the file it was read from: the existence test opens the blank-padded `character*256` template name, which never exists. Tethered molecules are not supported by the port's reader (not used here).",
+  "refs": [
+    "epsrmanual",
+    "soper2005",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

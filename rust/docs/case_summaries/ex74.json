@@ -1,0 +1,27 @@
+{
+  "title": "sdf: S-C fragment of DMSO vs single C atoms, with mapgr",
+  "purpose": "Exercises the fragment capability of `sdf` [@epsrmanual]: a two-atom central group inside DMSO and a one-atom second \"molecule\" whose atoms can also belong to the central groups, which triggers the removal of overlapping groups and the single-atom branches of the rotation code.",
+  "fortran": [
+    "`sdf_rev2.f`: `run_sdf` (keywords), `sdf` (atom-group search by type and distance, pair loop, averaged groups)",
+    "`sharm_routines_rev1.f`: `get_l_and_n_values`, `form_cgcoeffs`, `form_eulerangles`, `form_dlmn`, `form_sum_prod_dlmn_cgcoeff`",
+    "`auxiliary_routines.f`: `dlm`, `cgcoef`, `rotateeuler`; `read_and_save_files.f`: `outgofzs_sharm` (`.h0n` files, averaging); `process_symbols.f`: `check_symbol`",
+    "`mapgrquad.f`: `run_mapgr`; `plotsharm_routines.f`: `smoosharm`, `sumoverm2`; `plot_routines.f`: `find_plot_par`"
+  ],
+  "rust": [
+    "`tools/sdf.rs`: `run`, `sdf`, `check_symbol_extra`",
+    "`tools/sharm_routines.rs`: `Sharm` methods with the Fortran names (incl. `outgofzs_sharm`), `dlm`, `cgcoef`, `form_eulerangles`, `rotateeuler`",
+    "`tools/mapgr.rs`: `run`; `tools/sharm_routines.rs`: `Coeffs::read`, `Coeffs::angular`, `smoosharm`, `sumoverm2`, `check_symbol_mapgr`; `output.rs`: `w_int`"
+  ],
+  "system": "The EPSR-test configuration `200DMSO400Water.ato`: 200 DMSO (atoms S, C, C, O, 6 H) and 400 water molecules (O1, H1, H1; SPC/E parameters [@berendsen1987]), 3200 atoms at 300 K in a cubic box of side 33.12 Å, a model of the DMSO-water mixtures of Soper and Luzar [@soperluzar1992]. `sdf` computes the same spherical-harmonic coefficients [@soper1994,@graygubbins1984] as `sharm`, but its \"molecules\" are groups of atoms found by atom types and pair distances (first atom = centre). Central group S-C (1.8 Å ±10 %; z axis S to C, no second axis atoms), second group a single C atom; C atoms belonging to a central S-C group are removed from the second-group list (\"Removing molecule\" path). For a single atom cos(theta) = 1 (the `costh >= 1` branch of `dlm`); `axiss1 z 1`/`axiss2 y 1` are truncated to the axis name. l1 = 0-2, l2 = 0, l = 0-2, n steps 0: 3 coefficients, i.e. the S-C to C distribution along and around the S-C bond. `mapgr` rebuilds g(r) along chosen directions and relative orientations from the coefficients (grtype 1 radial, 2 spatial, 3 full orientational).",
+  "inputs": "Input files written by hand from the keyword tables (`setup_symbols_*`), one `keyword value` per line, ended by `q`; `200DMSO400Water.ato` copied from EPSR-test. `sc.SDF.dat` (nr 60, rmax 9, `averagemol n`); `sc.mapgr.txt`: views grtype 1 and 2, `nsmoo 0`.",
+  "verification": "One pass. The reference `sc.SDF.dat` shows `ncoeffs 3`, `nsumt 1`; `sc.SDF.h01`, both xyz files and `sc.mapgr.g01` are identical. Reference build: `sharm`/`sdf` were rebuilt with one comma inserted in the run-time title format (`'(1h(,'//il1fmt`), since gfortran 15.2 otherwise stops with \"Missing comma between descriptors\" before writing the coefficients; all other programs are the unmodified reference binaries. Also masked: characters 31-45 of the `*.mapgr.g01` data lines, the error column of `g_centres(r)`, which `mapgrquad.f` never sets (uninitialised in the Fortran, 0 in the port).",
+  "notes": "Fortran quirk reproduced: on removal only `nm`, `phim`, `cthetm`, `chim`, `iasave` are shifted, not the centres or the rotation-matrix arrays.",
+  "refs": [
+    "epsrmanual",
+    "soper1994",
+    "graygubbins1984",
+    "soperluzar1992",
+    "berendsen1987",
+    "gfortran"
+  ]
+}

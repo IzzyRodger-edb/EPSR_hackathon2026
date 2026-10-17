@@ -1,0 +1,26 @@
+{
+  "title": "Box-building chain: mixato, makelatticeato, randomise, fmole",
+  "purpose": "Runs the complete EPSR box-building workflow [@epsrmanual] in sequence — mix molecules, replicate the box, randomise positions and orientations, relax the molecules — as a user would before starting `epsr` [@soper1996,@soper2005]. With a Linux `system_commands.txt`, every file prompt goes through the real directory listing.",
+  "fortran": [
+    "`mixato.f`: `mixato`; `makelatticeato.f`: `makelatticeato`",
+    "`introtcluster.f`: `randomise`; `molfit.f`: `rotatm`, `molfit`",
+    "`fmole.f`: `fmole`, `initpt_fmole`, `update_ato`; `ato_manipulation_rev4.f`: `fmolec1`, `generate_mp`",
+    "`file_and_directory_commands.f`: `search_for_files` (file prompt / directory listing), `get_full_filename`; `ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`)"
+  ],
+  "rust": [
+    "`tools/mixato.rs`, `tools/makelatticeato.rs`, `tools/randomise.rs`, `tools/fmole.rs`: `run`",
+    "`tools/setup_common.rs`: `search_for_files`, `SysCmds`, `rotatm`; `rng.rs`: `Ran1`",
+    "`montecarlo.rs`: `molfit`; `energy.rs`: `fmolec1`; `potential.rs`: `generate_mp`; `ato.rs`: `minitc`, `moloutc`, `ftype`"
+  ],
+  "system": "A dimethyl sulphoxide-water mixture [@soperluzar1992] at 300 K: 4 DMSO + 8 water (64 atoms) at 0.1 atoms/Å³, cubic side 8.618 Å (`mixbox.ato`), replicated 2×2×2 to 96 molecules (32 DMSO + 64 water, 512 atoms) in a cubic box of 17.235 Å (`big.ato`), then randomised and shaken 10 times with the intramolecular Monte Carlo of `fmole` [@metropolis1953].",
+  "inputs": "`DMSO.ato`, `WaterMolecule.ato` from EPSR-test; `system_commands.txt` (`system_ls ls`, `system_termination /`). `mixato.stdin` and `fmole.stdin` answer each listing prompt with `e` and a typed name (independent of the `ls` sort order). Commands: `mixato < mixato.stdin`, `makelatticeato mixbox 2 2 2 big n`, `randomise big`, `fmole < fmole.stdin` (`big`, 10 shakes).",
+  "verification": "Four program calls in one pass, each consuming the previous output, so the random-number state is carried through `randomise` and `fmole`. Compared outputs: `mixbox.ato`, `big.ato` and `dirlist.txt` (the listing `./DMSO.ato`, `./WaterMolecule.ato`, `./big.ato`, `./mixbox.ato`), all identical.",
+  "refs": [
+    "epsrmanual",
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "metropolis1953",
+    "gfortran"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "title": "lsi: water local structure index, 3 chained runs",
+  "purpose": "Exercises `lsi`, which computes a local structure index: for each molecule, bonded and non-bonded near neighbours are found with the bond criteria of `chains`, and the LSI is the distance of the nearest non-bonded minus that of the furthest bonded neighbour (method of Shi, Russo and Tanaka, J. Chem. Phys. 149, 224502 (2018), as cited in `lsi.f`; the LSI concept goes back to Shiratani and Sasai [@shiratani1996]). Neighbour counts, neighbour-triangle angles and r3..r6 distributions are also written.",
+  "fortran": [
+    "`lsi.f`: `run_lsi` (running averages `nbonded`, `nnonbonded`, `avbond`), `find_lsi` (bonded / non-bonded neighbours, LSI, triangles, r3..r6)",
+    "`chains_routines.f`: `match`",
+    "`read_and_save_files.f`: `outgofz`, `save_files_others`; `setup_symbols_generic.f`: `setup_symbols_lsi`"
+  ],
+  "rust": [
+    "`tools/lsi.rs`: `run`, `find_lsi`, `dfs_range` (out-of-bounds emulation)",
+    "`tools/chains.rs`: `read_criteria`, `fmatch`, `set_nsize_default`; `tools/clusters.rs`: `outgofz`",
+    "`symbols.rs`: `setup_input_file`, `read_input_file`, `save_inp_file`; `output.rs`: `r_int`; `symtab_tools.rs`: `LSI`"
+  ],
+  "system": "Analysed configuration: `200DMSO400Water.ato`, an unchanged copy of the EPSR-test box of 200 dimethyl sulphoxide (DMSO; atom types S, O, C, H) and 400 water molecules (O1, H1): 3200 atoms, DMSO mole fraction 1/3, 300 K, cubic box of side 33.1213 Å (0.0881 atoms/Å³), the EPSR model of the deuterated DMSO-water neutron data (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), cf. [@soperluzar1992]. Water O1-H1···O1 hydrogen-bond criterion (O-H 0.8-1.2, O···O 2.4-3.4, H···O 1.4-2.5 Å, angle <= 30°), LSI range -1 to 2 Å in 100 bins. After three passes the reference gives 1.40 bonded and 0.34 non-bonded neighbours per O1 and a mean bonded O···O distance of 2.80 Å.",
+  "inputs": "`water.LSI.dat`: `nsize 100`, `lsiminmax -1.0 2.0`, `nsumt 0`, one criterion. `200DMSO400Water.ato` copied unchanged from EPSR-test; the keyword file was written by hand (the Fortran program creates no template when the named file does not exist; keywords and defaults from `setup_symbols_generic.f`).",
+  "verification": "`repeat 3`. Runs 1 and 2 use fc = 1 (the Fortran uses the input nsumt: 1/nsumt only for nsumt > 0), run 3 fc = 0.5 for the running averages written back to the `.dat` file (format `2(1x,e12.5)`, second value the spread). Compared after each pass: `water.LSI.n01` (10 columns: bonded/non-bonded counts, LSI, three triangle-angle distributions, r3..r6) and `water.LSI.dat`. The configuration is the same in every pass, so the chained passes test the read-back of the accumulated file and the running-average arithmetic.",
+  "notes": "DMSO molecules have no O1, so their neighbours have no matching atom pair (`iwmin = ia2min = 0`); the Fortran then reads `dfs1(id,0)` and `xa(0)` out of bounds; this is emulated in the port.",
+  "refs": [
+    "shiratani1996",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

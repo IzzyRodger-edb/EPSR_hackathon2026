@@ -1,0 +1,5 @@
+# one water (O-H entries 1.10 A) docked onto a DMSO C-H site of the 200 DMSO + 400 water box
+dockato WaterOH110.ato H1 O1 H1 1 10 200DMSO400Water.ato C H H 0 360 1.0 boxdmso
+# overlaps allowed, fixed dihedral relative to S
+dockato WaterOH110.ato H1 O1 H1 1 10 200DMSO400Water.ato C H S 90 90 yes boxdmso2
+repeat 1

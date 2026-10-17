@@ -1,0 +1,25 @@
+{
+  "title": "makelatticeato: replicating an .ato box",
+  "purpose": "Exercises `makelatticeato` [@epsrmanual], which treats the contents of an existing `.ato` box as a unit cell and replicates it `na x nb x nc` times, optionally converting every atom into a tethered one-atom molecule — used to build larger or crystalline starting configurations for EPSR [@soper2005]. All arguments are tested on the command line, partly and fully on stdin.",
+  "fortran": [
+    "`makelatticeato.f`: `makelatticeato` (replication, renumbering of bonds and rotational groups, conversion to tethered atoms)",
+    "`ato_read_and_save.f`: `minitc` (read `.ato`), `moloutc` (write `.ato`)",
+    "`file_and_directory_commands.f`: `search_for_files` (file prompt / directory listing), `get_full_filename`; `parse.f`: `parse`",
+    "`molecom_mod.f90`: `testsize_labrot`, `testsize_rotgrps`; `reallocation_routines.f`: `reallocate1d_r`"
+  ],
+  "rust": [
+    "`tools/makelatticeato.rs`: `run`",
+    "`ato.rs`: `minitc`, `moloutc`",
+    "`tools/setup_common.rs`: `search_for_files`, `get_full_filename`, `command_text`, `read_text`"
+  ],
+  "system": "Molecules of the EPSR-test DMSO-water system [@soperluzar1992] at 300 K. One dimethyl sulphoxide in a 21.544 Å box is replicated 2×2×2 (`dmso222.ato`: 8 molecules, cubic box 43.089 Å), 1×2×1 with conversion (`dmso121.ato`: 20 tethered atoms, non-cubic 21.54 × 43.09 × 21.54 Å) and 1×1×2 (`dmso112.ato`: 2 molecules, 21.54 × 21.54 × 43.09 Å). One water molecule (14.422 Å box) is replicated 3×2×1 with conversion (`waterlat.ato`: 18 tethered atoms, 43.27 × 28.84 × 14.42 Å).",
+  "inputs": "`DMSO.ato`, `WaterMolecule.ato` from EPSR-test. Commands: `makelatticeato DMSO 2 2 2 dmso222 n`; `makelatticeato WaterMolecule.ato 3 2 1 waterlat y` (conversion: `T00000` flags, new molecule types `moltype01..`); `makelatticeato < mla3.stdin` (everything asked, convert `y`); `makelatticeato DMSO.ato 1 1 2 dmso112 < mla4.stdin` (only convert asked, `n`).",
+  "verification": "Four program calls in one pass; compared outputs `dmso222.ato`, `waterlat.ato`, `dmso121.ato`, `dmso112.ato` and `dirlist.txt`, all identical. Both result layouts appear in the reference: the cubic header (8 molecules, side 0.43088699E+02) and the non-cubic header with three box lengths.",
+  "notes": "Fortran quirk reproduced: the convert answer is compared over the column range of the first word of the previous `parse`, because the Fortran parses an uninitialised variable; an answer `y` in column 1 is accepted.",
+  "refs": [
+    "epsrmanual",
+    "soper2005",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

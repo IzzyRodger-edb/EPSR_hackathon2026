@@ -1,0 +1,22 @@
+{
+  "title": "Lattice refinement of a cubic box, Bragg peaks with nbraggup = nq",
+  "purpose": "Exercises the cubic branch of the lattice refinement and of the Bragg-peak calculation of the `epsr` engine [@soper1996,@soper2005,@epsrmanual], with a Q range of the Bragg calculation that is limited by the number of Q points.",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (lattice-refinement loop, cubic branch; Bragg block), `gensq`",
+    "`ato_manipulation_rev4.f`: `bragginten`, `crystfrac` (cubic branch), `change_boxsize`, `atogen`"
+  ],
+  "rust": [
+    "`bragg.rs`: `structure_and_lattice`, `bragginten`, `change_boxsize`, `Bragg::read_keywords`",
+    "`structure.rs`: `atogen`, `gensq`; `rng.rs`: `ran1`"
+  ],
+  "system": "A molecular crystal of DMSO and water: a cubic 6.84 Å unit cell with 2 DMSO + 4 water molecules (from `mixato`, `randomise` and 200 Monte Carlo cycles of `epsr` with `potfac 0`), replicated with `makelatticeato` 4 × 4 × 4 into a cubic 27.36 Å box (384 molecules, 2048 atoms, 300 K). The atom types are those of EPSR-test, so its `.pcof`, weights and three D-DMSO/water neutron data files are used unchanged; for the crystal they are numerical input only, not a physical model of measured data. For a crystal the simulation box holds only a few unit cells, so the Bragg part of the structure factor [@squires1978] is computed from the reciprocal lattice: intensities per atom pair and reflection are broadened into peaks, divided by the number of unit cells, damped by a Debye-Waller factor and replace the intermolecular partial S(Q) up to `qbraggmax`. Gaussian peaks, no broadening below 0.5 1/Å, Debye-Waller parameter 0.05.",
+  "inputs": "`scripts/make_case.sh` regenerates the inputs (verified byte-identical). Keywords changed: `nq 100` (Q up to 5 1/Å), `iinit 1`, `ntimes 2`, `qwidthqmax 0.01 4.5`, `mplicities 4 4 4`, `hklqmin 0.5 5.0 0.05`, `nlatrefine 2`, `latrefine 0.3 0 0 0 0 0`. `commands.txt`: `repeat 2`.",
+  "verification": "`nbraggup` is limited to `nq` ((4.5 + 3/5)/0.05 + 1 = 103 > 100). In the cubic branch one `ran1` call changes a (b = c = a, angles 90°); the trial change is undone exactly by the constant-density rescaling, so the fit does not change and every trial is accepted; on the last step `ilatrefine` is advanced to skip the recomputation. This is the Fortran behaviour and it is reproduced.",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "epsrmanual",
+    "squires1978",
+    "gfortran"
+  ]
+}

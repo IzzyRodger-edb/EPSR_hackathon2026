@@ -1,0 +1,26 @@
+{
+  "title": "Miscellaneous data-set and run options",
+  "purpose": "Exercises a group of per-data-set and global options of the `epsr` engine of EPSR [@soper1996,@soper2005] that a user commonly adjusts: Q limits, background-subtraction radius, data scaling, energy weighting of data sets, resolution, the R-space coefficient and the input Q scale [@epsrmanual].",
+  "fortran": [
+    "`epsr_standalone_rev3.f`: `runepsr17` (`qmin`, `rshmin`, `tweak`, `efilereq` -> `efacm`, `rspcrmin`/`rspcfrac`, `qinscalefc`)",
+    "`epsr_standalone_rev3.f`: `inita` (`fwhm`), `ftback` (`rshmin`), `ptgnsq` (`qminp`, minimum radius of the EP)",
+    "`epsr_standalone_rev3.f`: `get_wts`, `invert_cwt` (rows weighted by `efacm`)"
+  ],
+  "rust": [
+    "`epsr.rs`: `Epsr::setup`, `Epsr::iterate`, `write_results`",
+    "`structure.rs`: `inita`, `ftback`; `potential.rs`: `ptgnsq`",
+    "`weights.rs`: `get_wts`, `invert_cwt`"
+  ],
+  "system": "The EPSR-test system: a liquid mixture of 200 dimethyl sulphoxide (DMSO, (CH3)2SO) and 400 water molecules (DMSO mole fraction 1/3; 3200 atoms) at 300 K in a cubic box of side 33.12 Å (atomic number density 0.0881 atoms/Å³). DMSO uses EPSR's Lennard-Jones + Coulomb reference potential with methyl rotational groups; water uses SPC/E Lennard-Jones and charge parameters [@berendsen1987] with EPSR's flexible intramolecular geometry (O-H 0.976 Å). The empirical potential is refined against three neutron diffraction data sets of deuterated DMSO in D2O, in null-scattering H2O/D2O and in H2O (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), the isotope-substitution approach of Soper and Luzar [@soperluzar1992]. For this case data set 3 gets zero weight in the empirical potential (`efilereq` 0) and the three data sets are scaled by 1.03, 1.0 and 0.97.",
+  "inputs": "Only the `.EPSR.inp` differs from EPSR-test (`scripts/make_inp.sh` via `scripts/setkw.py`): `qmin 0.60 0.80`; `rshmin` 0.5 / 0.9 / 1.1; `tweak` 1.03 / 1.0 / 0.97; `efilereq` 1.0 / 0.5 / 0.0; `fwhm 0.03`; `rspcrmin 1.50`; `rspcfrac 0.3`; `qinscalefc 0.98 0.5`.",
+  "verification": "Evidence from the README: qminm = 0.60 raises `nqmin` from 8 to 13; the log reports minimum radius integers of the potential 19 / 33 / 39 from `rshmin`; `efacm = efilereq/mean(nonzero efilereq)` scales the data-set rows of the inversion matrix, which is recalculated whenever `efacm` changes; `rspcrmin`/`rspcfrac` change the R-space coefficient and the `.erg` trend line.",
+  "notes": "`qinscalefc 0.98 0.5` has a first value < 1, so coarse graining stays off: the values are only read and written back (`selfbroadpwr` is only used with coarse graining).",
+  "refs": [
+    "soper1996",
+    "soper2005",
+    "soperluzar1992",
+    "berendsen1987",
+    "epsrmanual",
+    "gfortran"
+  ]
+}

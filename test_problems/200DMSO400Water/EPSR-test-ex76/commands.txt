@@ -1,0 +1,2 @@
+sdfcube dmsowat.SDFCUBE.dat
+repeat 1

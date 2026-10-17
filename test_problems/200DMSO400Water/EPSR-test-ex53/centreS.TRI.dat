@@ -1,0 +1,23 @@
+centreS               Title of this file
+fnameato    200DMSO400Water.ato
+nsize       90
+nsumt       0
+atom-c      S
+ndist       2
+triangles 1
+atom1       S
+atom2       O1
+atom3       O1
+ltype       1
+rmin23      2.0
+rmax23      3.4
+rminrmaxc   2.5 5.0
+triangles 2
+atom1       O1
+atom2       O1
+atom3       H1
+ltype       2
+rmin12      2.0
+rmax12      3.4
+rminrmaxc   3.0 6.0
+q

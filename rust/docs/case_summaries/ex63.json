@@ -1,0 +1,21 @@
+{
+  "title": "chains: default values and nsize cap",
+  "purpose": "Exercises `chains` [@epsrmanual], which finds chains of bonded molecules with the shortest-path criterion of Franzblau [@franzblau1991] as cited in the Fortran: a bond requires an atom1-atom2 pair in one molecule and atom3 in another within three distance windows (and optionally an atom2-atom1-atom3 angle range); chains start at molecules with one neighbour, and histograms of neighbour numbers and chain lengths are written. This case checks the keyword defaults.",
+  "fortran": [
+    "`chains_sp_criterion.f`: `run_chains`, `find_chains` (bond search, chain search, histograms)",
+    "`chains_routines.f`: `match` (wildcard `*`), `shortest_path`",
+    "`read_and_save_files.f`: `outgofz`, `save_files_others`; `setup_symbols_generic.f`: `setup_symbols_chains` (computed `nsize` default)"
+  ],
+  "rust": [
+    "`tools/chains.rs`: `run_chains_or_rings`, `read_criteria`, `find_bonds`, `find_chains`, `shortest_path`, `fmatch`",
+    "`tools/clusters.rs`: `outgofz`, `open_input_with`; `symbols.rs`: `setup_input_file`, `read_input_file`, `save_inp_file`; `output.rs`: `r_int`; `symtab_tools.rs`: `CHAINS`"
+  ],
+  "system": "Analysed configuration: `200DMSO400Water.ato`, an unchanged copy of the EPSR-test box of 200 dimethyl sulphoxide (DMSO; atom types S, O, C, H) and 400 water molecules (O1, H1): 3200 atoms, DMSO mole fraction 1/3, 300 K, cubic box of side 33.1213 Å (0.0881 atoms/Å³), the EPSR model of the deuterated DMSO-water neutron data (ISIS SANDALS runs SLS03863, SLS03871, SLS03850), cf. [@soperluzar1992]. Single criterion S(-O)···S between DMSO molecules: S-O 1.3-1.7 Å within a molecule, S···S 3.5-5.5 Å and O···S 2.5-5.0 Å between molecules; water molecules have no neighbours and count as chains of length 1. Reference `fort.14`: mean neighbour number 0.70, mean chain length 11.1. DMSO has no O-H donor, so this criterion uses S···S proximity to probe the self-association of DMSO in the mixture.",
+  "inputs": "`ss.CHAINS.dat`: only `fnameato`, `nsize 300` and the criterion. `200DMSO400Water.ato` copied unchanged from EPSR-test; the keyword file was written by hand (the Fortran program creates no template when the named file does not exist; keywords and defaults from `setup_symbols_generic.f`).",
+  "verification": "`repeat 2`. `nsize 300` exceeds `mchain` = 200 and is capped; `nsumt`, `ndist` and the angle keywords are not given, so the defaults are used, including the computed `nsize` text \"Maximum chain length (max 200)\" of `setup_symbols_chains`, visible in the rewritten `.dat` together with `nsize 200`, `ang213max 180.0` and `nsumt -1` (no accumulation). Compared after each pass: `ss.CHAINS.n01`, `ss.CHAINS.dat`, `fort.14`.",
+  "refs": [
+    "epsrmanual",
+    "soperluzar1992",
+    "gfortran"
+  ]
+}

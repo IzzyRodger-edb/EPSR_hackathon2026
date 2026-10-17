@@ -1,0 +1,49 @@
+Xray2.XWTS               Title of this file
+fnameato    200DMSO400Water.ato               Name of .ato file                                                                                                                                                                                                                                               
+output      2               Is the output to be per atom (1) or per molecule (2)                                                                                                                                                                                                            
+normtot     1               Normalise totals to (0 = nothing, 1 = <b>^2, 2 = <b^2>                                                                                                                                                                                                          
+iafformaff  2               Use the IAFFs (1) or MAFFs (2) for normalisation?                                                                                                                                                                                                               
+ncomponent  6               Number of components (determined from ato file)                                                                                                                                                                                                                 
+
+component   1
+
+atom        S               Atom label - set from .ato file                                                                                                                                                                                                                                 
+atsymbol    S               Atom symbol to specify form factor                                                                                                                                                                                                                              
+maffq       0               Modified atomic form factors alpha values (0)                                                                                                                                                                                                                   
+maffdelta   0               Modified atomic form factors delta value (0)                                                                                                                                                                                                                    
+
+component   2
+
+atom        C               Atom label - set from .ato file                                                                                                                                                                                                                                 
+atsymbol    Cval               Atom symbol to specify form factor                                                                                                                                                                                                                              
+maffq       0               Modified atomic form factors alpha values (0)                                                                                                                                                                                                                   
+maffdelta   0               Modified atomic form factors delta value (0)                                                                                                                                                                                                                    
+
+component   3
+
+atom        O               Atom label - set from .ato file                                                                                                                                                                                                                                 
+atsymbol    O1-               Atom symbol to specify form factor                                                                                                                                                                                                                              
+maffq       0               Modified atomic form factors alpha values (0)                                                                                                                                                                                                                   
+maffdelta   0               Modified atomic form factors delta value (0)                                                                                                                                                                                                                    
+
+component   4
+
+atom        H               Atom label - set from .ato file                                                                                                                                                                                                                                 
+atsymbol    H               Atom symbol to specify form factor                                                                                                                                                                                                                              
+maffq       0               Modified atomic form factors alpha values (0)                                                                                                                                                                                                                   
+maffdelta   0               Modified atomic form factors delta value (0)                                                                                                                                                                                                                    
+
+component   5
+
+atom        O1               Atom label - set from .ato file                                                                                                                                                                                                                                 
+atsymbol    O2-               Atom symbol to specify form factor                                                                                                                                                                                                                              
+maffq       0.5               Modified atomic form factors alpha values (0)                                                                                                                                                                                                                   
+maffdelta   0.7               Modified atomic form factors delta value (0)                                                                                                                                                                                                                    
+
+component   6
+
+atom        H1               Atom label - set from .ato file                                                                                                                                                                                                                                 
+atsymbol    Hh+               Atom symbol to specify form factor                                                                                                                                                                                                                              
+maffq       0.3               Modified atomic form factors alpha values (0)                                                                                                                                                                                                                   
+maffdelta   0.45               Modified atomic form factors delta value (0)                                                                                                                                                                                                                    
+q

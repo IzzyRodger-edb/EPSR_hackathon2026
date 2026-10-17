@@ -7,6 +7,7 @@ so that the wrapper is held to exactly the same standard as the ``epsr-rs`` CLI.
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import os
 import platform
@@ -399,22 +400,31 @@ def replay_cli(case: Case, work: Path, cli_executable: Path) -> list[str]:
     return errors
 
 
-def reference_dir(case: Case, destination: Path) -> Path:
-    """Extract the case's ``fortran_reference.tar.gz`` into ``destination``."""
+def extract_archive(archive_path: Path, destination: Path) -> Path:
+    """Extract a .tar.gz archive into ``destination`` (created if needed)."""
     destination.mkdir(parents=True, exist_ok=True)
-    with tarfile.open(case.path / "fortran_reference.tar.gz") as archive:
+    with tarfile.open(archive_path) as archive:
         archive.extractall(destination, filter="data")
     return destination
 
 
+def reference_dir(case: Case, destination: Path) -> Path:
+    """Extract the case's ``fortran_reference.tar.gz`` into ``destination``."""
+    return extract_archive(case.path / "fortran_reference.tar.gz", destination)
+
+
+@functools.cache
 def cli_binary() -> Path | None:
-    """The ``epsr-rs`` CLI, built on demand with cargo if necessary."""
+    """The ``epsr-rs`` CLI, rebuilt with cargo so that it matches the engine the wrapper uses.
+
+    The wrapper's extension is rebuilt by ``uv`` whenever the engine sources change;
+    the CLI is not, so it is built here (a no-op when it is up to date). Without
+    cargo, an existing binary is used as it is. Cached per process.
+    """
     executable = RUST_DIR / "target" / "release" / "epsr-rs"
-    if executable.exists():
-        return executable
     cargo = shutil.which("cargo") or str(Path.home() / ".cargo" / "bin" / "cargo")
     if not Path(cargo).exists():
-        return None
+        return executable if executable.exists() else None
     build_command = [
         cargo,
         "build",

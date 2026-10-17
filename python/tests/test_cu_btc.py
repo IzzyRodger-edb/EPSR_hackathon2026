@@ -20,7 +20,6 @@ build. The full schedule (1 + 99 + 100 + 100 iterations) takes about 4 minutes.
 from __future__ import annotations
 
 import shutil
-import tarfile
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,16 +29,16 @@ import pytest
 
 import epsr
 
-from epsr_cases import Comparison, cli_binary, compare_dirs
+from epsr_cases import Comparison, cli_binary, compare_dirs, extract_archive
 from epsr_workflow import (
     CU_BTC,
-    Step,
-    WrapperStepResult,
+    WrapperRun,
     cli_command,
     coordination_number,
     first_peak_position,
     load_steps,
     prepare_case_folder,
+    read_bragg_reflections,
     read_weights,
     run_step_externally,
     run_steps_with_wrapper,
@@ -53,36 +52,17 @@ pytestmark = [
 
 REFERENCE_ARCHIVE = CU_BTC.case_folder / "fortran_reference.tar.gz"
 N_PADDLEWHEELS, ATOMS_PER_PADDLEWHEEL = 24, 2
-N_LINKERS, ATOMS_PER_LINKER = 32, 18
+N_LINKERS, ATOMS_PER_LINKER, OXYGENS_PER_LINKER = 32, 18, 6
 CRYSTAL_COPPER_OXYGEN_BOND = 1.95  # Å, in the crystal structure
 OXYGENS_PER_COPPER = 4  # square-planar coordination in the paddlewheel
+BRAGG_Q_MAX = 5.0  # Å⁻¹, the second value of `qwidthqmax` in CuBTC.EPSR.inp
 
 
 @dataclass
-class CuBtcRun:
+class CuBtcRun(WrapperRun):
     """The full Cu-BTC schedule through the wrapper, compared with the Fortran archive."""
 
-    folder: Path  # the wrapper's folder after the last run
-    epsr_results: list[WrapperStepResult] = field(default_factory=list)
     comparisons: dict[int, Comparison] = field(default_factory=dict)  # by step number
-
-    @property
-    def final(self) -> epsr.Simulation:
-        simulation = self.epsr_results[-1].simulation
-        assert simulation is not None
-        return simulation
-
-    def summary_after(self, run_index: int) -> epsr.Summary:
-        summary = self.epsr_results[run_index].summary
-        assert summary is not None
-        return summary
-
-
-def _extract_reference(destination: Path) -> Path:
-    destination.mkdir(parents=True)
-    with tarfile.open(REFERENCE_ARCHIVE) as archive:
-        archive.extractall(destination, filter="data")
-    return destination
 
 
 @pytest.fixture(scope="module")
@@ -93,11 +73,11 @@ def cu_btc(tmp_path_factory: pytest.TempPathFactory) -> CuBtcRun:
             f"{CU_BTC.case_folder}, its data or its Fortran reference not found"
         )
     work = tmp_path_factory.mktemp("cu_btc")
-    reference = _extract_reference(work / "fortran")
+    reference = extract_archive(REFERENCE_ARCHIVE, work / "fortran")
     pristine = prepare_case_folder(CU_BTC, work / "pristine")
     folder = prepare_case_folder(CU_BTC, work / "wrapper")
 
-    run = CuBtcRun(folder)
+    run = CuBtcRun(CU_BTC, folder)
     steps = load_steps(CU_BTC)
     step_results = run_steps_with_wrapper(steps, folder, CU_BTC.case_folder)
     for step_number, result in enumerate(step_results, start=1):
@@ -110,8 +90,8 @@ def cu_btc(tmp_path_factory: pytest.TempPathFactory) -> CuBtcRun:
 
 
 # --------------------------------------------------------------------- accuracy
-def _wrapper_matches_cli(steps: list[Step], work: Path) -> Comparison | None:
-    """Replay the schedule with the ``epsr-rs`` CLI and compare the final folders.
+def _cli_matches_wrapper(cu_btc: CuBtcRun, work: Path) -> Comparison | None:
+    """Replay the schedule with the ``epsr-rs`` CLI and compare with the wrapper's folder.
 
     Monte Carlo trajectories are chaotic, so identical final folders after 300
     iterations mean the wrapper and the CLI agreed at every step.
@@ -119,13 +99,12 @@ def _wrapper_matches_cli(steps: list[Step], work: Path) -> Comparison | None:
     cli_executable = cli_binary()
     if cli_executable is None:
         return None
-    wrapper_folder = prepare_case_folder(CU_BTC, work / "wrapper_again")
     cli_folder = prepare_case_folder(CU_BTC, work / "cli")
-    for result in run_steps_with_wrapper(steps, wrapper_folder, CU_BTC.case_folder):
+    for step in load_steps(CU_BTC):
         run_step_externally(
-            result.step, cli_folder, CU_BTC.case_folder, cli_command(cli_executable)
+            step, cli_folder, CU_BTC.case_folder, cli_command(cli_executable)
         )
-    return compare_dirs(cli_folder, wrapper_folder)
+    return compare_dirs(cli_folder, cu_btc.folder)
 
 
 def test_matches_fortran_after_every_run(cu_btc: CuBtcRun, tmp_path: Path) -> None:
@@ -135,6 +114,11 @@ def test_matches_fortran_after_every_run(cu_btc: CuBtcRun, tmp_path: Path) -> No
         for step_number, comparison in cu_btc.comparisons.items()
         if not comparison.passed
     }
+    assert not reports, "\n".join(
+        f"after step {step_number}:\n{report}"
+        for step_number, report in reports.items()
+    )
+
     close_files = [
         f"step {step_number}: {item.name}"
         for step_number, comparison in cu_btc.comparisons.items()
@@ -143,7 +127,7 @@ def test_matches_fortran_after_every_run(cu_btc: CuBtcRun, tmp_path: Path) -> No
     if close_files:
         # Not byte-identical to the Fortran: the wrapper must still equal the CLI, so
         # that the difference lies in the engine (libm rounding), not in the wrapper.
-        versus_cli = _wrapper_matches_cli(load_steps(CU_BTC), tmp_path)
+        versus_cli = _cli_matches_wrapper(cu_btc, tmp_path)
         if versus_cli is not None:
             assert (
                 versus_cli.all_identical
@@ -153,10 +137,6 @@ def test_matches_fortran_after_every_run(cu_btc: CuBtcRun, tmp_path: Path) -> No
             + "\n  ".join(close_files),
             stacklevel=1,
         )
-    assert not reports, "\n".join(
-        f"after step {step_number}:\n{report}"
-        for step_number, report in reports.items()
-    )
 
 
 # --------------------------------------------------------------------- setup
@@ -196,49 +176,26 @@ def test_force_field_and_weights(cu_btc: CuBtcRun) -> None:
         assert (weight < 0) == (n_hydrogens == 1), (first_type, second_type, weight)
 
 
-def read_bragg_reflections(bragg_file: Path) -> tuple[int, list[float]]:
-    """Number of reflections and the unique Bragg Q values listed in a ``.bragg`` file.
-
-    Every line of the file starts with ``#``: a header, the line
-    ``# Number of Bragg refections calculated: N``, then one line
-    ``#  index  Q  multiplicity`` per unique Q value.
-    """
-    n_reflections, unique_q_values = 0, []
-    listing_unique_values = False
-    for line in bragg_file.read_text().splitlines():
-        words = line.lstrip("# ").split()
-        if line.startswith("# Number of Bragg refections calculated:"):
-            n_reflections = int(words[-1])
-        elif "Unique Bragg Q values" in line:
-            listing_unique_values = True
-        elif listing_unique_values and len(words) == 3:
-            unique_q_values.append(float(words[1]))
-    return n_reflections, unique_q_values
-
-
 def test_bragg_peaks_are_calculated(cu_btc: CuBtcRun) -> None:
     """The crystal keywords make EPSR enumerate the reflections and write their intensities."""
     simulation = cu_btc.final
     n_reflections, unique_q_values = read_bragg_reflections(
         simulation.output_path("bragg")
     )
-    assert (
-        n_reflections > 1000
-    )  # a 26 Å cell has many reflections below the Bragg Q limit
+    assert n_reflections > 1000  # a 26 Å cell has many reflections below the Q limit
     assert len(unique_q_values) > 100
-    # The list starts with the (0 0 0) reflection at Q = 0 and extends past qbraggmax,
-    # because the Bragg g(r) truncation needs reflections beyond the fitted range.
+    # The list contains the (0 0 0) reflection at Q = 0 and extends past the Bragg
+    # Q limit, because the Bragg g(r) truncation needs reflections beyond the fitted
+    # range. It is not sorted.
     assert min(unique_q_values) == 0.0
-    assert max(unique_q_values) > 5.0
+    assert max(unique_q_values) > BRAGG_Q_MAX
 
-    # .inten: the Bragg intensity of every atom pair on the Q grid up to qbraggmax = 5 Å⁻¹.
+    # .inten: the Bragg intensity of every atom pair on the Q grid up to the Q limit.
     intensities = np.loadtxt(simulation.output_path("inten"), comments="#", ndmin=2)
-    q_step = simulation.control.qstep
-    n_bragg_points = round(5.0 / q_step) + 1
+    n_bragg_points = round(BRAGG_Q_MAX / simulation.control.qstep) + 1
     assert intensities.shape[0] == n_bragg_points
-    assert intensities[0, 0] == 0.0 and intensities[-1, 0] == pytest.approx(
-        5.0, abs=1e-5
-    )
+    assert intensities[0, 0] == 0.0
+    assert intensities[-1, 0] == pytest.approx(BRAGG_Q_MAX, abs=1e-5)
     assert np.max(np.abs(intensities[:, 1:])) > 0
 
 
@@ -266,19 +223,20 @@ def test_framework_structure(cu_btc: CuBtcRun) -> None:
     simulation = cu_btc.final
     r = simulation.r
     volume = simulation.box_size**3
-    oxygen_density = N_LINKERS * 6 / volume
+    oxygen_density = N_LINKERS * OXYGENS_PER_LINKER / volume
 
     # Bonded distances inside the molecules (readpdb bonds, held by EPSR):
     # the Cu-Cu of the paddlewheel and the linker bonds of the Dissolve species.
-    assert first_peak_position(
+    copper_copper_bond = first_peak_position(
         r, simulation.gr_intra("CU", "CU"), 2.0, 3.2
-    ) == pytest.approx(2.63, abs=0.05)
-    assert first_peak_position(
-        r, simulation.gr_intra("C1", "O"), 1.0, 1.6
-    ) == pytest.approx(1.255, abs=0.05)
-    assert first_peak_position(
+    )
+    carboxylate_bond = first_peak_position(r, simulation.gr_intra("C1", "O"), 1.0, 1.6)
+    ring_hydrogen_bond = first_peak_position(
         r, simulation.gr_intra("C3", "H"), 0.5, 1.5
-    ) == pytest.approx(0.93, abs=0.05)
+    )
+    assert copper_copper_bond == pytest.approx(2.63, abs=0.05)
+    assert carboxylate_bond == pytest.approx(1.255, abs=0.05)
+    assert ring_hydrogen_bond == pytest.approx(0.93, abs=0.05)
 
     # The Cu-O coordination bond is intermolecular here (Lennard-Jones + Coulomb only),
     # so it is longer than in the crystal but each Cu still has its four oxygens.

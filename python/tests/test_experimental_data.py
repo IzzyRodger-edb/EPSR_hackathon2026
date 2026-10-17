@@ -41,11 +41,12 @@ import epsr
 
 from epsr_cases import cli_binary, compare_dirs
 from epsr_workflow import (
-    CASES,
+    MIXATO_CASES,
     SILICA,
     WATER,
     ExperimentalCase,
     Step,
+    WrapperRun,
     WrapperStepResult,
     cli_command,
     coordination_number,
@@ -75,29 +76,15 @@ def _case_parameter(case: ExperimentalCase) -> object:
     return pytest.param(case, id=case.name, marks=marks)
 
 
-CASE_PARAMETERS = [_case_parameter(case) for case in CASES]
+CASE_PARAMETERS = [_case_parameter(case) for case in MIXATO_CASES]
 
 
 @dataclass
-class WorkflowRun:
+class WorkflowRun(WrapperRun):
     """The shortened workflow of one case, run through the wrapper and the CLI side by side."""
 
-    case: ExperimentalCase
-    folder: Path  # the wrapper's folder
-    epsr_results: list[WrapperStepResult] = field(default_factory=list)
     differences_from_cli: list[str] = field(default_factory=list)
     cli_available: bool = True
-
-    @property
-    def final(self) -> epsr.Simulation:
-        simulation = self.epsr_results[-1].simulation
-        assert simulation is not None
-        return simulation
-
-    def summary_after(self, run_index: int) -> epsr.Summary:
-        summary = self.epsr_results[run_index].summary
-        assert summary is not None
-        return summary
 
 
 @dataclass
@@ -382,7 +369,7 @@ FORTRAN_BUILD = os.environ.get("EPSR_FORTRAN_BUILD", "")
         pytest.param(
             case, id=case.name, marks=pytest.mark.xdist_group(f"fortran-{case.name}")
         )
-        for case in CASES
+        for case in MIXATO_CASES
     ],
 )
 def test_full_schedule_matches_fortran(case: ExperimentalCase, tmp_path: Path) -> None:

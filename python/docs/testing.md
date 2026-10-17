@@ -180,14 +180,27 @@ Linux (WSL2), glibc 2.39, Rust 1.99, Python 3.12, 17 October 2026:
 | | cases |
 |---|---|
 | byte-identical to the Fortran reference | 56 |
-| within tolerance of the Fortran, and byte-identical to the CLI | 59 |
+| within tolerance of the Fortran, and byte-identical to the CLI | 54 |
+| documented divergence from the Fortran, byte-identical to the CLI | 5 |
 | different | 0 |
 
-The 59 cases within tolerance are all 49 cases that run the `epsr` engine (the
-`.o01` reference-potential table always, plus last-digit differences in `.erg`,
-`.terg`, `.out`, `delfit.dat` and a few result tables in some cases), nine of the
-`sharm`/`sdf`/`sdfcube`/`mapgr` cases ex70–ex79 (ex76 is identical), and
+The 54 cases within tolerance are 44 of the 49 cases that run the `epsr` engine
+(the `.o01` reference-potential table always, plus last-digit differences in
+`.erg`, `.terg`, `.out`, `delfit.dat` and a few result tables in some cases), nine
+of the `sharm`/`sdf`/`sdfcube`/`mapgr` cases ex70–ex79 (ex76 is identical), and
 `torangles` (ex54). The other 56 tool cases are byte-identical.
+
+The five remaining engine cases (ex108, ex110, ex111, ex117, ex118) exercise
+Fortran bugs that the Rust port fixes on purpose: three-body angles corrupted at
+`.pcof` save time, a coordination-constraint angle built from one arm twice, and
+missing Coulomb and refinement factors on pairs added at save time
+(`FORTRAN_BUGS.md` at the repository root, `rust/docs/VALIDATION.md`). Their
+engine output therefore differs from the Fortran reference by design. The engine
+team marks each such case with an "Expected divergence from the Fortran" section
+in its README; for those cases the test requires the wrapper's files to be
+byte-identical to the `epsr-rs` CLI's and checks that the divergence is present.
+The CLI is rebuilt with cargo before use, so it always matches the engine the
+wrapper was built against.
 
 The Rust engine's own regression test shows the same behaviour on this machine:
 `cargo test --release` in `rust/` reports `200DMSO400Water.EPSR.o01` as differing

@@ -18,6 +18,14 @@ not caused by the wrapper, every such case is also run through the ``epsr-rs``
 CLI and the wrapper's files must be byte-identical to the CLI's. Files written
 by the wrapper but not by the Fortran fail the test.
 
+A few cases exercise Fortran bugs that the Rust port fixes on purpose, so their
+engine output differs from the Fortran reference by design (``FORTRAN_BUGS.md`` at
+the repository root; ``rust/docs/VALIDATION.md``, "Fortran bugs deliberately FIXED
+in the port"). The engine team marks each such case with an "Expected divergence
+from the Fortran" section in its ``README.md``. For those cases the wrapper's files
+must be byte-identical to the ``epsr-rs`` CLI's instead, and the test checks that
+the divergence from the Fortran is really present.
+
 Select a subset with ``-k``, e.g. ``pytest tests/test_ex_cases.py -k "ex20 or ex50"``;
 skip the whole module with ``-m "not slow"``.
 """
@@ -43,6 +51,13 @@ from epsr_cases import (
 )
 
 CASES = all_cases()
+#: Heading the engine team adds to the README of a case that deliberately differs.
+DIVERGENCE_HEADING = "Expected divergence from the Fortran"
+
+
+def is_documented_divergence(case: Case) -> bool:
+    readme = case.path / "README.md"
+    return readme.exists() and DIVERGENCE_HEADING in readme.read_text()
 
 
 def _compare_with_cli(
@@ -65,6 +80,21 @@ def test_case_matches_fortran(case: Case, tmp_path: Path) -> None:
     command_errors = replay(case, wrapper_output)
     fortran_reference = reference_dir(case, tmp_path / "reference")
     versus_fortran = compare_dirs(fortran_reference, wrapper_output, pristine)
+
+    if is_documented_divergence(case):
+        # The engine fixes a Fortran bug here on purpose: the wrapper must still write
+        # exactly what the CLI writes, and the documented divergence must be present.
+        versus_cli = _compare_with_cli(case, wrapper_output, pristine, tmp_path)
+        if versus_cli is None:
+            pytest.skip("the epsr-rs CLI is needed to check a documented divergence")
+        assert (
+            versus_cli.all_identical
+        ), f"{case.name}: wrapper output differs from the epsr-rs CLI:\n{versus_cli.report()}"
+        assert not versus_fortran.all_identical, (
+            f"{case.name}: README documents a divergence from the Fortran, but the "
+            "output is identical to the Fortran reference"
+        )
+        return
 
     close_files = versus_fortran.with_status("close")
     if versus_fortran.passed and not close_files:
@@ -97,3 +127,11 @@ def test_case_matches_fortran(case: Case, tmp_path: Path) -> None:
 def test_all_cases_found() -> None:
     assert len(CASES) == 115
     assert all((case.path / "fortran_reference.tar.gz").exists() for case in CASES)
+    divergent = sorted(case.name for case in CASES if is_documented_divergence(case))
+    assert divergent == [
+        "EPSR-test-ex108",
+        "EPSR-test-ex110",
+        "EPSR-test-ex111",
+        "EPSR-test-ex117",
+        "EPSR-test-ex118",
+    ], "the documented divergences changed; update docs/testing.md"

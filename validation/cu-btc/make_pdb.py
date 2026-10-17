@@ -25,22 +25,32 @@ No CONECT records are needed: readpdb finds the bonds from van der Waals radii.
 
 import sys
 from collections import defaultdict
+from pathlib import Path
+from typing import NamedTuple
 
 TYPE_ORDER = ["O", "C1", "C2", "C3", "H"]  # order of the atoms within each linker
 
 
+class Atom(NamedTuple):
+    element: str
+    x: float
+    y: float
+    z: float
+    atom_type: str  # the Dissolve atom type, e.g. "C1"
+
+
 def read_dissolve_species(path):
-    """Atoms (index -> (element, x, y, z, type)), bonds and box length of the species."""
+    """Atoms (by Dissolve index), bonds and box length of the species in the input file."""
     atoms, bonds, box_length = {}, [], None
-    for line in open(path).read().splitlines():
+    for line in Path(path).read_text().splitlines():
         words = line.split()
         if len(words) >= 7 and words[0] == "Atom" and words[1].isdigit():
-            atoms[int(words[1])] = (
-                words[2],
-                float(words[3]),
-                float(words[4]),
-                float(words[5]),
-                words[6].strip("'"),
+            atoms[int(words[1])] = Atom(
+                element=words[2],
+                x=float(words[3]),
+                y=float(words[4]),
+                z=float(words[5]),
+                atom_type=words[6].strip("'"),
             )
         elif len(words) >= 3 and words[0] == "Bond" and words[1].isdigit():
             bonds.append((int(words[1]), int(words[2])))
@@ -60,7 +70,7 @@ def linker_groups(atoms, bonds):
         return index
 
     for first, second in bonds:
-        if "Cu" in (atoms[first][4], atoms[second][4]):
+        if "Cu" in (atoms[first].atom_type, atoms[second].atom_type):
             continue
         parent[root(first)] = root(second)
     groups = defaultdict(list)
@@ -73,15 +83,23 @@ def paddlewheel_pairs(atoms, box_length):
     """Pairs of Cu atoms that are each other's nearest Cu neighbour (minimum image)."""
 
     def distance(first, second):
-        components = [atoms[first][axis] - atoms[second][axis] for axis in (1, 2, 3)]
-        components = [value - box_length * round(value / box_length) for value in components]
+        components = [
+            atoms[first].x - atoms[second].x,
+            atoms[first].y - atoms[second].y,
+            atoms[first].z - atoms[second].z,
+        ]
+        components = [
+            value - box_length * round(value / box_length) for value in components
+        ]
         return sum(value * value for value in components) ** 0.5
 
-    copper_atoms = [index for index in sorted(atoms) if atoms[index][4] == "Cu"]
-    nearest = {
-        index: min(copper_atoms, key=lambda other: (other == index, distance(index, other)))
-        for index in copper_atoms
-    }
+    copper_atoms = [index for index in sorted(atoms) if atoms[index].atom_type == "Cu"]
+    nearest = {}
+    for index in copper_atoms:
+        other_copper_atoms = [other for other in copper_atoms if other != index]
+        nearest[index] = min(
+            other_copper_atoms, key=lambda other: distance(index, other)
+        )
     pairs = []
     for index in copper_atoms:
         partner = nearest[index]
@@ -92,7 +110,7 @@ def paddlewheel_pairs(atoms, box_length):
     return pairs
 
 
-def pdb_atom_line(serial, name, residue_name, residue, x, y, z, element):
+def pdb_atom_line(serial, atom, residue_name, residue_number):
     """One ATOM record (readpdb reads only ATOM records, not HETATM).
 
     readpdb takes the element from columns 13-14 and the label from columns 13-16,
@@ -100,11 +118,12 @@ def pdb_atom_line(serial, name, residue_name, residue, x, y, z, element):
     two-letter elements in column 13 ("CU  "), upper case as in standard PDB files.
     Copper therefore gets the EPSR label CU.
     """
-    name = name.upper()  # readpdb compares columns 13-14 with upper-case element symbols
-    name_field = f" {name:<3s}" if len(element) == 1 else f"{name:<4s}"
+    # readpdb compares columns 13-14 with upper-case element symbols.
+    name = atom.atom_type.upper()
+    name_field = f" {name:<3s}" if len(atom.element) == 1 else f"{name:<4s}"
     return (
-        f"ATOM  {serial:5d} {name_field} {residue_name:3s} A{residue:4d}    "
-        f"{x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00          {element:>2s}"
+        f"ATOM  {serial:5d} {name_field} {residue_name:3s} A{residue_number:4d}    "
+        f"{atom.x:8.3f}{atom.y:8.3f}{atom.z:8.3f}  1.00  0.00          {atom.element:>2s}"
     )
 
 
@@ -124,25 +143,24 @@ def main():
         f"CRYST1{box_length:9.4f}{box_length:9.4f}{box_length:9.4f}"
         f"  90.00  90.00  90.00 P 1           1",
     ]
-    serial, residue = 0, 0
+    serial, residue_number = 0, 0
     for pair in copper_pairs:
-        residue += 1
+        residue_number += 1
         for index in pair:
             serial += 1
-            element, x, y, z, atom_type = atoms[index]
-            lines.append(pdb_atom_line(serial, atom_type, "CU2", residue, x, y, z, element))
+            lines.append(pdb_atom_line(serial, atoms[index], "CU2", residue_number))
     for linker in linkers:
-        residue += 1
-        ordered = sorted(linker, key=lambda index: (TYPE_ORDER.index(atoms[index][4]), index))
+        residue_number += 1
+        ordered = sorted(
+            linker, key=lambda index: (TYPE_ORDER.index(atoms[index].atom_type), index)
+        )
         for index in ordered:
             serial += 1
-            element, x, y, z, atom_type = atoms[index]
-            lines.append(pdb_atom_line(serial, atom_type, "BTC", residue, x, y, z, element))
+            lines.append(pdb_atom_line(serial, atoms[index], "BTC", residue_number))
     lines.append("END")
-    with open(sys.argv[2], "w") as output:
-        output.write("\n".join(lines) + "\n")
+    Path(sys.argv[2]).write_text("\n".join(lines) + "\n")
     print(
-        f"wrote {serial} atoms in {residue} residues "
+        f"wrote {serial} atoms in {residue_number} residues "
         f"({len(copper_pairs)} Cu2 paddlewheels, {len(linkers)} linkers) to {sys.argv[2]}"
     )
     return 0

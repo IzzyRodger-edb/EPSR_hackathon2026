@@ -57,6 +57,13 @@ Design points:
 * **GIL.** `Simulation.__new__`, `run`, `iterate` and `run_tool` run inside
   `Python::detach` (PyO3's former `allow_threads`). `Epsr` is `Send`, which the
   engine's own test `epsr_is_send` checks.
+* **Engine threads.** The engine parallelises its inner loops with rayon (see
+  `PARALLELISM_PLAN.md` at the repository root). The wrapper needs no code for
+  this: the rayon work happens inside the detached call. All simulations of a
+  process share rayon's global pool, sized by `RAYON_NUM_THREADS`. The engine keeps
+  the box geometry in a thread-local variable that every parallel task re-syncs;
+  `test_threads.py` checks thread-count invariance and concurrent runs with a
+  cubic and a triclinic box through the wrapper.
 * **Run order.** `sim.rs` tracks `last_iteration` so that `run` happens once and
   `iterate(iteration)` only accepts `last_iteration + 1 ≤ niter`. After the last iteration
   `iterate` also writes `fort.35`, so stepping through iterations produces the

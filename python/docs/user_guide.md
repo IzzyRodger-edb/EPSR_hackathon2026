@@ -246,8 +246,15 @@ Each function accepts `ax=` to draw into existing axes and returns the axes.
 
 ## 9. Parallel runs
 
-The engine releases the GIL while it runs, so independent folders can be refined
-on several cores from threads:
+**Inside one simulation.** The engine parallelises its expensive loops (energies,
+pressure, structure factors, the S(Q) to g(r) transform, the potential fit) over
+all CPU cores with rayon. Results are byte-identical at any number of threads. Set
+`RAYON_NUM_THREADS` before starting Python to limit the cores used, for example
+`RAYON_NUM_THREADS=4 uv run python script.py`; the pool size is fixed once the
+first simulation runs.
+
+**Several folders at once.** The engine releases the GIL while it runs, so
+independent folders can also be refined from threads:
 
 ```python
 projects = [epsr.Project.from_template("EPSR-test", f"work/run{i}") for i in range(4)]
@@ -255,7 +262,10 @@ histories = epsr.refine_many(projects, n_runs=50, overrides={"ntimes": 5})
 ```
 
 Never use one folder from two threads at once. Tool runs change the working
-directory and are therefore serialised.
+directory and are therefore serialised. Concurrent simulations share the engine's
+one pool of worker threads, so running several at once gives the same results
+but does not make each of them faster; it helps most when `RAYON_NUM_THREADS` is
+set low or the machine has many cores.
 
 ## 10. Errors
 

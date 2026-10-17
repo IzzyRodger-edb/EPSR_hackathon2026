@@ -102,7 +102,7 @@ uv run python examples/05_experimental_water.py --quick   # the example above
 | `uv sync` | install `epsr` with numpy only |
 | `uv sync --all-extras` | also matplotlib, pandas and tqdm |
 | `uv run maturin develop --release --uv` | fast rebuild after editing `src/*.rs` |
-| `uv run pytest -n auto` | the full test suite (about 3 minutes on 4 cores) |
+| `uv run pytest -n auto` | the full test suite (about 4.5 minutes on 4 cores) |
 | `uv run pytest -m "not slow"` | skip the 115 verification-case replays and the experimental-data refinements (about 1 minute) |
 | `uv run pytest -m experimental` | refine real water and silica neutron data from `experimental_data/` (about 2 minutes) |
 | `uv run isort . && uv run black .` | format the Python code (import order, then layout) |
@@ -124,8 +124,10 @@ bindings change.
   state. For the next run create a new `Simulation`, or let `epsr.refine` do the loop.
 * **Overrides are sticky.** Parameters passed as `overrides` are written back to the
   input files, so they persist into later runs.
-* **Threads.** `run()` releases the GIL. Simulations on different folders can run in
-  parallel threads (`epsr.refine_many`). Never run two on the same folder.
+* **Threads.** The engine uses all CPU cores inside each run; set `RAYON_NUM_THREADS`
+  to limit it. Results are identical at any thread count. `run()` releases the GIL,
+  so simulations on different folders can also run in parallel threads
+  (`epsr.refine_many`). Never run two on the same folder.
 * **Precision.** Arrays are float32 copies, the precision EPSR computes in.
 * **Platform.** Bit-for-bit agreement with the Fortran holds on Linux with glibc for
   most files; a few files can differ in the last printed digit on other libm

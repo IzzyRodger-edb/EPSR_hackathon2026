@@ -5,8 +5,9 @@ Rust engine is validated with, plus wrapper-specific behaviour.
 
 ```bash
 cd python
-uv run pytest -n auto                 # everything: 188 tests, about 1.5 minutes on 8 cores
-uv run pytest -m "not slow"           # skip the 115 case replays: about 1 minute
+uv run pytest -n auto                 # everything: 207 tests (2 opt-in), about 3 minutes on 4 cores
+uv run pytest -m "not slow"           # skip case replays and experimental-data runs: about 1 minute
+uv run pytest -m experimental          # only the refinements of real neutron data
 uv run pytest tests/test_ex_cases.py -k "ex20 or ex50"    # selected verification cases
 EPSR_STRICT=1 uv run pytest           # require byte-identical output everywhere
 ```
@@ -42,11 +43,81 @@ Fortran did not also fail the test.
 | `test_refine.py` | the run loop, `.erg` growth, callbacks, early stopping, overrides, snapshots, CSV and pandas export |
 | `test_tools.py` | `nwts` rebuilds the shipped `.wts` files byte for byte, keyword tables, `write_keyword_file` round trip, interactive answers, the deliberate `makeato` crash maps to `EpsrUnsupportedError` |
 | `test_threads.py` | GIL release, parallel runs equal sequential runs, `refine_many`, tools from several threads |
-| `test_examples.py` | the four example scripts run |
+| `test_examples.py` | the five example scripts run (the long ones in their short mode) |
 | `test_plot.py` | the plotting helpers draw |
+| `test_experimental_data.py` | water and silica built from scratch and refined against real neutron data; see the next section |
 
 A session fixture in `conftest.py` fails the run if any test modifies the
 repository's `EPSR-test` folder.
+
+## Tests on real experimental data
+
+`test_experimental_data.py` refines two systems against real neutron data from
+`experimental_data/` (the Dissolve examples), set up as described in
+`validation/README.md` and `validation/PYTHON_WRAPPER_WORKFLOW.md`:
+
+| case | system | data |
+|---|---|---|
+| water | 1000 H2O, 0.1 atoms/Å³, 300 K | SANDALS H2O, D2O and HDO (50:50), `experimental_data/water/data/*.mint01` |
+| silica_bulk | 1500 Si + 3000 O, 0.0664 atoms/Å³, 298 K | NIMROD SiO2, `experimental_data/silica_bulk/data/SiO2_NIMROD.mint01` |
+
+Each case is built from scratch by following `validation/<case>/steps.txt`
+through the wrapper. The setup programs (`makemole`, `mixato`, `randomise`,
+`fmole`, `nwts`) run through `epsr.tools.run`. The EPSR runs (scratch start,
+equilibration on the reference potential, then refinement with the empirical
+potential) run through `epsr.Simulation`. Where `steps.txt` edits a keyword
+(`niter` in the `.EPSR.inp`, `ereq` in the `.pcof`), the wrapper passes it as
+an override to the next `Simulation`, as a Python user would. The helpers are
+in `tests/epsr_workflow.py`.
+
+**Default tests** use a shortened schedule: 10 instead of 99 or 100 iterations
+per run, about 30 s per case. They check that:
+
+* the boxes have the expected side, atom count and density, and the neutron
+  weights are right (HDO HW–HW weight 0.02147, the sanity value of the workflow
+  notes; H2O and D2O have O–H weights of opposite sign);
+* every data file is read and fitted over its Q range;
+* switching on the empirical potential lowers the overall and per-dataset
+  R-factors, the potential stays within `ereq`, and the `ereq` override is saved
+  to the `.pcof` file;
+* the structure is physical: water O–H bond 0.976 Å and H–H 1.570 Å inside the
+  molecule, O–O first neighbours at 2.8 Å; silica Si–O 1.6 Å, O–O 2.6 Å,
+  Si–Si 3.1 Å; every g(r) tends to 1;
+* the wrapper writes **byte-identical** files to the `epsr-rs` CLI after every
+  EPSR run. The CLI side applies the keyword edits to the files with
+  `validation/set_keyword.py`, so this also shows that overrides and file edits
+  are equivalent.
+
+**Full schedule against the original Fortran** (`test_full_schedule_matches_fortran`)
+runs the complete `steps.txt` (1 + 99 + 100 + 100 iterations) through the wrapper
+and through the Fortran programs, and compares every file after every EPSR run
+with the tolerance policy below. It is skipped unless a Fortran build is given:
+
+```bash
+rust/tools/build_fortran_reference.sh ~/epsr-work/fortran-build
+cd python
+EPSR_FORTRAN_BUILD=~/epsr-work/fortran-build uv run pytest -n 2 \
+    tests/test_experimental_data.py -k full_schedule
+```
+
+It then checks the converged structure: the water hydrogen-bond peak and
+coordination numbers, and the silica SiO4 network.
+
+Results on the development machine (17 October 2026, Fortran built with
+`rust/tools/build_fortran_reference.sh`): every file of both cases was
+**byte-identical** to the Fortran after every EPSR run (39 files for water, 36 for
+silica). The two runs together take about 10 minutes on two cores. After the full
+schedule:
+
+| | water | silica |
+|---|---|---|
+| raw R-factor after 100 / 200 / 300 iterations | 6.0e-4 / 2.3e-4 / 2.3e-4 | 1.25e-3 / 3.7e-4 / 1.25e-4 |
+| empirical-potential amplitude (ereq) | 3.0 (3) | 23.7 (50) |
+| first peaks | O–O 2.79 Å, O···H 1.80 Å | Si–O 1.59 Å, O–O 2.55 Å, Si–Si 3.09 Å |
+| coordination | 4.6 O around O (3.4 Å), 1.6 H-bonded H per O | 3.8 O per Si, 1.9 Si per O (2.2 Å) |
+
+Coordination numbers integrate g(r) with the trapezoidal rule because the EPSR r
+grid is not uniform: its first interval is a quarter of the others.
 
 ## Tolerance policy
 

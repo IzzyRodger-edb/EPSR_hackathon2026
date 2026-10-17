@@ -12,8 +12,11 @@ import pytest
 from epsr_cases import PYTHON_DIR
 
 EXAMPLE_SCRIPTS = sorted((PYTHON_DIR / "examples").glob("0*.py"))
-#: Number of runs passed to the refinement-loop example to keep the test short.
-REFINEMENT_RUNS = "3"
+#: Command-line arguments that keep the longer examples short under test.
+SHORT_RUN_ARGUMENTS = {
+    "02_refinement_loop": ["3"],  # number of EPSR runs
+    "05_experimental_water": ["--quick"],  # 10 iterations per EPSR run
+}
 
 
 @pytest.mark.parametrize(
@@ -25,9 +28,7 @@ def test_example_runs(script: Path, tmp_path: Path) -> None:
         "EPSR_EXAMPLES_WORK": str(tmp_path),
         "MPLBACKEND": "Agg",
     }
-    command = [sys.executable, str(script)]
-    if "refinement" in script.stem:
-        command.append(REFINEMENT_RUNS)
+    command = [sys.executable, str(script), *SHORT_RUN_ARGUMENTS.get(script.stem, [])]
     completed = subprocess.run(
         command,
         cwd=PYTHON_DIR,
@@ -46,4 +47,5 @@ def test_examples_found() -> None:
         "02_refinement_loop",
         "03_perturb_potential",
         "04_tools",
+        "05_experimental_water",
     ]

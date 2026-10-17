@@ -54,30 +54,34 @@ cache-keys = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
-    "slow: long-running tests (full replay of the EPSR-test-ex verification cases)",
+    "slow: long-running tests (case replays, refinements on experimental data)",
+    "experimental: refinements of real neutron data from experimental_data/",
 ]
-addopts = "-ra"
+# --dist loadgroup keeps the tests of one experimental case on one worker under -n.
+addopts = "-ra --dist loadgroup"
 
 [tool.black]
-line-length = 100
+line-length = 88
 target-version = ["py310"]
 extend-exclude = "target"
 
 [tool.isort]
 profile = "black"
-line_length = 100
+line_length = 88
 known_first_party = ["epsr"]
-known_local_folder = ["epsr_cases", "conftest"]
+known_local_folder = ["epsr_cases", "epsr_workflow", "conftest"]
 skip_glob = ["target/*", ".venv/*"]
 
 [tool.ruff]
 # Linting only: formatting is done by black, import order by isort.
-line-length = 100
+line-length = 88
 target-version = "py310"
 extend-exclude = ["target", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "UP", "B", "SIM", "NPY", "N"]
+# black owns line length; it leaves long docstrings and comments alone.
+ignore = ["E501"]
 
 [tool.mypy]
 python_version = "3.10"

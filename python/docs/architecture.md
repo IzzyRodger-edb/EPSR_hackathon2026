@@ -149,7 +149,7 @@ To expose another engine quantity:
   `_core` method names, the keys of the dicts it returns, and dataclass fields
   that copy engine structs (`Control`, `Dataset`), each documented with a comment.
 * **Formatting.** isort orders imports and black lays out the code, both with a
-  line length of 100 (`[tool.isort]`, `[tool.black]` in `pyproject.toml`). Run
+  line length of 88 (black's default) (`[tool.isort]`, `[tool.black]` in `pyproject.toml`). Run
   `uv run isort . && uv run black .` before committing; ruff lints (it does not
   format) and mypy checks types. The Rust bindings use `cargo fmt` and
   `cargo clippy`.

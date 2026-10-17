@@ -1,0 +1,11 @@
+ .gmol           0
+ atom            1  001    0.00000000       0.00000000       0.00000000               0
+changelabel 001 Si 
+pseudofac     1.00
+potential Si      0.175000     1.030000    28.085501     2.000000 Si   0.100000E+01     0.000000     1.110000  0.100000E+01
+temperature  0.298000E+03
+vibtemp  0.650000E+02
+angtemp  0.100000E+01
+dihtemp  0.100000E+02
+ecoredcore    0.00000    0.00000
+density  0.100000E-02

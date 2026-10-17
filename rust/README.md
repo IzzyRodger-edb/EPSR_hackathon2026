@@ -19,7 +19,7 @@ rust/
 ├── epsr-cli/                  `epsr-rs` executable (drop-in for `epsr`)
 ├── tools/                     Fortran reference build + comparison scripts
 └── docs/
-    ├── ARCHITECTURE.md        what each file/function does, data flow of an iteration
+    ├── ARCHITECTURE.md        what each file/function does, data flow of an iteration@
     ├── FORTRAN_MAP.md         Fortran routine → Rust function; what is not ported
     ├── VALIDATION.md          how the port was verified, and known caveats
     └── PYTHON_WRAPPER_NOTES.md guidance for building the Python wrapper

@@ -1,0 +1,20 @@
+# Water: 1000 H2O molecules at 0.1 atoms/A^3, 300 K, fit to H2O, D2O and HDO (50:50) neutron data (SANDALS).
+# --- setup
+run makemole Water                  # Water.mol -> Water.ato (molecule template, SPC/Fw-like reference potential)
+run mixato < mixato.stdin           # 1000 x Water at 0.1 atoms/A^3 -> waterbox.ato
+run randomise waterbox              # random positions and orientations
+delete Water.mol                    # see README: the Rust fmole does not port the makemole call fmole makes
+                                    # when the template .mol is present (it stops with "unsupported")
+run fmole waterbox 100              # relax intramolecular geometry (100 iterations)
+run nwts H2O.NWTS.dat               # neutron weights for each isotopic sample
+run nwts D2O.NWTS.dat
+run nwts HDO.NWTS.dat
+# --- EPSR: scratch start (no .pcof), then equilibrate on the reference potential only (ereq = 0)
+run epsr waterbox.EPSR.inp          # niter 1, ireset 1, iinit 1: creates .pcof, .inpa and all outputs
+set waterbox.EPSR.inp niter 99
+run epsr waterbox.EPSR.inp
+# --- switch on the empirical potential (EReq 3 kJ/mol as in the Dissolve example) and refine
+set waterbox.pcof ereq 3.0
+set waterbox.EPSR.inp niter 100
+run epsr waterbox.EPSR.inp
+run epsr waterbox.EPSR.inp          # restart from the files written by the previous run

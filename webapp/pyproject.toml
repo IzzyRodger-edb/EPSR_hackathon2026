@@ -45,7 +45,7 @@ mellor = { path = "../mellor", editable = true }
 where = ["src"]
 
 [tool.setuptools.package-data]
-epsrweb = ["templates/*.html", "static/*"]
+epsrweb = ["templates/*.html", "static/*", "static/fonts/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

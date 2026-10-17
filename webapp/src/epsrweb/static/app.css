@@ -1,9 +1,14 @@
 /* EPSR / Mellor web app.
 
    Follows the patterns of the GOV.UK Design System -- type scale, colours, focus
-   state, components -- rebuilt here without govuk-frontend. It deliberately does
-   not use the crown, the GOV.UK name or the GDS Transport typeface, which are
-   reserved for government services.
+   state, components -- rebuilt here without govuk-frontend, and without the crown,
+   the GOV.UK name or the government's own typeface, which are reserved for
+   government services.
+
+   The typeface is bundled: Ubuntu Sans, served from static/fonts under the
+   private family name "EPSR Sans", so no font installed on a visitor's machine
+   can stand in for it. The fallbacks are named fonts only; tests/test_styles.py
+   checks that no font declaration ever names the government typeface.
 
    Light and dark: every colour is a token on :root. Dark follows the system
    setting unless the header toggle stored a choice (data-theme on <html>). */
@@ -23,7 +28,7 @@
   --focus: #ffdd00;
   --focus-text: #0b0c0c;
   --brand: #1d70b8;
-  --header: #1d70b8;
+  --header: #005a30;
   --header-text: #ffffff;
   --nav-bg: #f4f8fb;
   --nav-border: #8eb8dc;
@@ -49,7 +54,7 @@
   --tag-turquoise: #bfe3e0; --tag-turquoise-text: #10403c;
   --tag-purple: #dbd5e9;    --tag-purple-text: #3d2375;
 
-  --font: Arial, "Helvetica Neue", Helvetica, sans-serif;
+  --font: "EPSR Sans", Arial, "Helvetica Neue", Helvetica, "Liberation Sans", sans-serif;
   --mono: ui-monospace, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
@@ -67,7 +72,7 @@
     --link-hover: #c4dbee;
     --link-visited: #c2b4dc;
     --brand: #1d70b8;
-    --header: #12436d;
+    --header: #383f43;
     --nav-bg: #172533;
     --nav-border: #2c4f70;
     --button-2: #3b3f42;
@@ -101,7 +106,7 @@
   --link-hover: #c4dbee;
   --link-visited: #c2b4dc;
   --brand: #1d70b8;
-  --header: #12436d;
+  --header: #383f43;
   --nav-bg: #172533;
   --nav-border: #2c4f70;
   --button-2: #3b3f42;
@@ -122,6 +127,15 @@
 }
 
 /* ------------------------------------------------------------- foundations */
+
+@font-face {
+  font-family: "EPSR Sans";
+  src: url("fonts/UbuntuSans-wdth-wght.ttf") format("truetype");
+  font-weight: 100 800;
+  font-stretch: 75% 100%;
+  font-style: normal;
+  font-display: swap;
+}
 
 *, *::before, *::after { box-sizing: border-box; }
 
@@ -153,6 +167,9 @@ li { margin-bottom: 5px; }
 @media (min-width: 641px) { ul, ol { margin-bottom: 20px; } }
 
 strong, b { font-weight: 700; }
+
+/* Form controls do not inherit the page font by default. */
+button, input, select, textarea, optgroup { font-family: inherit; }
 
 code, pre, .mono { font-family: var(--mono); font-size: 0.875em; }
 code { background: var(--light-grey); padding: 0 0.2em; overflow-wrap: anywhere; }

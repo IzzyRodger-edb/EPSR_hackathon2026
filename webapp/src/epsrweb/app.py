@@ -11,6 +11,7 @@ import logging
 import os
 import threading
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Form, Request, Response, status
@@ -60,12 +61,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         overleaf_push_enabled=settings.overleaf_push_enabled,
         allow_registration=settings.allow_registration,
     )
+    templates.env.filters["when"] = _when
     app.state.templates = templates
 
     app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
     app.include_router(runs_routes.router)
     _register_pages(app)
     return app
+
+
+def _when(value: object) -> str:
+    """A stored ISO timestamp as people read it: '17 Oct 2026, 19:29 UTC'."""
+    if not value:
+        return ""
+    try:
+        moment = datetime.fromisoformat(str(value))
+    except ValueError:
+        return str(value)
+    zone = " UTC" if moment.utcoffset() == timedelta(0) else ""
+    return f"{moment.day} {moment:%b %Y, %H:%M}{zone}"
 
 
 def _register_pages(app: FastAPI) -> None:

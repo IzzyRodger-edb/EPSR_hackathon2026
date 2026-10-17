@@ -1,25 +1,35 @@
 {% extends "base.html" %}
 {% block title %}My runs{% endblock %}
 {% block content %}
-<section>
-  <div class="headrow">
-    <h1>My runs</h1>
-    <a class="button" href="/new">New run</a>
+<h1>My runs</h1>
+<div class="grid-row">
+  <div class="column-two-thirds">
+    <p>
+      {{ active }} of {{ max_active }} run {{ 'slot' if max_active == 1 else 'slots' }} in use.
+      One EPSR refinement uses every core of this machine, so runs beyond the limit wait in a
+      queue.
+    </p>
+    <a class="button" href="/new" role="button">Start a new run</a>
   </div>
-  <p class="quiet">
-    {{ active }} of {{ max_active }} run slot(s) in use. One EPSR refinement uses every core
-    of this machine, so runs beyond the limit wait in a queue.
-  </p>
+</div>
 
-  {% if not runs %}
-    <div class="empty">
-      <p>No runs yet.</p>
-      <p><a class="button" href="/new">Upload your first data set</a></p>
-    </div>
-  {% else %}
-  <table class="runs">
+{% if not runs %}
+  <div class="inset-text">
+    <p>You have no runs yet. <a href="/new">Upload your first data set</a>.</p>
+  </div>
+{% else %}
+<div class="tablewrap">
+  <table>
+    <caption class="visually-hidden">Your runs, newest first</caption>
     <thead>
-      <tr><th>Run</th><th>Status</th><th>Started</th><th>Model system</th><th>Size</th><th></th></tr>
+      <tr>
+        <th scope="col">Run</th>
+        <th scope="col">Status</th>
+        <th scope="col">Started</th>
+        <th scope="col">Model system</th>
+        <th scope="col" class="numeric">Size</th>
+        <th scope="col"><span class="visually-hidden">Report</span></th>
+      </tr>
     </thead>
     <tbody>
     {% for run in runs %}
@@ -30,22 +40,22 @@
         </td>
         <td>
           <span class="pill {{ run.status }}">{{ run.status }}</span>
-          {% if run.demo %}<span class="pill warn">demo</span>{% endif %}
-          {% if run.quick %}<span class="pill">quick</span>{% endif %}
+          {% if run.demo %}<span class="pill demo">demo</span>{% endif %}
+          {% if run.quick %}<span class="pill quick">quick</span>{% endif %}
           {% if run.error %}<div class="quiet">{{ run.error }}</div>{% endif %}
         </td>
-        <td class="quiet mono">{{ run.created_at }}</td>
-        <td class="quiet">{{ run.spec_source or run.backend }}</td>
-        <td class="quiet">{{ run.size }}</td>
+        <td class="nowrap">{{ run.created_at|when }}</td>
+        <td>{{ run.spec_source or run.backend }}</td>
+        <td class="numeric">{{ run.size }}</td>
         <td class="right">
           {% if run.has_report %}
-            <a href="/runs/{{ run.id }}/files/report.pdf">PDF</a>
+            <a href="/runs/{{ run.id }}/files/report.pdf">PDF<span class="visually-hidden"> report for {{ run.title }}</span></a>
           {% endif %}
         </td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
-  {% endif %}
-</section>
+</div>
+{% endif %}
 {% endblock %}

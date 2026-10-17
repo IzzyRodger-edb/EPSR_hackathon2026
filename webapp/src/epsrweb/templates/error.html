@@ -1,9 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ code }}{% endblock %}
+{% block title %}{{ 'Page not found' if code == 404 else 'Sorry, there is a problem' }}{% endblock %}
 {% block content %}
-<section class="narrow">
-  <h1>{{ code }}</h1>
-  <p>{{ message }}</p>
-  <p><a href="/">Back to your runs</a></p>
-</section>
+<div class="grid-row">
+  <div class="column-two-thirds">
+    <h1>{{ 'Page not found' if code == 404 else 'Sorry, there is a problem' }}</h1>
+    <p>{{ message }}</p>
+    {% if code == 404 %}<p>If you typed the web address, check it is correct.</p>{% endif %}
+    <p><a href="/">Go to your runs</a></p>
+  </div>
+</div>
 {% endblock %}

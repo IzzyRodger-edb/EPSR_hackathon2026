@@ -3,65 +3,117 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}EPSR refinement{% endblock %} &middot; Mellor</title>
+<meta name="theme-color" content="#1d70b8">
+<title>{% block title %}EPSR refinement{% endblock %} &ndash; EPSR refinement</title>
+<script src="/static/theme.js"></script>
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
-<a class="skip" href="#main">Skip to content</a>
-<header class="topbar">
-  <a class="brand" href="/">EPSR <span>/ Mellor</span></a>
-  <nav>
-    {% set user = current_user(request) %}
-    {% if user %}
-      <a href="/" {% if request.url.path == '/' %}class="here"{% endif %}>My runs</a>
-      <a href="/new" {% if request.url.path == '/new' %}class="here"{% endif %}>New run</a>
-    {% endif %}
-    <a href="/instructions" {% if request.url.path == '/instructions' %}class="here"{% endif %}>Instructions</a>
-    <a href="/about" {% if request.url.path == '/about' %}class="here"{% endif %}>About</a>
-    {% if user %}
-      <a href="/settings" {% if request.url.path == '/settings' %}class="here"{% endif %}>Settings</a>
-      <form method="post" action="/logout" class="inline">
-        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-        <button type="submit" class="linkish">Sign out</button>
-      </form>
-    {% else %}
-      <a href="/login">Sign in</a>
-    {% endif %}
-  </nav>
+<a class="skip-link" href="#main">Skip to main content</a>
+{% set user = current_user(request) %}
+{% set path = request.url.path %}
+
+<header class="header">
+  <div class="width-container header__inner">
+    <a class="header__service" href="/">EPSR refinement <span>with the Mellor agent</span></a>
+    <button type="button" class="theme-toggle" id="theme-toggle" hidden>
+      <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 1a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 2v14a7 7 0 0 1 0-14z"/></svg>
+      <span data-label>Dark mode</span>
+    </button>
+  </div>
 </header>
 
-{% if not mellor_status.available %}
-<div class="strip warn">
-  <strong>Demonstration mode.</strong>
-  {% if mellor_status.missing == 'epsr' %}
-    The EPSR engine is not built in this environment, so no refinement can run and every
-    number on a results page is synthetic.
-  {% else %}
-    The refinement stack is not complete in this environment, so no refinement can run and
-    every number on a results page is synthetic.
-  {% endif %}
-  <span class="quiet">({{ mellor_status.reason }})</span>
-  <a href="/about#install">How to complete the installation</a>
+<nav class="service-nav" aria-label="Menu">
+  <div class="width-container">
+    <ul>
+      {% if user %}
+      <li class="{{ 'here' if path == '/' else '' }}"><a href="/" {% if path == '/' %}aria-current="page"{% endif %}>My runs</a></li>
+      <li class="{{ 'here' if path == '/new' else '' }}"><a href="/new" {% if path == '/new' %}aria-current="page"{% endif %}>New run</a></li>
+      {% endif %}
+      <li class="{{ 'here' if path == '/instructions' else '' }}"><a href="/instructions" {% if path == '/instructions' %}aria-current="page"{% endif %}>Instructions</a></li>
+      <li class="{{ 'here' if path == '/about' else '' }}"><a href="/about" {% if path == '/about' %}aria-current="page"{% endif %}>About</a></li>
+      {% if user %}
+      <li class="{{ 'here' if path == '/settings' else '' }}"><a href="/settings" {% if path == '/settings' %}aria-current="page"{% endif %}>Settings</a></li>
+      <li class="end">
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+          <button type="submit" class="linkish">Sign out</button>
+        </form>
+      </li>
+      {% else %}
+      <li class="end {{ 'here' if path == '/login' else '' }}"><a href="/login">Sign in</a></li>
+      {% endif %}
+    </ul>
+  </div>
+</nav>
+
+<div class="width-container page-body">
+  <div class="phase-banner">
+    <p><span class="pill">Prototype</span>
+      <span>A research prototype. Check every result before you publish it.</span></p>
+  </div>
+
+  <main class="main-wrapper" id="main">
+    {% if not mellor_status.available %}
+    <div class="notification-banner" role="region" aria-labelledby="demo-title">
+      <div class="notification-banner__header">
+        <h2 class="notification-banner__title" id="demo-title">Important</h2>
+      </div>
+      <div class="notification-banner__content">
+        <p class="notification-banner__heading">This server is in demonstration mode.</p>
+        <p>
+          {% if mellor_status.missing == 'epsr' %}
+            The EPSR engine is not built in this environment, so no refinement can run and
+            every number on a results page is synthetic.
+          {% else %}
+            The refinement stack is not complete in this environment, so no refinement can run
+            and every number on a results page is synthetic.
+          {% endif %}
+          <a href="/about#install">How to complete the installation</a>.
+        </p>
+        <p class="quiet body-s">{{ mellor_status.reason }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if request.query_params.get('notice') %}
+    <div class="notification-banner success" role="alert" aria-labelledby="notice-title">
+      <div class="notification-banner__header">
+        <h2 class="notification-banner__title" id="notice-title">Success</h2>
+      </div>
+      <div class="notification-banner__content">
+        <p class="notification-banner__heading">{{ request.query_params.get('notice') }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if request.query_params.get('error') %}
+    <div class="error-summary" role="alert" aria-labelledby="error-title" tabindex="-1">
+      <h2 class="error-summary__title" id="error-title">There is a problem</h2>
+      <div class="error-summary__body">
+        <p>{{ request.query_params.get('error') }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+  </main>
 </div>
-{% endif %}
 
-{% if request.query_params.get('notice') %}
-<div class="strip ok">{{ request.query_params.get('notice') }}</div>
-{% endif %}
-{% if request.query_params.get('error') %}
-<div class="strip bad">{{ request.query_params.get('error') }}</div>
-{% endif %}
-
-<main id="main">
-{% block content %}{% endblock %}
-</main>
-
-<footer>
-  <p>
-    EPSR engine: a Rust translation of A. K. Soper's Fortran suite, verified byte for byte
-    against it. The language model proposes the model system and writes prose; every number
-    comes from the engine.
-  </p>
+<footer class="footer">
+  <div class="width-container">
+    <h2 class="visually-hidden">Support links</h2>
+    <ul>
+      <li><a href="/instructions">Instructions</a></li>
+      <li><a href="/about">About EPSR and Mellor</a></li>
+      <li><a href="/about#trust">What the language model does</a></li>
+    </ul>
+    <p>
+      The EPSR engine is a Rust translation of A. K. Soper's Fortran suite, verified byte for
+      byte against it. The language model proposes the model system and writes prose; every
+      number comes from the engine.
+    </p>
+  </div>
 </footer>
 {% block scripts %}{% endblock %}
 </body>

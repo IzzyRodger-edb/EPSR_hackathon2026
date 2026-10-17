@@ -1,72 +1,113 @@
 {% extends "base.html" %}
 {% block title %}{{ run.title }}{% endblock %}
 {% block content %}
-<section data-run-id="{{ run.id }}" id="runroot"
-         data-status="{{ run.status }}" data-csrf="{{ csrf_token(request) }}">
+<div data-run-id="{{ run.id }}" id="runroot"
+     data-status="{{ run.status }}" data-csrf="{{ csrf_token(request) }}">
 
-  <div class="headrow">
-    <div>
-      <h1>{{ run.title }}</h1>
-      <p class="quiet mono">
-        {{ run.id }} &middot; {{ run.backend }}{% if run.spec_source %} &middot;
-        specification from {{ run.spec_source }}{% endif %}
-        {% if run.quick %} &middot; quick schedule{% endif %}
-        &middot; {{ run.size }} on disk
-      </p>
-    </div>
-    <div class="headactions">
-      <span class="pill {{ run.status }}" id="statuspill">{{ run.status }}</span>
-      {% if run.status in ('queued', 'running') %}
-      <form method="post" action="/runs/{{ run.id }}/cancel" class="inline"
-            onsubmit="return confirm('Stop this run? Its worker process is killed and the partial folder is kept.')">
-        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-        <button class="button ghost" type="submit">Stop</button>
-      </form>
-      {% else %}
-      <form method="post" action="/runs/{{ run.id }}/delete" class="inline"
-            onsubmit="return confirm('Delete this run and its whole folder? This cannot be undone.')">
-        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-        <button class="button ghost danger" type="submit">Delete</button>
-      </form>
-      {% endif %}
-    </div>
-  </div>
+  <a class="back-link" href="/">Back to my runs</a>
+
+  <span class="caption">Refinement</span>
+  <h1>{{ run.title }}</h1>
 
   {% if run.demo %}
-  <div class="strip warn">
-    <strong>These are not results.</strong>
-    Mellor is not installed here, so no simulation ran. The measured F(Q) curves are your
-    own uploaded data; the simulated curves, potentials, g(r), R-factors and the whole
-    convergence history on this page are synthetic placeholders.
+  <div class="notification-banner" role="region" aria-labelledby="demo-run-title">
+    <div class="notification-banner__header">
+      <h2 class="notification-banner__title" id="demo-run-title">Important</h2>
+    </div>
+    <div class="notification-banner__content">
+      <p class="notification-banner__heading">These are not results.</p>
+      <p>
+        Mellor is not installed here, so no simulation ran. The measured F(Q) curves are your
+        own uploaded data. The simulated curves, potentials, g(r), R-factors and the whole
+        convergence history on this page are synthetic placeholders.
+      </p>
+    </div>
   </div>
   {% endif %}
 
   {% if run.error %}
-  <div class="strip bad"><strong>{{ run.status }}:</strong> {{ run.error }}</div>
+  <div class="error-summary" role="alert" aria-labelledby="run-error-title">
+    <h2 class="error-summary__title" id="run-error-title">This run {{ run.status }}</h2>
+    <div class="error-summary__body"><p>{{ run.error }}</p></div>
+  </div>
   {% endif %}
 
   {% if queue_position %}
-  <div class="strip">Queued at position {{ queue_position }}; waiting for a free worker.</div>
+  <div class="inset-text">
+    <p>Queued at position {{ queue_position }}. It starts when a worker is free.</p>
+  </div>
   {% endif %}
 
+  <dl class="summary-list">
+    <div class="summary-list__row">
+      <dt class="summary-list__key">Status</dt>
+      <dd class="summary-list__value">
+        <span class="pill {{ run.status }}" id="statuspill">{{ run.status }}</span>
+        {% if run.demo %}<span class="pill demo">demo</span>{% endif %}
+      </dd>
+    </div>
+    <div class="summary-list__row">
+      <dt class="summary-list__key">Run ID</dt>
+      <dd class="summary-list__value mono">{{ run.id }}</dd>
+    </div>
+    <div class="summary-list__row">
+      <dt class="summary-list__key">Model system from</dt>
+      <dd class="summary-list__value">{{ run.spec_source or 'not chosen yet' }}
+        <span class="quiet">(backend: {{ run.backend }})</span></dd>
+    </div>
+    <div class="summary-list__row">
+      <dt class="summary-list__key">Schedule</dt>
+      <dd class="summary-list__value">{{ 'Quick' if run.quick else 'Full' }}</dd>
+    </div>
+    {% if uploads %}
+    <div class="summary-list__row">
+      <dt class="summary-list__key">Input files</dt>
+      <dd class="summary-list__value">
+        {% for name in uploads %}<a href="/runs/{{ run.id }}/files/uploads/{{ name }}">{{ name }}</a>{% if not loop.last %}<br>{% endif %}{% endfor %}
+      </dd>
+    </div>
+    {% endif %}
+    <div class="summary-list__row">
+      <dt class="summary-list__key">Size on disk</dt>
+      <dd class="summary-list__value">{{ run.size }}</dd>
+    </div>
+  </dl>
+
+  <div class="button-group">
+    {% if run.status in ('queued', 'running') %}
+    <form method="post" action="/runs/{{ run.id }}/cancel" class="inline"
+          onsubmit="return confirm('Stop this run? Its worker process is killed and the partial folder is kept.')">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <button class="button secondary" type="submit">Stop this run</button>
+    </form>
+    {% else %}
+    {% if run.has_report %}
+    <a class="button secondary" href="/runs/{{ run.id }}/files/report.pdf" role="button">Download the PDF report</a>
+    {% endif %}
+    <form method="post" action="/runs/{{ run.id }}/delete" class="inline"
+          onsubmit="return confirm('Delete this run and its whole folder? This cannot be undone.')">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <button class="button warning" type="submit">Delete this run</button>
+    </form>
+    {% endif %}
+  </div>
+
   <div class="tabs" role="tablist">
-    <button class="tab active" data-panel="panel-progress" role="tab">Progress</button>
-    <button class="tab" data-panel="panel-figures" role="tab">Figures</button>
-    <button class="tab" data-panel="panel-numbers" role="tab">Numbers</button>
-    <button class="tab" data-panel="panel-chat" role="tab">Ask</button>
-    <button class="tab" data-panel="panel-files" role="tab">Files</button>
+    <button class="tab active" data-panel="panel-progress" role="tab" type="button">Progress</button>
+    <button class="tab" data-panel="panel-figures" role="tab" type="button">Figures</button>
+    <button class="tab" data-panel="panel-numbers" role="tab" type="button">Numbers</button>
+    <button class="tab" data-panel="panel-chat" role="tab" type="button">Ask</button>
+    <button class="tab" data-panel="panel-files" role="tab" type="button">Files</button>
   </div>
 
   <!-- ------------------------------------------------------------ progress -->
-  <div class="panel active" id="panel-progress">
-    {% if uploads %}
-    <p class="quiet">Input: {% for name in uploads %}<code>{{ name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
-    {% endif %}
+  <div class="panel active" id="panel-progress" role="tabpanel">
+    <h2>Progress</h2>
     <pre class="log" id="log">{% for line in log_lines %}{{ line }}
 {% endfor %}</pre>
     <p class="quiet">
-      The stream shows Mellor's own events: the phase it is in, each tool call, and every
-      line of the EPSR run log. It stops by itself when the job finishes.
+      The log shows Mellor's own events: the phase it is in, each tool call, and every line of
+      the EPSR run log. It stops by itself when the job finishes.
     </p>
     {% if discussion %}
     <h2>Discussion</h2>
@@ -75,32 +116,36 @@
   </div>
 
   <!-- ------------------------------------------------------------- figures -->
-  <div class="panel" id="panel-figures">
+  <div class="panel" id="panel-figures" role="tabpanel">
+    <h2>Figures</h2>
     {% if not figures %}
-      <p class="quiet">No figures yet. They are written at the end of the run.</p>
+      <p>No figures yet. They are written at the end of the run.</p>
     {% else %}
     <form id="figform" method="post" action="/runs/{{ run.id }}/figures.zip">
       <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
 
-      <div class="publishbar">
-        <div>
-          <strong>Publish to Overleaf.</strong>
-          Tick figures, then push them into the <code>figures/</code> folder of your project.
-          <a href="/settings">Token and project</a>.
-        </div>
-        <div class="publishcontrols">
-          <label class="radio inline">
-            <input type="radio" name="figure_format" value="pdf" checked>
-            <span>PDF where available</span>
-          </label>
-          <label class="radio inline">
-            <input type="radio" name="figure_format" value="png">
-            <span>PNG</span>
-          </label>
+      <div class="actionbar">
+        <h3>Publish to Overleaf</h3>
+        <p>Tick the figures you want, then push them into the <code>figures/</code> folder of
+          your project. Set the project and token in <a href="/settings">Settings</a>.</p>
+        <fieldset class="fieldset">
+          <legend class="fieldset__legend">File format</legend>
+          <div class="radios small inline">
+            <div class="radios__item">
+              <input class="radios__input" id="format-pdf" type="radio" name="figure_format" value="pdf" checked>
+              <label class="radios__label" for="format-pdf">PDF where available</label>
+            </div>
+            <div class="radios__item">
+              <input class="radios__input" id="format-png" type="radio" name="figure_format" value="png">
+              <label class="radios__label" for="format-png">PNG</label>
+            </div>
+          </div>
+        </fieldset>
+        <div class="button-group">
           {% if overleaf_enabled %}
           <button type="button" class="button" id="pushbtn">Push to Overleaf</button>
           {% endif %}
-          <button type="submit" class="button ghost">Download zip</button>
+          <button type="submit" class="button secondary">Download as a zip</button>
         </div>
       </div>
       <div id="pushresult" class="pushresult" hidden></div>
@@ -108,30 +153,31 @@
       <div class="gallery">
         {% for figure in figures %}
         <figure class="figcard">
-          <label class="figpick">
-            <input type="checkbox" name="figures" value="{{ figure.key }}">
-            <span class="figname mono">{{ figure.key }}</span>
-            <span class="pill {{ figure.source }}">{{ figure.source }}</span>
-          </label>
+          <div class="checkboxes small">
+            <div class="checkboxes__item">
+              <input class="checkboxes__input" id="fig-{{ figure.key }}" type="checkbox"
+                     name="figures" value="{{ figure.key }}">
+              <label class="checkboxes__label" for="fig-{{ figure.key }}">{{ figure.key }}</label>
+            </div>
+          </div>
+          <div><span class="pill {{ figure.source }}">{{ figure.source }}</span></div>
           {% if figure.png %}
           <a href="/runs/{{ run.id }}/files/{{ figure.best }}" target="_blank" rel="noopener">
             <img src="/runs/{{ run.id }}/files/{{ figure.png }}" alt="{{ figure.caption }}" loading="lazy">
           </a>
           {% endif %}
           <figcaption>
-            {{ figure.caption }}
-            <span class="quiet">
-              {% if figure.pdf %}<a href="/runs/{{ run.id }}/files/{{ figure.pdf }}">PDF</a>{% endif %}
-              {% if figure.png %}<a href="/runs/{{ run.id }}/files/{{ figure.png }}">PNG</a>{% endif %}
-            </span>
+            <p>{{ figure.caption }}</p>
+            {% if figure.pdf %}<a href="/runs/{{ run.id }}/files/{{ figure.pdf }}">PDF</a>{% endif %}
+            {% if figure.png %}<a href="/runs/{{ run.id }}/files/{{ figure.png }}">PNG</a>{% endif %}
           </figcaption>
         </figure>
         {% endfor %}
       </div>
     </form>
     <p class="quiet">
-      Figures marked <span class="pill mellor">mellor</span> come from the repository's
-      <code>epsrvis</code> toolkit, as they appear in the PDF report. Those marked
+      Figures tagged <span class="pill mellor">mellor</span> come from the repository's
+      <code>epsrvis</code> toolkit, as they appear in the PDF report. Those tagged
       <span class="pill seaborn">seaborn</span> are drawn by this app from the run's
       long-format CSV tables, and exist as vector PDF.
     </p>
@@ -139,34 +185,38 @@
   </div>
 
   <!-- ------------------------------------------------------------- numbers -->
-  <div class="panel" id="panel-numbers">
+  <div class="panel" id="panel-numbers" role="tabpanel">
+    <h2>Numbers</h2>
     {% if not analysis.present %}
-      <p class="quiet">
-        <code>analysis.json</code> has not been written yet. It appears when the run
-        finishes and holds every computed number.
+      <p>
+        <code>analysis.json</code> has not been written yet. It appears when the run finishes
+        and holds every computed number.
       </p>
     {% else %}
       {% if analysis.verdict %}
-      <p class="verdict"><strong>Verdict:</strong> {{ analysis.verdict }}</p>
+      <div class="inset-text"><p><strong>Verdict:</strong> {{ analysis.verdict }}</p></div>
       {% endif %}
-      {% if analysis.flags %}
-      <ul class="flags">
-        {% for flag in analysis.flags %}<li>{{ flag }}</li>{% endfor %}
-      </ul>
-      {% endif %}
+      {% for flag in analysis.flags %}
+      <div class="warning-text">
+        <span class="warning-text__icon" aria-hidden="true">!</span>
+        <strong class="warning-text__text"><span class="visually-hidden">Warning</span>{{ flag }}</strong>
+      </div>
+      {% endfor %}
 
       {% macro datatable(rows, columns, caption) %}
         {% if rows %}
-        <h2>{{ caption }}</h2>
         <div class="tablewrap">
-          <table class="numbers">
-            <thead><tr>{% for column in columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+          <table>
+            <caption>{{ caption }}</caption>
+            <thead><tr>{% for column in columns %}
+              <th scope="col" {% if rows[0].get(column) is number %}class="numeric"{% endif %}>{{ column }}</th>
+            {% endfor %}</tr></thead>
             <tbody>
               {% for row in rows %}
               <tr>
                 {% for column in columns %}
-                <td>
-                  {% set value = row.get(column) %}
+                {% set value = row.get(column) %}
+                <td {% if value is number %}class="numeric"{% endif %}>
                   {% if value is number and value is not integer %}{{ '%.4g'|format(value) }}
                   {% elif value is none %}&mdash;
                   {% else %}{{ value }}{% endif %}
@@ -184,79 +234,98 @@
       {{ datatable(analysis.runs, analysis.run_columns, 'Refinement stages') }}
       {{ datatable(analysis.shells, analysis.shell_columns, 'First shell') }}
 
-      <h2>How to read these</h2>
-      <dl class="glossary">
-        <dt>R-factor</dt>
-        <dd>
-          Mean squared difference between data and simulation over the fitted Q range. For a
-          liquid against good neutron data it falls to a few times 10<sup>-4</sup> (water
-          reaches 2.3 &times; 10<sup>-4</sup>). A crystal modelled with intermolecular bonds
-          only stays near 10<sup>-2</sup>.
-        </dd>
-        <dt>R squared</dt>
-        <dd>Near 1 means the simulation follows the shape of the data.</dd>
-        <dt>EP amplitude at <code>ereq</code></dt>
-        <dd>
-          The empirical potential is as large as it is allowed to be. A larger
-          <code>ereq</code> may improve the fit, but a large EP means the reference potential
-          is poor.
-        </dd>
-        <dt>Pressure</dt>
-        <dd>Should be modest, a few kbar, for a liquid at its measured density.</dd>
-        <dt>Coordination number</dt>
-        <dd>Neighbours within the first minimum of g(r) &mdash; for water, about 5 oxygens
-          within 3.45 A and 1.8 hydrogen-bonded hydrogens per oxygen.</dd>
-      </dl>
-      <p class="quiet"><a href="/runs/{{ run.id }}/files/analysis.json">Download analysis.json</a>
-      for everything, including keys this page does not show.</p>
+      <details class="details">
+        <summary><span>How to read these numbers</span></summary>
+        <div class="details__text">
+          <dl class="glossary">
+            <dt>R-factor</dt>
+            <dd>
+              Mean squared difference between data and simulation over the fitted Q range. For
+              a liquid against good neutron data it falls to a few times 10<sup>-4</sup> (water
+              reaches 2.3 &times; 10<sup>-4</sup>). A crystal modelled with intermolecular bonds
+              only stays near 10<sup>-2</sup>.
+            </dd>
+            <dt>R squared</dt>
+            <dd>Near 1 means the simulation follows the shape of the data.</dd>
+            <dt>EP amplitude at <code>ereq</code></dt>
+            <dd>
+              The empirical potential is as large as it is allowed to be. A larger
+              <code>ereq</code> may improve the fit, but a large EP means the reference
+              potential is poor.
+            </dd>
+            <dt>Pressure</dt>
+            <dd>Should be modest, a few kbar, for a liquid at its measured density.</dd>
+            <dt>Coordination number</dt>
+            <dd>Neighbours within the first minimum of g(r). For water, about 5 oxygens within
+              3.45 A and 1.8 hydrogen-bonded hydrogens per oxygen.</dd>
+          </dl>
+        </div>
+      </details>
+      <p><a href="/runs/{{ run.id }}/files/analysis.json">Download analysis.json</a> for
+        everything, including keys this page does not show.</p>
     {% endif %}
   </div>
 
   <!-- ---------------------------------------------------------------- chat -->
-  <div class="panel" id="panel-chat">
+  <div class="panel" id="panel-chat" role="tabpanel">
     <h2>Ask about this refinement</h2>
-    <p class="quiet">
-      The model answers from the run's own results through its tools; it can also look for
-      comparable published data. It cannot see this conversation's history, and asking it to
-      run a new refinement overwrites this run's results, so start a new run for that.
+    <p>
+      The model answers from the run's own results through its tools, and can look for
+      comparable published data. It cannot see earlier questions.
     </p>
-    <div id="chatlog" class="chatlog"></div>
+    <div class="warning-text">
+      <span class="warning-text__icon" aria-hidden="true">!</span>
+      <strong class="warning-text__text"><span class="visually-hidden">Warning</span>Asking it
+        to run a new refinement overwrites this run's results. Start a new run for that.</strong>
+    </div>
+    <div id="chatlog" class="chatlog" aria-live="polite"></div>
     <form id="chatform" class="chatform">
-      <input type="text" id="chatinput" placeholder="What is the O-H hydrogen-bond distance, and how good is the fit?"
+      <label class="visually-hidden" for="chatinput">Your question</label>
+      <input class="input" type="text" id="chatinput"
+             placeholder="What is the O-H hydrogen-bond distance, and how good is the fit?"
              autocomplete="off" {% if run.status in ('queued', 'running') %}disabled{% endif %}>
       <button type="submit" class="button" {% if run.status in ('queued', 'running') %}disabled{% endif %}>Ask</button>
     </form>
   </div>
 
   <!-- --------------------------------------------------------------- files -->
-  <div class="panel" id="panel-files">
+  <div class="panel" id="panel-files" role="tabpanel">
     <h2>Everything this run produced</h2>
-    <p class="quiet">
-      One self-describing folder. <code>trajectory/</code> is deliberately not served: it is
-      the per-iteration record and runs to hundreds of megabytes.
+    <p>
+      One self-describing folder. <code>trajectory/</code> is not served: it is the
+      per-iteration record and runs to hundreds of megabytes.
     </p>
-    <ul class="files">
-      {% for item in downloads %}
-      <li>
-        <a href="/runs/{{ run.id }}/files/{{ item.name }}">{{ item.name }}</a>
-        <span class="quiet">{{ item.label }} &middot; {{ item.size }}</span>
-      </li>
-      {% endfor %}
-      {% if has_epsr_folder %}
-      <li>
-        <a href="/runs/{{ run.id }}/epsr.zip">epsr.zip</a>
-        <span class="quiet">the EPSR simulation folder: inputs, .ato, .pcof and every output file</span>
-      </li>
-      {% endif %}
-      {% for name in uploads %}
-      <li>
-        <a href="/runs/{{ run.id }}/files/uploads/{{ name }}">uploads/{{ name }}</a>
-        <span class="quiet">your own data, as uploaded</span>
-      </li>
-      {% endfor %}
-    </ul>
+    <div class="tablewrap">
+      <table>
+        <caption class="visually-hidden">Files in this run</caption>
+        <thead><tr><th scope="col">File</th><th scope="col">Contents</th><th scope="col" class="numeric">Size</th></tr></thead>
+        <tbody>
+          {% for item in downloads %}
+          <tr>
+            <td class="mono"><a href="/runs/{{ run.id }}/files/{{ item.name }}">{{ item.name }}</a></td>
+            <td>{{ item.label }}</td>
+            <td class="numeric">{{ item.size }}</td>
+          </tr>
+          {% endfor %}
+          {% if has_epsr_folder %}
+          <tr>
+            <td class="mono"><a href="/runs/{{ run.id }}/epsr.zip">epsr.zip</a></td>
+            <td>The EPSR simulation folder: inputs, .ato, .pcof and every output file</td>
+            <td class="numeric">&mdash;</td>
+          </tr>
+          {% endif %}
+          {% for name in uploads %}
+          <tr>
+            <td class="mono"><a href="/runs/{{ run.id }}/files/uploads/{{ name }}">uploads/{{ name }}</a></td>
+            <td>Your own data, as uploaded</td>
+            <td class="numeric">&mdash;</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
-</section>
+</div>
 {% endblock %}
 
 {% block scripts %}

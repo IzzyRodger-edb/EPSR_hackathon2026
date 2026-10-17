@@ -1,93 +1,113 @@
 {% extends "base.html" %}
 {% block title %}Settings{% endblock %}
 {% block content %}
-<section class="narrow">
-  <h1>Settings</h1>
-  <p class="quiet">Signed in as <strong>{{ user.email }}</strong>.</p>
+<div class="grid-row">
+  <div class="column-two-thirds">
+    <h1>Settings</h1>
+    <p>You are signed in as <strong>{{ user.email }}</strong>.</p>
 
-  <h2>Overleaf</h2>
-  <p>
-    Overleaf has no public upload API. The supported route is its <strong>Git bridge</strong>,
-    which this server drives for you: it clones your project, copies the figures you ticked
-    into <code>figures/</code>, commits and pushes.
-  </p>
-  <div class="strip">
-    Git integration is an <strong>Overleaf premium feature</strong> (Commons institutions,
-    group subscriptions or an individual subscription). Without it the push will be refused
-    and you should use <em>Download zip</em> on the results page instead, which gives you the
-    same figures plus a <code>figures.tex</code> of ready-made blocks to drag into the editor.
+    <h2>Overleaf</h2>
+    <p>
+      Overleaf has no public upload API. The supported route is its <strong>Git bridge</strong>,
+      which this server drives for you: it clones your project, copies the figures you ticked
+      into <code>figures/</code>, commits and pushes.
+    </p>
+    <div class="inset-text">
+      <p>
+        Git integration is an Overleaf premium feature, available through Commons institutions,
+        group subscriptions or an individual subscription. Without it the push is refused. Use
+        <strong>Download as a zip</strong> on the results page instead: it gives you the same
+        figures plus a <code>figures.tex</code> of ready-made blocks to drag into the editor.
+      </p>
+    </div>
+
+    <form method="post" action="/settings/overleaf">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div class="form-group">
+        <label class="label s" for="project">Project URL</label>
+        <div class="hint" id="project-hint">
+          {% if user.overleaf_project_id %}Current project id:
+          <code>{{ user.overleaf_project_id }}</code>.{% else %}
+          Open the project in Overleaf and copy the address bar.{% endif %}
+        </div>
+        <input class="input" id="project" type="text" name="project" spellcheck="false"
+               aria-describedby="project-hint"
+               placeholder="https://www.overleaf.com/project/65f1c0ffee1234567890abcd"
+               value="{{ user.overleaf_project_url or '' }}">
+      </div>
+      <div class="form-group">
+        <label class="label s" for="overleaf-token">Git authentication token</label>
+        <div class="hint" id="overleaf-token-hint">
+          In Overleaf, go to Account Settings, then Git integration, and create a token. This
+          server gives it to git through an askpass helper, so it never appears on a command
+          line or in a stored remote.
+        </div>
+        <input class="input" id="overleaf-token" type="password" name="token" autocomplete="off"
+               aria-describedby="overleaf-token-hint"
+               placeholder="{% if user.has_overleaf_token %}Stored. Leave blank to keep it{% else %}olp_...{% endif %}">
+      </div>
+      <button type="submit" class="button">Save Overleaf settings</button>
+    </form>
+
+    {% if user.has_overleaf_token %}
+    <form method="post" action="/settings/overleaf/forget"
+          onsubmit="return confirm('Delete the stored token? Revoke it in Overleaf too.')">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <button type="submit" class="button warning">Delete the stored token</button>
+    </form>
+    {% endif %}
+
+    <div class="warning-text">
+      <span class="warning-text__icon" aria-hidden="true">!</span>
+      <strong class="warning-text__text">
+        <span class="visually-hidden">Warning</span>
+        One token covers every project in your account. Treat it as a password: delete it here
+        and revoke it in Overleaf when you are done.
+      </strong>
+    </div>
+    <p class="quiet">
+      The token is encrypted at rest with a key the application holds, is never logged, and is
+      never shown on a page again. Never use an account token on a server you do not trust.
+    </p>
+
+    <h2>Hugging Face</h2>
+    <p>
+      Needed for the hosted backend, which is how the agent runs on a server without a GPU.
+      The token must be fine-grained with <em>Make calls to Inference Providers</em>. Tokens are
+      billed per token to the account that owns them, and a full pipeline is a few tens of
+      thousands of tokens.
+    </p>
+    <div class="inset-text">
+      <p>
+        {% if server_hf_token %}This server has its own <code>HF_TOKEN</code>, which is used when
+        you have not set one.{% else %}This server has no <code>HF_TOKEN</code> of its own, so a
+        hosted run needs a token here.{% endif %}
+      </p>
+    </div>
+    <form method="post" action="/settings/hf">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+      <div class="form-group">
+        <label class="label s" for="hf-token">Hugging Face token</label>
+        <input class="input" id="hf-token" type="password" name="token" autocomplete="off"
+               placeholder="{% if user.has_hf_token %}Stored. Submit blank to delete it{% else %}hf_...{% endif %}">
+      </div>
+      <button type="submit" class="button">Save Hugging Face token</button>
+    </form>
   </div>
+</div>
 
-  <form method="post" action="/settings/overleaf" class="stack">
-    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-    <label>Project URL
-      <input type="text" name="project" placeholder="https://www.overleaf.com/project/65f1c0ffee1234567890abcd"
-             value="{{ user.overleaf_project_url or '' }}">
-      <span class="quiet">
-        {% if user.overleaf_project_id %}Current project id:
-        <code>{{ user.overleaf_project_id }}</code>.{% else %}
-        Open the project in Overleaf and copy the address bar.{% endif %}
-      </span>
-    </label>
-    <label>Git authentication token
-      <input type="password" name="token" autocomplete="off"
-             placeholder="{% if user.has_overleaf_token %}stored; leave blank to keep it{% else %}olp_...{% endif %}">
-      <span class="quiet">
-        Overleaf &rarr; Account Settings &rarr; Git integration &rarr; create a token.
-        Git uses the username <code>git</code> with the token as the password; this server
-        supplies it to git through an askpass helper, so it never appears on a command line
-        or in a stored remote.
-      </span>
-    </label>
-    <button type="submit" class="button">Save</button>
-  </form>
-
-  {% if user.has_overleaf_token %}
-  <form method="post" action="/settings/overleaf/forget" class="inline"
-        onsubmit="return confirm('Delete the stored token? Revoke it in Overleaf too.')">
-    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-    <button type="submit" class="linkish danger">Delete the stored token</button>
-  </form>
-  {% endif %}
-
-  <div class="strip warn">
-    <strong>One token covers every project in your account.</strong> It is encrypted at rest
-    here with a key the application holds, is never logged, and is never rendered back into a
-    page. Even so, treat it as a password: delete it above and revoke it in Overleaf when you
-    are done, and never use an account token on a server you do not trust.
-  </div>
-
-  <h2>Hugging Face</h2>
-  <p>
-    Needed for the hosted backend, which is how the agent runs on a server without a GPU.
-    The token must be fine-grained with <em>Make calls to Inference Providers</em>; tokens are
-    billed per token to the account that owns them. A full pipeline is a few tens of thousands
-    of tokens.
-  </p>
-  <p class="quiet">
-    {% if server_hf_token %}This server has its own <code>HF_TOKEN</code>, which is used when
-    you have not set one.{% else %}This server has no <code>HF_TOKEN</code> of its own, so a
-    hosted run needs a token here.{% endif %}
-  </p>
-  <form method="post" action="/settings/hf" class="stack">
-    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
-    <label>Token
-      <input type="password" name="token" autocomplete="off"
-             placeholder="{% if user.has_hf_token %}stored; submit blank to delete it{% else %}hf_...{% endif %}">
-    </label>
-    <button type="submit" class="button">Save</button>
-  </form>
-
-  {% if pushes %}
-  <h2>Recent pushes to Overleaf</h2>
-  <table class="numbers">
-    <thead><tr><th>When</th><th>Project</th><th>Figures</th><th>Result</th></tr></thead>
+{% if pushes %}
+<h2>Recent pushes to Overleaf</h2>
+<div class="tablewrap">
+  <table>
+    <caption class="visually-hidden">Recent pushes to Overleaf</caption>
+    <thead><tr><th scope="col">When</th><th scope="col">Project</th><th scope="col">Figures</th><th scope="col">Result</th></tr></thead>
     <tbody>
       {% for push in pushes %}
       <tr>
-        <td class="mono quiet">{{ push.created_at }}</td>
+        <td class="nowrap">{{ push.created_at|when }}</td>
         <td class="mono quiet">{{ push.project_id }}</td>
-        <td class="quiet">{{ push.figures }}</td>
+        <td>{{ push.figures }}</td>
         <td>
           <span class="pill {{ 'done' if push.status == 'ok' else 'failed' }}">{{ push.status }}</span>
           <div class="quiet">{{ push.detail }}</div>
@@ -96,6 +116,6 @@
       {% endfor %}
     </tbody>
   </table>
-  {% endif %}
-</section>
+</div>
+{% endif %}
 {% endblock %}

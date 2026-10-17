@@ -1,23 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Create an account{% endblock %}
 {% block content %}
-<section class="narrow">
-  <h1>Create an account</h1>
-  <p class="quiet">
-    Your runs, uploads and chat transcripts are kept under your account and are deleted
-    with it. Nothing is shared with other users.
-  </p>
-  <form method="post" action="/register" class="stack">
-    <label>Email address
-      <input type="email" name="email" autocomplete="username" required autofocus>
-    </label>
-    <label>Password <span class="quiet">(at least 10 characters)</span>
-      <input type="password" name="password" autocomplete="new-password" required minlength="10">
-    </label>
-    <label>Password again
-      <input type="password" name="confirm" autocomplete="new-password" required minlength="10">
-    </label>
-    <button type="submit" class="button">Create account</button>
-  </form>
-</section>
+<div class="grid-row">
+  <div class="column-two-thirds">
+    <h1>Create an account</h1>
+    <p>
+      Your runs, uploads and chat transcripts are kept under your account and are deleted with
+      it. Nothing is shared with other users.
+    </p>
+    <form method="post" action="/register">
+      <div class="form-group">
+        <label class="label" for="email">Email address</label>
+        <input class="input" id="email" type="email" name="email" autocomplete="username"
+               spellcheck="false" required autofocus>
+      </div>
+      <div class="form-group">
+        <label class="label" for="password">Create a password</label>
+        <div class="hint" id="password-hint">Must be at least 10 characters</div>
+        <input class="input" id="password" type="password" name="password"
+               autocomplete="new-password" aria-describedby="password-hint" required minlength="10">
+      </div>
+      <div class="form-group">
+        <label class="label" for="confirm">Confirm password</label>
+        <input class="input" id="confirm" type="password" name="confirm"
+               autocomplete="new-password" required minlength="10">
+      </div>
+      <button type="submit" class="button">Create account</button>
+    </form>
+    <p>Already have an account? <a href="/login">Sign in</a>.</p>
+  </div>
+</div>
 {% endblock %}

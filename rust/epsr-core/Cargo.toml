@@ -6,3 +6,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+rayon = "1.10"
+
+[dev-dependencies]
+rayon = "1.10"

@@ -19,6 +19,7 @@ use crate::fortran::text::parse;
 use crate::fortran::{F1, F2, F3};
 use crate::neighbour::minimagec;
 use crate::state::{State, MCOEFF, MPZ};
+use rayon::prelude::*;
 
 /// `function j1qr(q, r)` (real*8 result).
 fn j1qr(q: f32, r: f32) -> f64 {
@@ -127,26 +128,40 @@ pub fn stog(rho: f32, q: &F1<f32>, sofq: &F2<f32>, r: &F1<f32>, gofr: &mut F2<f3
     let qstep = q[4] - q[3];
     let sfac = 0.5 * qstep / pi / pi / rho;
     let nq = sofq.n1;
-    let mut sum: Vec<f32> = vec![0.0; nq];
+    // The r-rows are independent (per-row scratch, serial inner Q sums), so
+    // they are computed on the rayon pool and written back in row order; the
+    // result is identical at any thread count.
+    let rows: Vec<Vec<f32>> = (1..nr + 1)
+        .into_par_iter()
+        .map(|j| {
+            let mut sum: Vec<f32> = vec![0.0; nq];
+            let rr = r[j];
+            let mut row: Vec<f32> = Vec::with_capacity(npairs.max(0) as usize);
+            for inn in 1..=npairs {
+                let qmax = pi / q[nqmax[inn]];
+                for i in nqmin[inn]..=nqmax[inn] {
+                    let qq = q[i];
+                    let prod = if rr > 0.0 {
+                        let qr = qq * rr;
+                        qq * qr.sin() * lorch(qmax * qq, pi)
+                    } else {
+                        qq * qq * lorch(qmax * qq, pi)
+                    };
+                    sum[(i - 1) as usize] = sofq[(i, inn)] * prod;
+                }
+                let mut sumi: f32 = 0.0;
+                for i in nqmin[inn]..=nqmax[inn] {
+                    sumi += sum[(i - 1) as usize];
+                }
+                row.push(if rr > 0.0 { xwt[inn] + sfac * sumi / rr } else { xwt[inn] + sfac * sumi });
+            }
+            row
+        })
+        .collect();
     for j in 1..=nr {
-        let rr = r[j];
+        let row = &rows[(j - 1) as usize];
         for inn in 1..=npairs {
-            let qmax = pi / q[nqmax[inn]];
-            for i in nqmin[inn]..=nqmax[inn] {
-                let qq = q[i];
-                let prod = if rr > 0.0 {
-                    let qr = qq * rr;
-                    qq * qr.sin() * lorch(qmax * qq, pi)
-                } else {
-                    qq * qq * lorch(qmax * qq, pi)
-                };
-                sum[(i - 1) as usize] = sofq[(i, inn)] * prod;
-            }
-            let mut sumi: f32 = 0.0;
-            for i in nqmin[inn]..=nqmax[inn] {
-                sumi += sum[(i - 1) as usize];
-            }
-            gofr[(j, inn)] = if rr > 0.0 { xwt[inn] + sfac * sumi / rr } else { xwt[inn] + sfac * sumi };
+            gofr[(j, inn)] = row[(inn - 1) as usize];
         }
     }
 }
@@ -485,8 +500,6 @@ impl State {
         let ntype = m.ntype;
         let nmol = m.nmol;
         let mut csampled: F1<f32> = F1::new(ntype as usize);
-        let mut iz1values: F1<i32> = F1::new(m.natom as usize);
-        let mut icrefvalues: F1<i32> = F1::new(m.natom as usize);
         let mut molsampled: F1<i32> = F1::new(m.nmoltype as usize);
         let mut molfraction: F1<f32> = F1::new(m.nmoltype as usize);
         if *ngrsamples <= 0 {
@@ -517,11 +530,57 @@ impl State {
         let sizefactor_unused = m.sizefactor;
         let _ = sizefactor_unused;
         let dmax = m.dmax;
+        // The random draws and sampling decisions consume the shared RNG
+        // stream and depend on earlier acceptances, so they stay serial; the
+        // pair histograms of the accepted molecules are then accumulated in
+        // parallel.  Every accumulation is an exact count (+1.0/+addwav in
+        // f32), so merging per-thread histograms in any order reproduces the
+        // serial result at any thread count.
+        let mut accepted: Vec<i32> = Vec::with_capacity(nmol as usize);
         for im in im1..=im2 {
             let r = self.rng.ran1();
             let m = &self.mol;
             if r < probaccept || molsampled[m.mtype[im]] < 1 || molfraction[m.mtype[im]] < probaccept {
                 molsampled[m.mtype[im]] += 1;
+                for ia in m.naf[im]..=m.nal[im] {
+                    csampled[m.itype[ia]] += 1.0;
+                }
+                accepted.push(im);
+            }
+        }
+        // Container-force counting is independent of the pair loop (it only
+        // bumps potexmax by exact counts), and in the serial code ran for
+        // every im whether or not it was sampled.
+        if self.cont.numcontainerforces > 0 {
+            for im in im1..=im2 {
+                self.dist_containerforce(im, 1.0);
+            }
+        }
+        struct Acc {
+            wav2: F3<f32>,
+            potex: F1<f32>,
+            wavinter: Vec<f32>,
+            iz1values: F1<i32>,
+            icrefvalues: F1<i32>,
+        }
+        let (wn1, wn2, wn3) = (wav.n1, wav.n2, wav.n3);
+        let st: &State = self;
+        let new_acc = || {
+            // Workers inherit the default (unit cubic) lattice, so make this
+            // state's lattice the one minimagec uses on this thread.
+            st.sync_lattice();
+            Acc {
+                wav2: F3::new(wn1, wn2, wn3),
+                potex: F1::new(st.pot.potex.len()),
+                wavinter: vec![0.0; st.cg.wavinter.len()],
+                iz1values: F1::new(st.mol.natom as usize),
+                icrefvalues: F1::new(st.mol.natom as usize),
+            }
+        };
+        let acc = accepted
+            .par_iter()
+            .fold(new_acc, |mut acc, &im| {
+                let m = &st.mol;
                 let xc1 = m.xadd[im];
                 let yc1 = m.yadd[im];
                 let zc1 = m.zadd[im];
@@ -529,9 +588,6 @@ impl State {
                 if probaccept >= 1.0 {
                     jm1 = im + 1;
                     jm2 = nmol;
-                }
-                for ia in m.naf[im]..=m.nal[im] {
-                    csampled[m.itype[ia]] += 1.0;
                 }
                 for ia in m.naf[im]..=m.nal[im] {
                     let x1 = m.xa[ia] + xc1;
@@ -556,43 +612,73 @@ impl State {
                                 let dtest = (xx * xx + yy * yy + zz * zz).sqrt();
                                 let iz1 = nint(dtest / stepcl) + 2;
                                 if iz1 > 1 && iz1 <= npt1 {
-                                    iz1values[ja] = iz1;
-                                    icrefvalues[ja] = icref;
+                                    acc.iz1values[ja] = iz1;
+                                    acc.icrefvalues[ja] = icref;
                                 } else {
-                                    iz1values[ja] = 0;
+                                    acc.iz1values[ja] = 0;
                                 }
                                 let dtesttest = dtest * dmax;
                                 let mut scalefac: f32 = 1.0;
                                 if m.coarsegraining {
                                     scalefac = 0.5 * (m.scalefacmol[im] + m.scalefacmol[jm]);
                                 }
-                                let irefp = self.pot.irefpcof[icref];
-                                if dtesttest < scalefac * self.pot.rminex[irefp].abs() {
-                                    self.pot.potex[icref] += 1.0;
+                                let irefp = st.pot.irefpcof[icref];
+                                if dtesttest < scalefac * st.pot.rminex[irefp].abs() {
+                                    acc.potex[icref] += 1.0;
                                 }
                             }
                         } else {
                             for ja in m.naf[jm]..=m.nal[jm] {
-                                iz1values[ja] = 0;
+                                acc.iz1values[ja] = 0;
                             }
                         }
                     }
                     for ja in m.naf[jm1]..=m.nal[jm2] {
-                        let iz1 = iz1values[ja];
+                        let iz1 = acc.iz1values[ja];
                         if iz1 > 0 {
-                            let icref = icrefvalues[ja];
-                            wav[(2, iz1, icref)] += addwav;
+                            let icref = acc.icrefvalues[ja];
+                            acc.wav2[(2, iz1, icref)] += addwav;
                         }
                     }
-                    // Repeat for coarse graining
+                    // Repeat for coarse graining (CoarseGrain::atogen_accumulate
+                    // against the per-thread wavinter buffer)
                     if m.coarsegraining {
-                        self.cg.atogen_accumulate(&m.itype, ia, it, m.naf[jm1], m.nal[jm2], &iz1values, &icrefvalues, addwav);
+                        let ibinia = st.cg.assignatomscalefac[ia];
+                        for ja in m.naf[jm1]..=m.nal[jm2] {
+                            let iz1 = acc.iz1values[ja];
+                            if iz1 > 0 {
+                                let jt = m.itype[ja];
+                                let ibinja = st.cg.assignatomscalefac[ja];
+                                let icref = acc.icrefvalues[ja];
+                                // Pairs are referred in the order it <= jt
+                                let k = if it <= jt { st.cg.wi(iz1, icref, ibinia, ibinja) } else { st.cg.wi(iz1, icref, ibinja, ibinia) };
+                                acc.wavinter[k] += addwav;
+                            }
+                        }
                     }
                 }
-            }
-            if self.cont.numcontainerforces > 0 {
-                self.dist_containerforce(im, 1.0);
-            }
+                acc
+            })
+            .reduce(new_acc, |mut a, b| {
+                for (x, y) in a.wav2.data.iter_mut().zip(b.wav2.data.iter()) {
+                    *x += *y;
+                }
+                for (x, y) in a.potex.data.iter_mut().zip(b.potex.data.iter()) {
+                    *x += *y;
+                }
+                for (x, y) in a.wavinter.iter_mut().zip(b.wavinter.iter()) {
+                    *x += *y;
+                }
+                a
+            });
+        for (x, y) in wav.data.iter_mut().zip(acc.wav2.data.iter()) {
+            *x += *y;
+        }
+        for ic in 1..=npairs {
+            self.pot.potex[ic] += acc.potex[ic];
+        }
+        for (x, y) in self.cg.wavinter.iter_mut().zip(acc.wavinter.iter()) {
+            *x += *y;
         }
         // normalise
         let m = &self.mol;
@@ -638,26 +724,40 @@ impl State {
     pub fn gensq(&self, nq: i32, sofq: &mut F3<f32>, wav: &F3<f32>) {
         let d = &self.dist;
         let m = &self.mol;
-        for ic in 1..=m.npairs {
-            let jt = m.n2extr[ic];
-            for i in 1..=nq {
-                let mut sum1: f32 = 0.0;
-                let mut sum2: f32 = 0.0;
-                let mut sum3: f32 = 0.0;
-                for j in 2..=d.npt1 {
-                    let add1 = wav[(1, j, ic)];
-                    if add1.abs() > 0.0 {
-                        sum1 += add1 * d.foqols[(j, i)];
+        // Pairs are independent; within a pair the Q and r summation order is
+        // unchanged, so the result is identical at any thread count.
+        let cols: Vec<Vec<(f32, f32)>> = (1..=m.npairs)
+            .into_par_iter()
+            .map(|ic| {
+                let jt = m.n2extr[ic];
+                let mut col = Vec::with_capacity(nq as usize);
+                for i in 1..=nq {
+                    let mut sum1: f32 = 0.0;
+                    let mut sum2: f32 = 0.0;
+                    let mut sum3: f32 = 0.0;
+                    for j in 2..=d.npt1 {
+                        let add1 = wav[(1, j, ic)];
+                        if add1.abs() > 0.0 {
+                            sum1 += add1 * d.foqols[(j, i)];
+                        }
                     }
+                    for j in 2..=d.npt1 {
+                        let add2 = (wav[(2, j, ic)] - d.ycoh[j]) * m.natomsphere[jt];
+                        sum2 += add2 * d.foqols[(j, i)];
+                        sum3 += wav[(2, j, ic)];
+                    }
+                    if sum3 <= 0.0 {
+                        sum2 = 0.0;
+                    }
+                    col.push((sum1, sum2));
                 }
-                for j in 2..=d.npt1 {
-                    let add2 = (wav[(2, j, ic)] - d.ycoh[j]) * m.natomsphere[jt];
-                    sum2 += add2 * d.foqols[(j, i)];
-                    sum3 += wav[(2, j, ic)];
-                }
-                if sum3 <= 0.0 {
-                    sum2 = 0.0;
-                }
+                col
+            })
+            .collect();
+        for ic in 1..=m.npairs {
+            let col = &cols[(ic - 1) as usize];
+            for i in 1..=nq {
+                let (sum1, sum2) = col[(i - 1) as usize];
                 sofq[(1, i, ic)] = sum1;
                 sofq[(2, i, ic)] = sum2;
             }

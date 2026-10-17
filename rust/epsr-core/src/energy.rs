@@ -20,8 +20,10 @@
 //! omitted here.
 
 use crate::fortran::format::{fmt, ListWriter, FV};
+use crate::fortran::F1;
 use crate::neighbour::minimagec;
 use crate::state::State;
+use rayon::prelude::*;
 
 /// `function en_atom_inter_scale(x1,y1,z1,x2,y2,z2,stepcl,xstar,icref,npt2,scalefac)`.
 #[inline(always)]
@@ -468,6 +470,37 @@ impl State {
             }
         }
         let mut sumecoordcon: f32 = 0.0;
+        // Precompute the pair energies on the rayon pool: en_mole_pair is a
+        // pure function of the (fixed at this point) positions, and each
+        // (cell, molecule, neighbour) slot is written independently.  The
+        // stored neighbour order, the set_ergpair insertion order and the
+        // serial ftest sum below are unchanged, so the result is identical
+        // at any thread count.
+        let st: &State = self;
+        let pair_energies: Vec<Vec<Vec<f32>>> = (1..st.cells.ncell + 1)
+            .into_par_iter()
+            .map(|ic| {
+                st.sync_lattice();
+                let mut out: Vec<Vec<f32>> = Vec::new();
+                if st.cells.nmolsincell[ic] > 0 {
+                    let mut nbref: F1<i32> = F1::new(st.erg.nbref.len());
+                    let nnbref = st.cells.make_neighbour_list_from_cells(ic, &mut nbref);
+                    out.reserve(st.cells.nmolsincell[ic] as usize);
+                    for iref in 1..=st.cells.nmolsincell[ic] {
+                        let im = st.cells.molsincell[(iref, ic)];
+                        let mut e = vec![0.0f32; (nnbref + 1) as usize];
+                        for inn in 1..=nnbref {
+                            let jm = nbref[inn];
+                            if jm > im {
+                                e[inn as usize] = st.en_mole_pair(im, jm);
+                            }
+                        }
+                        out.push(e);
+                    }
+                }
+                out
+            })
+            .collect();
         let mut nbref = std::mem::take(&mut self.erg.nbref);
         let mut ergold = std::mem::take(&mut self.erg.ergold);
         for ic in 1..=self.cells.ncell {
@@ -475,12 +508,9 @@ impl State {
                 let nnbref = self.cells.make_neighbour_list_from_cells(ic, &mut nbref);
                 for iref in 1..=self.cells.nmolsincell[ic] {
                     let im = self.cells.molsincell[(iref, ic)];
+                    let e = &pair_energies[(ic - 1) as usize][(iref - 1) as usize];
                     for inn in 1..=nnbref {
-                        let jm = nbref[inn];
-                        ergold[inn] = 0.0;
-                        if jm > im {
-                            ergold[inn] = self.en_mole_pair(im, jm);
-                        }
+                        ergold[inn] = e[inn as usize];
                     }
                     // NB: the Fortran loop starts at inn=2 (the first candidate
                     // neighbour is never stored).  Reproduced as is.
@@ -599,71 +629,91 @@ impl State {
         let mut presst: f64 = 0.0;
         let energabs = self.abs_energy_ep();
         let npt1 = self.dist.npt1;
-        for im in 1..self.mol.nmol {
-            self.erg.make_neighbour_list_from_mols(im);
-            let nnbref = self.erg.nnbref;
-            let m = &self.mol;
-            let p = &self.pot;
-            let xstar = &self.dist.xstar;
-            let xc1 = m.xadd[im];
-            let yc1 = m.yadd[im];
-            let zc1 = m.zadd[im];
-            for jref in 1..=nnbref {
-                self.erg.ergold[jref] = 0.0;
-                self.erg.ergnew[jref] = 0.0;
-            }
-            for jref in 1..=nnbref {
-                let jm = self.erg.nbref[jref];
-                if jm > im {
-                    for ia in m.naf[im]..=m.nal[im] {
-                        let it = m.itype[ia];
-                        let x1 = m.xa[ia] + xc1;
-                        let y1 = m.ya[ia] + yc1;
-                        let z1 = m.za[ia] + zc1;
-                        for ja in m.naf[jm]..=m.nal[jm] {
-                            let xc2 = m.xadd[jm];
-                            let yc2 = m.yadd[jm];
-                            let zc2 = m.zadd[jm];
-                            let jt = m.itype[ja];
-                            let icref = m.npairref[(it, jt)];
-                            let x2 = m.xa[ja] + xc2;
-                            let y2 = m.ya[ja] + yc2;
-                            let z2 = m.za[ja] + zc2;
-                            let mut xdif = x2 - x1;
-                            let mut ydif = y2 - y1;
-                            let mut zdif = z2 - z1;
-                            minimagec(&mut xdif, &mut ydif, &mut zdif);
-                            let mut xcdif = xc2 - xc1;
-                            let mut ycdif = yc2 - yc1;
-                            let mut zcdif = zc2 - zc1;
-                            minimagec(&mut xcdif, &mut ycdif, &mut zcdif);
-                            let dsq = xdif * xdif + ydif * ydif + zdif * zdif;
-                            let dtest = dsq.sqrt();
-                            let rat = dtest / stepcl;
-                            let iz = rat as i32 + 2;
-                            if iz <= npt1 {
-                                let dtdif = dtest - xstar[iz];
-                                let ipz = iz;
-                                let prfac = if dtest > 0.0 { (xcdif * xdif + ycdif * ydif + zcdif * zdif) / dtest } else { 0.0 };
-                                let (enpot, prpot): (f32, f64) = if self.cc.ncoordconstraints > 0 && self.cc.check_coord_bonded(ia, ja, m) {
-                                    (
-                                        p.epot[(iz, icref)] + p.epot1[(iz, icref)] * dtdif,
-                                        (0.5 * (p.epot1[(ipz, icref)] + p.epot1[(ipz - 1, icref)]) * prfac) as f64,
-                                    )
-                                } else {
-                                    (
-                                        p.ecoul[(iz, icref)] + p.ecoul1[(iz, icref)] * dtdif,
-                                        (0.5 * (p.ecoul1[(ipz, icref)] + p.ecoul1[(ipz - 1, icref)]) * prfac) as f64,
-                                    )
-                                };
-                                let enwt = p.xavs[(iz, icref)] + p.xavs1[(iz, icref)] * dtdif;
-                                let prwt = 0.5 * (p.xavs1[(ipz, icref)] + p.xavs1[(ipz - 1, icref)]) * prfac;
-                                self.erg.ergold[jref] = self.erg.ergold[jref] + enwt + enpot;
-                                self.erg.ergnew[jref] = (((self.erg.ergnew[jref] + prwt) as f64) + prpot) as f32;
+        // Each molecule's energy/virial contributions are a pure function of
+        // the fixed positions and the stored neighbour structure, so they are
+        // precomputed on the rayon pool into per-molecule buffers; the serial
+        // pass below then loads them into the shared erg scratch and does the
+        // sumc/presst reductions in the original element order, so the result
+        // (and the final erg state) is identical at any thread count.
+        let st: &State = self;
+        let per_im: Vec<(Vec<f32>, Vec<f32>)> = (1..st.mol.nmol)
+            .into_par_iter()
+            .map(|im| {
+                st.sync_lattice();
+                let m = &st.mol;
+                let p = &st.pot;
+                let e = &st.erg;
+                let xstar = &st.dist.xstar;
+                let nnbref = e.nergpairm[im];
+                let mut ergold = vec![0.0f32; (nnbref + 1).max(1) as usize];
+                let mut ergnew = vec![0.0f32; (nnbref + 1).max(1) as usize];
+                let xc1 = m.xadd[im];
+                let yc1 = m.yadd[im];
+                let zc1 = m.zadd[im];
+                for jref in 1..=nnbref {
+                    let jm = e.molergpair[(jref, im)];
+                    if jm > im {
+                        for ia in m.naf[im]..=m.nal[im] {
+                            let it = m.itype[ia];
+                            let x1 = m.xa[ia] + xc1;
+                            let y1 = m.ya[ia] + yc1;
+                            let z1 = m.za[ia] + zc1;
+                            for ja in m.naf[jm]..=m.nal[jm] {
+                                let xc2 = m.xadd[jm];
+                                let yc2 = m.yadd[jm];
+                                let zc2 = m.zadd[jm];
+                                let jt = m.itype[ja];
+                                let icref = m.npairref[(it, jt)];
+                                let x2 = m.xa[ja] + xc2;
+                                let y2 = m.ya[ja] + yc2;
+                                let z2 = m.za[ja] + zc2;
+                                let mut xdif = x2 - x1;
+                                let mut ydif = y2 - y1;
+                                let mut zdif = z2 - z1;
+                                minimagec(&mut xdif, &mut ydif, &mut zdif);
+                                let mut xcdif = xc2 - xc1;
+                                let mut ycdif = yc2 - yc1;
+                                let mut zcdif = zc2 - zc1;
+                                minimagec(&mut xcdif, &mut ycdif, &mut zcdif);
+                                let dsq = xdif * xdif + ydif * ydif + zdif * zdif;
+                                let dtest = dsq.sqrt();
+                                let rat = dtest / stepcl;
+                                let iz = rat as i32 + 2;
+                                if iz <= npt1 {
+                                    let dtdif = dtest - xstar[iz];
+                                    let ipz = iz;
+                                    let prfac = if dtest > 0.0 { (xcdif * xdif + ycdif * ydif + zcdif * zdif) / dtest } else { 0.0 };
+                                    let (enpot, prpot): (f32, f64) = if st.cc.ncoordconstraints > 0 && st.cc.check_coord_bonded(ia, ja, m) {
+                                        (
+                                            p.epot[(iz, icref)] + p.epot1[(iz, icref)] * dtdif,
+                                            (0.5 * (p.epot1[(ipz, icref)] + p.epot1[(ipz - 1, icref)]) * prfac) as f64,
+                                        )
+                                    } else {
+                                        (
+                                            p.ecoul[(iz, icref)] + p.ecoul1[(iz, icref)] * dtdif,
+                                            (0.5 * (p.ecoul1[(ipz, icref)] + p.ecoul1[(ipz - 1, icref)]) * prfac) as f64,
+                                        )
+                                    };
+                                    let enwt = p.xavs[(iz, icref)] + p.xavs1[(iz, icref)] * dtdif;
+                                    let prwt = 0.5 * (p.xavs1[(ipz, icref)] + p.xavs1[(ipz - 1, icref)]) * prfac;
+                                    let j = jref as usize;
+                                    ergold[j] = ergold[j] + enwt + enpot;
+                                    ergnew[j] = (((ergnew[j] + prwt) as f64) + prpot) as f32;
+                                }
                             }
                         }
                     }
                 }
+                (ergold, ergnew)
+            })
+            .collect();
+        for im in 1..self.mol.nmol {
+            self.erg.make_neighbour_list_from_mols(im);
+            let nnbref = self.erg.nnbref;
+            let (eo, en) = &per_im[(im - 1) as usize];
+            for jref in 1..=nnbref {
+                self.erg.ergold[jref] = eo[jref as usize];
+                self.erg.ergnew[jref] = en[jref as usize];
             }
             for jref in 1..=nnbref {
                 sumc += self.erg.ergold[jref];

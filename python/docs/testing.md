@@ -5,7 +5,7 @@ Rust engine is validated with, plus wrapper-specific behaviour.
 
 ```bash
 cd python
-uv run pytest -n auto                 # everything: 210 tests (2 opt-in), about 4.5 minutes on 4 cores
+uv run pytest -n auto                 # everything: 217 tests (2 opt-in), about 5.5 minutes on 4 cores
 uv run pytest -m "not slow"           # skip case replays and experimental-data runs: about 1 minute
 uv run pytest -m experimental          # only the refinements of real neutron data
 uv run pytest tests/test_ex_cases.py -k "ex20 or ex50"    # selected verification cases
@@ -46,6 +46,7 @@ Fortran did not also fail the test.
 | `test_examples.py` | the five example scripts run (the long ones in their short mode) |
 | `test_plot.py` | the plotting helpers draw |
 | `test_experimental_data.py` | water and silica built from scratch and refined against real neutron data; see the next section |
+| `test_cu_btc.py` | the Cu-BTC crystal read from a PDB file, refined with Bragg peaks against real neutron data, compared with the archived Fortran results after every EPSR run; see the next section |
 
 A session fixture in `conftest.py` fails the run if any test modifies the
 repository's `EPSR-test` folder.
@@ -118,6 +119,38 @@ schedule:
 
 Coordination numbers integrate g(r) with the trapezoidal rule because the EPSR r
 grid is not uniform: its first interval is a quarter of the others.
+
+`validation/<case>/gr_agreement.png` shows the partial g(r) of each case from the
+three codes side by side (original Fortran, Rust CLI, Python wrapper) with the
+differences underneath, which are zero; `validation/plot_gr_agreement.py` makes them.
+
+### Cu-BTC: a crystal from a PDB file, against archived Fortran results
+
+`test_cu_btc.py` runs the Cu-BTC (HKUST-1) case of `validation/cu-btc/` through the
+wrapper: the unit cell of the Dissolve example in `experimental_data/cu-btc`,
+converted to a PDB file, read with `readpdb` (24 Cu₂ paddlewheels and 32
+benzene-tricarboxylate linkers), given the Dissolve force field with `changeato`,
+weighted with `nwts`, and refined against the NIMROD data of the empty framework
+with Bragg peaks calculated up to 5 Å⁻¹. The schedule is the full one of
+`steps.txt` (1 + 99 + 100 + 100 iterations, about 4 minutes).
+
+The original Fortran's folder after each of the four EPSR runs is archived in
+`validation/cu-btc/fortran_reference.tar.gz` (made by `make_fortran_reference.py`
+from a Fortran build), so the comparison needs no Fortran build and runs in the
+default suite. After every EPSR run, every file of the wrapper's folder is compared
+with the archive under the tolerance policy below; files that agree only in the
+last digits trigger a replay with the `epsr-rs` CLI, whose final folder must be
+byte-identical to the wrapper's.
+
+Results on the development machine: **every file byte-identical to the Fortran
+after every run** (34 to 36 files per snapshot, including the Bragg files
+`.bragg` and `.inten`). Further checks: the molecules and atom types `readpdb`
+creates, the force field `changeato` applies, the 21 neutron weights, the Bragg
+files, the R-factor falling from 3.1×10⁻² (scratch start) to 2.3×10⁻² (reference
+potential) to 1.6×10⁻² (empirical potential at `ereq` 10), and the structure:
+intramolecular Cu–Cu 2.64 Å, C1–O 1.26 Å and C3–H 0.93 Å, about four O around each
+Cu, paddlewheels 8 Å apart. `validation/cu-btc/README.md` explains the conversion
+and its approximations.
 
 ## Tolerance policy
 

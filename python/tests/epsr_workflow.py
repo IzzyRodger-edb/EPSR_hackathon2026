@@ -40,6 +40,8 @@ SET_KEYWORD_SCRIPT = VALIDATION / "set_keyword.py"
 
 #: Files of a validation case folder that are not inputs of the calculation.
 CASE_FILES_TO_SKIP = {"steps.txt", "README.md"}
+#: Suffixes of case files that are not inputs: helper scripts and reference archives.
+CASE_SUFFIXES_TO_SKIP = {".py", ".gz", ".mint01"}  # data come from experimental_data/
 #: Files whose keywords are EPSR parameters, which the wrapper sets as overrides.
 EPSR_KEYWORD_FILE_SUFFIXES = (".EPSR.inp", ".pcof")
 
@@ -51,7 +53,7 @@ class ExperimentalCase:
     name: str  # folder name in validation/ and experimental_data/
     input_file: str  # the .EPSR.inp file
     requested_ep_amplitude: float  # ereq set before the empirical-potential refinement
-    box_side: float  # Å, cubic box built by mixato (PYTHON_WRAPPER_WORKFLOW.md §2.2)
+    box_side: float  # Å, side of the cubic box
     n_atoms: int
     n_molecules: int
 
@@ -88,6 +90,15 @@ SILICA = ExperimentalCase(
     n_atoms=4500,
     n_molecules=4500,  # single-atom "molecules"
 )
+CU_BTC = ExperimentalCase(
+    name="cu-btc",
+    input_file="CuBTC.EPSR.inp",
+    requested_ep_amplitude=10.0,
+    box_side=26.3336,  # one unit cell of the crystal, from the PDB (not built by mixato)
+    n_atoms=624,
+    n_molecules=56,  # 24 Cu2 paddlewheels + 32 BTC linkers
+)
+#: The liquid and amorphous cases built with mixato (test_experimental_data.py).
 CASES = [WATER, SILICA]
 
 
@@ -158,8 +169,12 @@ def prepare_case_folder(case: ExperimentalCase, destination: Path) -> Path:
     """Copy the case's setup inputs and the experimental data into a new folder."""
     destination.mkdir(parents=True)
     for input_file in case.case_folder.iterdir():
-        is_input = input_file.is_file() and input_file.name not in CASE_FILES_TO_SKIP
-        if is_input and input_file.suffix != ".mint01":
+        is_input = (
+            input_file.is_file()
+            and input_file.name not in CASE_FILES_TO_SKIP
+            and input_file.suffix not in CASE_SUFFIXES_TO_SKIP
+        )
+        if is_input:
             shutil.copy2(input_file, destination / input_file.name)
     for data_file in case.data_files:
         shutil.copy2(data_file, destination / data_file.name)

@@ -1,0 +1,34 @@
+temp 300
+tol 0.0
+stepmi 0.1
+stepri 0.3
+stepr 0.3
+stepm 1.0
+atom 1
+epsilon 0.02092
+sigma 3.144
+charge 1.098
+atom 2
+epsilon 0.401664
+sigma 3.033
+charge -0.665
+atom 3
+epsilon 0.39748
+sigma 3.473
+charge 0.778
+atom 4
+epsilon 0.39748
+sigma 3.473
+charge -0.092
+atom 5
+epsilon 0.39748
+sigma 3.473
+charge -0.014
+atom 6
+epsilon 0.06276
+sigma 2.846
+charge 0.109
+atmass 1.008
+save
+y
+e

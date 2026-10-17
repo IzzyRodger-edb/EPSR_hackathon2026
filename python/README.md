@@ -79,8 +79,9 @@ OW-OW first peak at 2.79 Å (nearest-neighbour waters)
 OW-HW first peak at 1.80 Å (hydrogen bond)
 ```
 
-The same workflow for amorphous silica, and a check that every output file is
-identical to the original Fortran EPSR, are described in
+The same workflow for amorphous silica and for the Cu-BTC metal-organic framework
+(a crystal read from a PDB file, with Bragg peaks), and the check that every output
+file is identical to the original Fortran EPSR, are described in
 [docs/testing.md](docs/testing.md#tests-on-real-experimental-data).
 
 ## Installation
@@ -102,9 +103,9 @@ uv run python examples/05_experimental_water.py --quick   # the example above
 | `uv sync` | install `epsr` with numpy only |
 | `uv sync --all-extras` | also matplotlib, pandas and tqdm |
 | `uv run maturin develop --release --uv` | fast rebuild after editing `src/*.rs` |
-| `uv run pytest -n auto` | the full test suite (about 4.5 minutes on 4 cores) |
+| `uv run pytest -n auto` | the full test suite (about 5.5 minutes on 4 cores) |
 | `uv run pytest -m "not slow"` | skip the 115 verification-case replays and the experimental-data refinements (about 1 minute) |
-| `uv run pytest -m experimental` | refine real water and silica neutron data from `experimental_data/` (about 2 minutes) |
+| `uv run pytest -m experimental` | refine real water, silica and Cu-BTC neutron data from `experimental_data/` (about 4 minutes) |
 | `uv run isort . && uv run black .` | format the Python code (import order, then layout) |
 | `uv run ruff check . && uv run mypy` | lint and type check |
 | `uv build` | wheel and sdist in `dist/` |

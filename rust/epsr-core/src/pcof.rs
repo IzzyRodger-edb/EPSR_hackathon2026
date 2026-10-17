@@ -369,9 +369,14 @@ impl State {
                 p.rmaxex[n] = 0.0;
                 p.pcoefexmax[n] = 0.0;
                 p.npgauss[n] = 0;
-                // NB: coulfac, coordex and efacp of the new pair are not set by the
-                // Fortran (COMMON data, i.e. 0): the pair has no Coulomb term and its
-                // EP is not refined in this run.  Reproduced.
+                // Bug fix (deliberate divergence): the Fortran leaves coulfac,
+                // coordex and efacp of the new pair unset (COMMON data, i.e. 0),
+                // so the pair had no Coulomb term and its EP was not refined in
+                // this run.  Give it the defaults a pair read from file gets
+                // (read_pcof: coulfac 1.0, efacp 1.0, coordex 0.0).
+                p.coulfac[n] = 1.0;
+                p.efacp[n] = 1.0;
+                p.coordex[n] = 0.0;
                 let mut lw = ListWriter::new();
                 lw.chars(&ti).chars(" ").chars(&tj);
                 let txt = lw.finish();
@@ -533,9 +538,11 @@ impl State {
                         None => ierr = 1,
                     }
                 }
-                // NB: the Fortran increments (rather than decrements) igauss on a read error here.
+                // Bug fix (deliberate divergence): the Fortran increments
+                // igauss on a read error here, double-counting the bad
+                // Gaussian; read_pcof decrements in the same situation.
                 if ierr != 0 {
-                    igauss += 1;
+                    igauss -= 1;
                 }
             }
             p.npgauss[ip] = igauss;

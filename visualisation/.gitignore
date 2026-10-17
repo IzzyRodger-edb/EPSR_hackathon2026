@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Generated plots (regenerate with the toolkit); kept out of the repo so pulls stay small
+figures/
+python_visualisation_toolkit/example_H2O/figures/
+python_visualisation_toolkit/example_SiO2/figures/

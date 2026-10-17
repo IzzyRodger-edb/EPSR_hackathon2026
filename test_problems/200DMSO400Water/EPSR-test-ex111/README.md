@@ -31,3 +31,10 @@ The Fortran output files after the last pass are stored in `fortran_reference.ta
 
 ## Verification
 Rust port vs Fortran reference: **ALL IDENTICAL** in every pass (byte-for-byte after masking the `.out` date line and the fort.35 timings).
+
+## Expected divergence from the Fortran (deliberate bug fix)
+
+Since the bug-fix pass (see FORTRAN_BUGS.md at the repo root), this case
+deliberately differs from the Fortran reference because of the three-body fix: the in-memory triplet angles/width/amplitudes are no longer overwritten with radians at .pcof save time, so iterations 2+ use the correct cosine convention (Fortran iteration-2 energy +688.9 kJ/mol vs fixed Rust -38.5).
+The difference is the fix working; run_ex_test.sh reporting SOME FILES DIFFER
+here is expected.

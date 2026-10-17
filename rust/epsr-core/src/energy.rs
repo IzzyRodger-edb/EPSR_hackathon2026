@@ -14,10 +14,10 @@
 //! * intramolecular non-bonded: `xav`/`xav1`;
 //! * bonded (bond / angle restraints): harmonic springs `amassr/tb * (tb - r)^2 * tempb * kT`.
 //!
-//! Three-body terms, coordination constraints, container forces, tethered
-//! molecules and dihedral (`DIH`) groups are not part of the port; the input
-//! readers reject files that use them, so the corresponding branches are
-//! omitted here.
+//! Three-body terms (`threebody.rs`), coordination constraints
+//! (`coordconstraint.rs`), container forces (`containerforces.rs`), tethered
+//! molecules and dihedral (`DIH`) groups are all ported and handled by the
+//! corresponding branches below.
 
 use crate::fortran::format::{fmt, ListWriter, FV};
 use crate::fortran::F1;

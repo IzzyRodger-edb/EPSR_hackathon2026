@@ -136,7 +136,9 @@ pub struct Mol {
     pub typefile: F1<String>,
     // ---- molecom_i
     pub ndihedralang: F1<i32>,
-    /// `dihedralang(k,ig)`: required dihedral angle (deg) of DIH rotational groups.
+    /// `dihedralang(k,ig)`: required dihedral angle of DIH rotational groups —
+    /// degrees on disk (`.ato`), radians between `normalise_coordinates` and
+    /// `unnormalise_coordinates` (i.e. during Monte Carlo).
     pub dihedralang: F2<f32>,
     /// `labrotdih(j,k,ig)`: the two atoms defining dihedral `k` of DIH group `ig`.
     pub labrotdih: F3<i32>,

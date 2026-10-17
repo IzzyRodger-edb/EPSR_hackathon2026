@@ -1,0 +1,22 @@
+[project]
+name = "epsr-vis"
+version = "0.1.0"
+description = "Analysis and visualisation of EPSR refinements: per-iteration fit metrics, structure factors, partial g(r), 3D configurations"
+authors = [
+    { name = "IzzyRodger-edb", email = "s2881098@ed.ac.uk" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "imageio>=2.38.1",
+    "matplotlib>=3.11.2",
+    "numpy>=2.5.4",
+    "pyvista>=0.49.1",
+    "scipy>=1.18.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[project.scripts]
+epsr-vis = "epsr_vis.cli:main"

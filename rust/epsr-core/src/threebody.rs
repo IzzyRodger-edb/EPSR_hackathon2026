@@ -13,14 +13,21 @@
 //! whose cosine is closest to cos θ.  Triplets are listed per centre molecule
 //! by `find_triplets` (called by `fmolec1` and `press`).
 //!
-//! Fortran quirks reproduced (see the `NB:` comments):
-//! * `read_pcof` stores the *cosines* of the requested angles and sets
-//!   `awidth = 1.0`, but `save_files_others` (called at the end of every
-//!   iteration) re-reads the line from the symbol table and stores the angles
-//!   in *radians* and `awidth` in radians.  From the second iteration of a run
-//!   on, `en_mole_triplets` therefore compares cos θ with angles in radians.
-//! * If the first and third atom types are equal, only triplets with
-//!   `ia3 > ia1` are kept.
+//! Fortran bug fixed here (deliberate divergence from the Fortran): in the
+//! Fortran, `read_pcof` stores the *cosines* of the requested angles and sets
+//! `awidth = 1.0`, but `save_files_others` (called at the end of every
+//! iteration) re-reads the line from the symbol table and overwrites the
+//! in-memory values with the angles in *radians* and `awidth` in radians
+//! (and drops the `abs()` on the amplitudes).  From the second iteration of
+//! a run on, `en_mole_triplets` therefore compared cos θ with angles in
+//! radians, corrupting the triplet energy and pressure.  The Rust port keeps
+//! the re-parsed values local to `write_pcof_threebody` (the written `.pcof`
+//! line is unchanged) so the in-memory cosines/width/amplitudes stay as
+//! `read_pcof` set them.  See FORTRAN_BUGS.md; ex110/ex111 diverge from the
+//! Fortran from iteration 2 because of this fix.
+//!
+//! Fortran quirk reproduced (see the `NB:` comments): if the first and third
+//! atom types are equal, only triplets with `ia3 > ia1` are kept.
 
 use crate::error::{EpsrError, Result};
 use crate::fortran::fmath::PI4ATAN;
@@ -176,70 +183,84 @@ impl State {
             let sometext = self.sym.symbol_value[iref].clone();
             let w = parse(&sometext, 11);
             let nwords = w.nwords();
-            let tb = &mut self.tb;
+            let tb = &self.tb;
+            // Bug fix (deliberate divergence from the Fortran): the Fortran
+            // re-parses the line into the in-memory arrays here, storing the
+            // angles in radians (read_pcof stores cosines), the width in
+            // radians (read_pcof stores 1.0) and the amplitudes without
+            // abs().  The re-parsed values are kept local instead, with the
+            // same arithmetic, so the written line is byte-identical while
+            // the in-memory values keep read_pcof's conventions for the
+            // following iterations.
+            let mut grp: Vec<String> = (1..=3).map(|j| tb.threebgrp[(j, ithreeb)].clone()).collect();
+            let mut amp = tb.threebamp[ithreeb];
+            let mut width = tb.threebawidth[ithreeb];
+            let mut rwidth = tb.threebrwidth[ithreeb];
+            let mut rmax = [tb.threebrmax[(1, ithreeb)], tb.threebrmax[(2, ithreeb)]];
+            let mut samemol = [tb.threebsamemol[(1, ithreeb)], tb.threebsamemol[(2, ithreeb)], tb.threebsamemol[(3, ithreeb)]];
+            let mut nangs = tb.nthreebangs[ithreeb];
+            let mut angs: Vec<f32> = (1..=nangs).map(|j| tb.threebangs[(j, ithreeb)]).collect();
+            let mut amps: Vec<f32> = (1..=nangs).map(|j| tb.threebamps[(j, ithreeb)]).collect();
             if nwords > 12 {
                 let word = |k: i32| w.word(&sometext, k);
                 let rr = |k: i32| read_real(word(k)).map_err(|_| input_err("a real", word(k)));
-                for i in 1..=3 {
-                    tb.threebgrp[(i, ithreeb)] = fstr(word(i), 3);
+                for (j, g) in grp.iter_mut().enumerate() {
+                    *g = fstr(word(j as i32 + 1), 3);
                 }
                 let mut i = 4;
-                tb.threebamp[ithreeb] = rr(i)?;
+                amp = rr(i)?;
                 i += 1;
-                // NB: here the width is stored in radians (read_pcof stores 1.0)
-                tb.threebawidth[ithreeb] = rr(i)?;
-                tb.threebawidth[ithreeb] = piconv * tb.threebawidth[ithreeb];
+                width = piconv * rr(i)?;
                 i += 1;
-                tb.threebrwidth[ithreeb] = rr(i)?;
-                for j in 1..=2 {
+                rwidth = rr(i)?;
+                for r in rmax.iter_mut() {
                     i += 1;
-                    tb.threebrmax[(j, ithreeb)] = rr(i)?;
+                    *r = rr(i)?;
                 }
-                for j in 1..=3 {
+                for s in samemol.iter_mut() {
                     i += 1;
-                    tb.threebsamemol[(j, ithreeb)] = read_int(word(i)).map_err(|_| input_err("an integer", word(i)))?;
+                    *s = read_int(word(i)).map_err(|_| input_err("an integer", word(i)))?;
                 }
-                tb.nthreebangs[ithreeb] = (nwords - i) / 2;
-                if tb.nthreebangs[ithreeb] > 9 {
-                    tb.nthreebangs[ithreeb] = 9;
+                nangs = (nwords - i) / 2;
+                if nangs > 9 {
+                    nangs = 9;
                 }
-                if tb.nthreebangs[ithreeb] > tb.nthreebangsmax {
+                if nangs > tb.nthreebangsmax {
                     // NB: the Fortran sets nthreebangsmax = nthreebangs(nthreeb) here
                     // (and then reallocates); never reached since read_pcof already
                     // took the maximum of the same values.
                     return crate::error::unsupported("three-body group with more angles at save time than at read time");
                 }
-                for j in 1..=tb.nthreebangs[ithreeb] {
+                angs.clear();
+                amps.clear();
+                for _ in 1..=nangs {
                     i += 1;
-                    // NB: angles stored in radians here, not as cosines as in read_pcof.
-                    tb.threebangs[(j, ithreeb)] = rr(i)?;
-                    tb.threebangs[(j, ithreeb)] = piconv * tb.threebangs[(j, ithreeb)];
+                    angs.push(piconv * rr(i)?);
                     i += 1;
-                    tb.threebamps[(j, ithreeb)] = rr(i)?;
+                    amps.push(rr(i)?);
                 }
             }
-            let tb = &self.tb;
-            let n2 = 2 * tb.nthreebangs[ithreeb];
+            let n2 = 2 * nangs;
             // NB: the Fortran writes the repeat count with i1.1; for 2*n >= 10 this
             // gives '*', i.e. an unlimited-repeat group, which formats the
             // same items identically.
             let formatline = format!("(a,3(1x,a3),1x,f10.2,2(1x,f7.2),2(1x,f10.5),3(1x,i1),{}(1x,f7.2))", n2);
             let mut v: Vec<FV> = vec![FV::S("tb")];
-            for j in 1..=3 {
-                v.push(FV::Ch(&tb.threebgrp[(j, ithreeb)], 3));
+            for g in &grp {
+                v.push(FV::Ch(g, 3));
             }
-            v.push(FV::R(tb.threebamp[ithreeb]));
-            v.push(FV::R(tb.threebawidth[ithreeb] / piconv));
-            v.push(FV::R(tb.threebrwidth[ithreeb]));
-            for j in 1..=2 {
-                v.push(FV::R(tb.threebrmax[(j, ithreeb)]));
+            v.push(FV::R(amp));
+            v.push(FV::R(width / piconv));
+            v.push(FV::R(rwidth));
+            for r in &rmax {
+                v.push(FV::R(*r));
             }
-            for j in 1..=3 {
-                v.push(FV::I(tb.threebsamemol[(j, ithreeb)] as i64));
+            for s in &samemol {
+                v.push(FV::I(*s as i64));
             }
-            for j in 1..=tb.nthreebangs[ithreeb] {
-                v.push(FV::R(tb.threebangs[(j, ithreeb)] / piconv));
-                v.push(FV::R(tb.threebamps[(j, ithreeb)]));
+            for j in 0..nangs as usize {
+                v.push(FV::R(angs[j] / piconv));
+                v.push(FV::R(amps[j]));
             }
             out.line(&fmt(&formatline, &v));
         }

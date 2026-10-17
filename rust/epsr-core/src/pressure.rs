@@ -43,7 +43,7 @@ impl PressureControl {
         let w = parse(sometext, 5);
         if w.nwords() > 0 {
             let w1 = w.word(sometext, 1);
-            c.control_pressure = w.nwords() > 2 && ["a", "b", "c", "ab", "bc", "ca", "abc", "all", "p"].contains(&w1);
+            c.control_pressure = w.nwords() > 2 && ["a", "b", "c", "ab", "bc", "ca", "ac", "abc", "all", "p"].contains(&w1);
             if c.control_pressure {
                 let s = w.span(sometext, 2, 3);
                 let mut r = ListRead::from_str(&s);
@@ -51,16 +51,17 @@ impl PressureControl {
                 c.control_pressure = ok && c.control_p_step > 0.0;
             }
             if c.control_pressure {
-                // NB: the list of accepted words contains 'ca' but the branch
-                // below tests 'ac', so 'ca' selects no axis (npcontrols = 0) and
-                // 'ac' is not accepted at all.  Reproduced.
+                // Bug fix (deliberate divergence): in the Fortran the list of
+                // accepted words contains 'ca' but the branch tests 'ac', so
+                // 'ca' selected no axis (npcontrols = 0) and 'ac' was not
+                // accepted at all.  Both now select the c+a axes.
                 let (a, b, cc, p) = match w1 {
                     "a" => (true, false, false, false),
                     "b" => (false, true, false, false),
                     "c" => (false, false, true, false),
                     "ab" => (true, true, false, false),
                     "bc" => (false, true, true, false),
-                    "ac" => (true, false, true, false),
+                    "ac" | "ca" => (true, false, true, false),
                     "abc" | "all" => (true, true, true, false),
                     "p" => (false, false, false, true),
                     _ => (false, false, false, false),

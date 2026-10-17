@@ -16,3 +16,10 @@ Fortran quirks reproduced: `save_coord_energies(im)` is only called after accept
 `commands.txt`: `epsr 200DMSO400Water.EPSR.inp`, `repeat 3`.
 
 Verification: Rust vs Fortran reference (gfortran -O2 -fno-tree-vectorize, `fortran_reference.tar.gz`) — **ALL IDENTICAL**, all 3 passes (including `coordcon.txt`).
+
+## Expected divergence from the Fortran (deliberate bug fix)
+
+Since the bug-fix pass (see FORTRAN_BUGS.md at the repo root), this case
+deliberately differs from the Fortran reference because of the coordination-constraint fix: the tb-angle distance now uses adistcc(j,ia) for the second arm instead of the same arm twice.
+The difference is the fix working; run_ex_test.sh reporting SOME FILES DIFFER
+here is expected.

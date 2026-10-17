@@ -11,8 +11,12 @@ import numpy as np
 import epsr
 
 EXAMPLES_FOLDER = Path(__file__).resolve().parent
-TEMPLATE = EXAMPLES_FOLDER.parents[1] / "EPSR-test"  # 200 DMSO + 400 water, three neutron datasets
-OUTPUT_ROOT = Path(os.environ.get("EPSR_EXAMPLES_WORK", EXAMPLES_FOLDER.parent / "work"))
+TEMPLATE = (
+    EXAMPLES_FOLDER.parents[1] / "EPSR-test"
+)  # 200 DMSO + 400 water, three neutron datasets
+OUTPUT_ROOT = Path(
+    os.environ.get("EPSR_EXAMPLES_WORK", EXAMPLES_FOLDER.parent / "work")
+)
 WORK_FOLDER = OUTPUT_ROOT / "01_single_run"
 
 # Copy the folder first: every EPSR run rewrites its input files in place.
@@ -24,7 +28,9 @@ print(simulation)
 
 summary = simulation.run()  # releases the GIL while the Rust engine runs
 print(f"R-factor {summary.r_factor:.4e}")
-print(f"energy   {summary.energy:.3f} kJ/mol per molecule, pressure {summary.pressure:.3f} kbar")
+print(
+    f"energy   {summary.energy:.3f} kJ/mol per molecule, pressure {summary.pressure:.3f} kbar"
+)
 
 # Grids and per-dataset fits
 q_grid, r_grid = simulation.q, simulation.r
@@ -52,7 +58,17 @@ for first_type, second_type, meaning in pairs_to_show:
     gr = simulation.gr_inter(first_type, second_type)
     first_peak = r_grid[short_distances][np.argmax(gr[short_distances])]
     pair_name = f"{first_type}-{second_type}"
-    print(f"{pair_name} intermolecular g(r): first peak at {first_peak:.2f} Å ({meaning})")
+    print(
+        f"{pair_name} intermolecular g(r): first peak at {first_peak:.2f} Å ({meaning})"
+    )
 
-print(f"EP range: {empirical_potential.min():.3f} .. {empirical_potential.max():.3f} kJ/mol")
-print("positions:", simulation.positions.shape, "Å, box", round(simulation.box_size, 3), "Å")
+print(
+    f"EP range: {empirical_potential.min():.3f} .. {empirical_potential.max():.3f} kJ/mol"
+)
+print(
+    "positions:",
+    simulation.positions.shape,
+    "Å, box",
+    round(simulation.box_size, 3),
+    "Å",
+)

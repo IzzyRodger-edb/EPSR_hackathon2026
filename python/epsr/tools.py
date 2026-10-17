@@ -241,7 +241,9 @@ def write_keyword_file(
 
     if title is None:
         title = (
-            path.name.removesuffix(table.extinp) if path.name.endswith(table.extinp) else path.stem
+            path.name.removesuffix(table.extinp)
+            if path.name.endswith(table.extinp)
+            else path.stem
         )
     defaults = table.defaults()
     descriptions = table.descriptions()
@@ -287,7 +289,9 @@ def xwts(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -
     _run_keyword_tool("xwts", folder, dat_file, verbose)
 
 
-def partials(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+def partials(
+    folder: str | PathLike[str], dat_file: str, *, verbose: bool = False
+) -> None:
     """Partial g(r) from a ``.PARTIALS.dat`` file. Raises FileNotFoundError if it is missing."""
     _run_keyword_tool("partials", folder, dat_file, verbose)
 
@@ -300,16 +304,22 @@ def coord(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) 
     _run_keyword_tool("coord", folder, dat_file, verbose)
 
 
-def triangles(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+def triangles(
+    folder: str | PathLike[str], dat_file: str, *, verbose: bool = False
+) -> None:
     """Bond angles from a ``.TRIANGLES.dat`` file. Raises FileNotFoundError if it is missing."""
     _run_keyword_tool("triangles", folder, dat_file, verbose)
 
 
-def torangles(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+def torangles(
+    folder: str | PathLike[str], dat_file: str, *, verbose: bool = False
+) -> None:
     """Torsion angles from a ``.TORANGLES.dat`` file. Raises FileNotFoundError if it is missing."""
     _run_keyword_tool("torangles", folder, dat_file, verbose)
 
 
-def writexyz(folder: str | PathLike[str], ato_file: str, answers: str | Sequence[str] = "") -> None:
+def writexyz(
+    folder: str | PathLike[str], ato_file: str, answers: str | Sequence[str] = ""
+) -> None:
     """Run ``writexyz`` on ``ato_file`` (answers as in the interactive program)."""
     run(folder, "writexyz", [ato_file], answers)

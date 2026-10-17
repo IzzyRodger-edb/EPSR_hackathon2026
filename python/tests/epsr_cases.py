@@ -55,7 +55,9 @@ def _load_rust_tool(module_name: str, path: Path) -> ModuleType:
 
 
 #: ``mask``, ``mask_more``, ``NUM`` and ``IGNORE`` of the Rust comparison script.
-compare_outputs = _load_rust_tool("compare_outputs", RUST_DIR / "tools" / "compare_outputs.py")
+compare_outputs = _load_rust_tool(
+    "compare_outputs", RUST_DIR / "tools" / "compare_outputs.py"
+)
 #: ``mask`` and ``fnv1a64`` used to make ``reference_hashes.txt``.
 reference_hashes = _load_rust_tool(
     "make_reference_hashes", RUST_DIR / "tools" / "make_reference_hashes.py"
@@ -135,7 +137,9 @@ def _line_difference(
     if len(reference_tokens) != len(candidate_tokens):
         return None
     row_values = [_as_number(token) for token in reference_tokens[1:]]
-    row_magnitude = max((abs(value) for value in row_values if value is not None), default=0.0)
+    row_magnitude = max(
+        (abs(value) for value in row_values if value is not None), default=0.0
+    )
 
     worst_ratio = 0.0
     token_pairs = zip(reference_tokens, candidate_tokens, strict=True)
@@ -152,7 +156,8 @@ def _line_difference(
             RELATIVE_TOLERANCE * max(abs(reference_value), abs(candidate_value)),
             _last_digit_unit(reference_token),
             _last_digit_unit(candidate_token),
-            ABSOLUTE_TOLERANCE_FRACTION * max(column_magnitudes.get(column, 0.0), row_magnitude),
+            ABSOLUTE_TOLERANCE_FRACTION
+            * max(column_magnitudes.get(column, 0.0), row_magnitude),
         )
         difference = abs(reference_value - candidate_value)
         ratio = difference / tolerance if tolerance > 0 else float("inf")
@@ -168,7 +173,10 @@ def _masked_lines(name: str, content: bytes) -> list[str]:
 
 def compare_file(name: str, reference: Path, candidate: Path) -> FileResult:
     """Compare one output file: identical after masking, numerically close, or different."""
-    reference_content, candidate_content = reference.read_bytes(), candidate.read_bytes()
+    reference_content, candidate_content = (
+        reference.read_bytes(),
+        candidate.read_bytes(),
+    )
     if reference_content == candidate_content:
         return FileResult(name, "identical")
     reference_lines = _masked_lines(name, reference_content)
@@ -177,7 +185,9 @@ def compare_file(name: str, reference: Path, candidate: Path) -> FileResult:
         return FileResult(name, "identical")
     if len(reference_lines) != len(candidate_lines):
         return FileResult(
-            name, "different", f"line counts {len(reference_lines)} vs {len(candidate_lines)}"
+            name,
+            "different",
+            f"line counts {len(reference_lines)} vs {len(candidate_lines)}",
         )
 
     column_magnitudes = _largest_magnitude_per_column(reference_lines)
@@ -194,9 +204,7 @@ def compare_file(name: str, reference: Path, candidate: Path) -> FileResult:
         worst_ratio = max(worst_ratio, ratio)
 
     status = "close" if worst_ratio <= 1.0 else "different"
-    detail = (
-        f"{n_different_lines} line(s) differ in the last digits ({worst_ratio:.2f} x tolerance)"
-    )
+    detail = f"{n_different_lines} line(s) differ in the last digits ({worst_ratio:.2f} x tolerance)"
     return FileResult(name, status, detail)
 
 
@@ -233,12 +241,17 @@ def changed_files(pristine: Path, work: Path) -> set[str]:
         if not work_file.is_file():
             continue
         pristine_file = pristine / work_file.name
-        if not pristine_file.exists() or pristine_file.read_bytes() != work_file.read_bytes():
+        if (
+            not pristine_file.exists()
+            or pristine_file.read_bytes() != work_file.read_bytes()
+        ):
             changed.add(work_file.name)
     return changed
 
 
-def compare_dirs(reference: Path, candidate: Path, pristine: Path | None = None) -> Comparison:
+def compare_dirs(
+    reference: Path, candidate: Path, pristine: Path | None = None
+) -> Comparison:
     """Compare every file of ``reference`` with ``candidate``.
 
     With ``pristine`` (the inputs before the run), files the candidate changed
@@ -259,10 +272,14 @@ def compare_dirs(reference: Path, candidate: Path, pristine: Path | None = None)
         comparison.results.append(result)
 
     if pristine is not None:
-        unexpected = changed_files(pristine, candidate) - reference_names - ignored_names
+        unexpected = (
+            changed_files(pristine, candidate) - reference_names - ignored_names
+        )
         for name in sorted(unexpected):
             comparison.results.append(
-                FileResult(name, "extra", "written by the wrapper but not by the Fortran")
+                FileResult(
+                    name, "extra", "written by the wrapper but not by the Fortran"
+                )
             )
     return comparison
 
@@ -314,7 +331,9 @@ def load_case(path: Path) -> Case:
         if "<" in line:
             line, stdin_file = (part.strip() for part in line.split("<", 1))
         words = shlex.split(line)
-        commands.append(Command(program=words[0].lower(), args=words[1:], stdin_file=stdin_file))
+        commands.append(
+            Command(program=words[0].lower(), args=words[1:], stdin_file=stdin_file)
+        )
     return Case(path, commands, repeat)
 
 
@@ -345,7 +364,9 @@ def replay(case: Case, work: Path) -> list[str]:
                     epsr.tools.run(work, command.program, command.args, answers)
             except epsr.EpsrError as error:
                 arguments = " ".join(command.args)
-                errors.append(f"pass {pass_number} {command.program} {arguments}: {error}")
+                errors.append(
+                    f"pass {pass_number} {command.program} {arguments}: {error}"
+                )
     return errors
 
 
@@ -355,16 +376,26 @@ def replay_cli(case: Case, work: Path, cli_executable: Path) -> list[str]:
     errors = []
     for pass_number in range(1, case.repeat + 1):
         for command in case.commands:
-            stdin_path = case.path / command.stdin_file if command.stdin_file else os.devnull
+            stdin_path = (
+                case.path / command.stdin_file if command.stdin_file else os.devnull
+            )
             with open(stdin_path, "rb") as stdin:
                 completed = subprocess.run(
-                    [str(cli_executable), "./", command.program, *command.args, "--quiet"],
+                    [
+                        str(cli_executable),
+                        "./",
+                        command.program,
+                        *command.args,
+                        "--quiet",
+                    ],
                     stdin=stdin,
                     capture_output=True,
                     cwd=work,
                 )
             if completed.returncode:
-                errors.append(f"pass {pass_number} {command.program}: exit {completed.returncode}")
+                errors.append(
+                    f"pass {pass_number} {command.program}: exit {completed.returncode}"
+                )
     return errors
 
 

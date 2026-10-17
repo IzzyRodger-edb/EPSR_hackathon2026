@@ -17,6 +17,7 @@ Lines that legitimately differ between runs are masked before comparing:
 
 Exit status is 0 if every compared file is identical after masking.
 """
+
 import os
 import re
 import sys
@@ -44,7 +45,9 @@ def mask_more(name, lines):
     # mapgrquad.f never sets grwerr(:,1) and writes stack garbage as the error
     # of the g_centres column (columns 31-45 of the data lines); the port writes 0.
     if name.endswith(".mapgr.g01"):
-        lines = [l if l.startswith("#") else l[:30] + "<masked>" + l[45:] for l in lines]
+        lines = [
+            l if l.startswith("#") else l[:30] + "<masked>" + l[45:] for l in lines
+        ]
     return lines
 
 

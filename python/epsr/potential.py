@@ -105,14 +105,19 @@ class Potential:
         )
 
     def _select_pair(
-        self, all_pairs: Float32Array, pair: str | PairKey | None, other_type: str | None
+        self,
+        all_pairs: Float32Array,
+        pair: str | PairKey | None,
+        other_type: str | None,
     ) -> Float32Array:
         """All rows, or the row of one pair."""
         if pair is None:
             return all_pairs
         return all_pairs[self._simulation.pair_index(pair, other_type)]
 
-    def pair_index(self, pair_or_type: str | PairKey, other_type: str | None = None) -> int:
+    def pair_index(
+        self, pair_or_type: str | PairKey, other_type: str | None = None
+    ) -> int:
         """Index of a pair, as :meth:`Simulation.pair_index`."""
         return self._simulation.pair_index(pair_or_type, other_type)
 
@@ -166,7 +171,9 @@ class Potential:
         return [TypeParams(**values) for values in self._engine.type_params()]
 
     # ---------------------------------------------------------------- write
-    def _write_coefficients_with_flags(self, coefficients_with_flags: npt.ArrayLike) -> None:
+    def _write_coefficients_with_flags(
+        self, coefficients_with_flags: npt.ArrayLike
+    ) -> None:
         """Send a full ``(n_pairs, ncoeffp)`` table to the engine, which rebuilds the EP."""
         table = np.ascontiguousarray(coefficients_with_flags, dtype=np.float32)
         for shared_group in self.shared_pairs():
@@ -190,7 +197,9 @@ class Potential:
         n_pairs, n_columns = table.shape
         expected_shape = (n_pairs, n_columns - 1)
         if coefficients.shape != expected_shape:
-            raise ValueError(f"expected shape {expected_shape}, got {coefficients.shape}")
+            raise ValueError(
+                f"expected shape {expected_shape}, got {coefficients.shape}"
+            )
         table[:, FLAG_COLUMN + 1 :] = coefficients
         self._write_coefficients_with_flags(table)
 
@@ -198,7 +207,9 @@ class Potential:
         """Set the per-pair refinement flags (``pcoefp(1)``): one value, or one per pair."""
         table = self._engine.ep_coefficients()
         n_pairs = table.shape[0]
-        table[:, FLAG_COLUMN] = np.broadcast_to(np.asarray(flags, dtype=np.float32), (n_pairs,))
+        table[:, FLAG_COLUMN] = np.broadcast_to(
+            np.asarray(flags, dtype=np.float32), (n_pairs,)
+        )
         self._write_coefficients_with_flags(table)
 
     def perturb_ep(self, pair: PairKey, delta: npt.ArrayLike) -> None:
@@ -210,7 +221,8 @@ class Potential:
         pair_index = self._simulation.pair_index(pair)
         coefficients = self.ep_coefficients()
         affected_pairs = next(
-            (group for group in self.shared_pairs() if pair_index in group), [pair_index]
+            (group for group in self.shared_pairs() if pair_index in group),
+            [pair_index],
         )
         coefficients[affected_pairs] += np.asarray(delta, dtype=np.float32)
         self.set_ep_coefficients(coefficients)

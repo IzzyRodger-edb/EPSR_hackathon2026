@@ -79,7 +79,9 @@ class Summary:
             ep_amplitude=float(fortran_values["energabs"]),
             r_factor=float(fortran_values["rfactot"]),
             r_factor_raw=float(fortran_values["rfacraw"]),
-            r_factor_per_dataset=tuple(float(value) for value in fortran_values["rfacd"]),
+            r_factor_per_dataset=tuple(
+                float(value) for value in fortran_values["rfacd"]
+            ),
             ep_up=float(fortran_values["epcup"]),
             ep_coefficient=float(fortran_values["epccoeff"]),
             gr_roughness=float(fortran_values["sentb"]),
@@ -237,7 +239,9 @@ def render_overrides(overrides: Overrides) -> list[str]:
             dataset_overrides = value
             continue
         if isinstance(value, Mapping):
-            raise TypeError(f"override {keyword!r}: nested mappings are only allowed under 'data'")
+            raise TypeError(
+                f"override {keyword!r}: nested mappings are only allowed under 'data'"
+            )
         lines.append(f"{keyword} {_format_value(value)}")
 
     if dataset_overrides is not None:
@@ -310,10 +314,13 @@ class Simulation:
         self.inp_name = inp_name if inp_name is not None else find_inp(self.folder)
         self.overrides = render_overrides(overrides)
         #: The Rust engine object (``epsr._core.Simulation``), with Fortran names.
-        self._engine = _core.Simulation(str(self.folder), self.inp_name, self.overrides, verbose)
+        self._engine = _core.Simulation(
+            str(self.folder), self.inp_name, self.overrides, verbose
+        )
 
         self._pair_labels: list[tuple[str, str]] = [
-            (first_type, second_type) for first_type, second_type in self._engine.pair_labels()
+            (first_type, second_type)
+            for first_type, second_type in self._engine.pair_labels()
         ]
         # Both orders of a pair map to the same index.
         self._pair_index_by_labels: dict[tuple[str, str], int] = {}
@@ -447,7 +454,9 @@ class Simulation:
         """Current value of an input keyword; ``dataset`` is a 0-based index."""
         return self._engine.get_parameter(name, dataset)
 
-    def pair_index(self, pair_or_type: str | PairKey, other_type: str | None = None) -> int:
+    def pair_index(
+        self, pair_or_type: str | PairKey, other_type: str | None = None
+    ) -> int:
         """Index of a pair in :attr:`pair_labels` (the order of the two types does not matter).
 
         Accepts ``pair_index("O1", "H1")``, ``pair_index(("O1", "H1"))`` or an int.
@@ -455,7 +464,9 @@ class Simulation:
         if isinstance(pair_or_type, (int, np.integer)) and other_type is None:
             index = int(pair_or_type)
             if not -self.n_pairs <= index < self.n_pairs:
-                raise IndexError(f"pair index {index} out of range (n_pairs = {self.n_pairs})")
+                raise IndexError(
+                    f"pair index {index} out of range (n_pairs = {self.n_pairs})"
+                )
             return index % self.n_pairs
 
         labels: tuple[object, object]
@@ -465,7 +476,9 @@ class Simulation:
             labels = (pair_or_type, other_type)
         first_type, second_type = labels
         if not isinstance(first_type, str) or not isinstance(second_type, str):
-            raise TypeError("select a pair by index, by two labels, or by a (label, label) tuple")
+            raise TypeError(
+                "select a pair by index, by two labels, or by a (label, label) tuple"
+            )
         try:
             return self._pair_index_by_labels[(first_type, second_type)]
         except KeyError:
@@ -486,7 +499,10 @@ class Simulation:
 
     # ---------------------------------------------------------------- partials
     def _select_pair(
-        self, all_pairs: Float32Array, pair: str | PairKey | None, other_type: str | None
+        self,
+        all_pairs: Float32Array,
+        pair: str | PairKey | None,
+        other_type: str | None,
     ) -> Float32Array:
         """All rows, or the row of one pair."""
         if pair is None:

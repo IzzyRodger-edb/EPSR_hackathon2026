@@ -136,7 +136,9 @@ def read_table(path: str | PathLike[str]) -> Table:
         for index in range(n_value_columns):
             columns[f"col{index + 1}"] = data[:, 1 + index]
 
-    return Table(path=path, x_label=x_label, x=data[:, 0], columns=columns, errors=errors)
+    return Table(
+        path=path, x_label=x_label, x=data[:, 0], columns=columns, errors=errors
+    )
 
 
 def read_table_series(first_file: str | PathLike[str]) -> Table:
@@ -153,7 +155,9 @@ def read_table_series(first_file: str | PathLike[str]) -> Table:
     name_without_number = first_file.name[: number_match.start()]
     table = read_table(first_file)
     file_number = int(number_match.group(1)) + 1
-    while (next_file := first_file.with_name(f"{name_without_number}{file_number:02d}")).exists():
+    while (
+        next_file := first_file.with_name(f"{name_without_number}{file_number:02d}")
+    ).exists():
         continuation = read_table(next_file)
         for label, values in continuation.columns.items():
             key = label if label not in table.columns else f"{label}#{file_number}"
@@ -245,14 +249,18 @@ def read_keyword_file(path: str | PathLike[str]) -> KeywordFile:
     current_section = values
     trailer: list[str] = []
 
-    for line_number, line in enumerate(lines[first_keyword_line:], start=first_keyword_line):
+    for line_number, line in enumerate(
+        lines[first_keyword_line:], start=first_keyword_line
+    ):
         words = line.split()
         if not words:
             continue
         if words == ["q"]:
             trailer = lines[line_number + 1 :]
             break
-        is_block_header = words[0] in block_keywords and len(words) == 2 and words[1].isdigit()
+        is_block_header = (
+            words[0] in block_keywords and len(words) == 2 and words[1].isdigit()
+        )
         if is_block_header:
             block_keyword = words[0]
             current_section = {}
@@ -260,7 +268,9 @@ def read_keyword_file(path: str | PathLike[str]) -> KeywordFile:
             continue
         keyword = words[0]
         text_after_keyword = line.lstrip()[len(keyword) :].lstrip()
-        value_and_description = VALUE_DESCRIPTION_SEPARATOR.split(text_after_keyword, maxsplit=1)
+        value_and_description = VALUE_DESCRIPTION_SEPARATOR.split(
+            text_after_keyword, maxsplit=1
+        )
         current_section[keyword] = value_and_description[0].strip()
         if len(value_and_description) > 1 and keyword not in descriptions:
             descriptions[keyword] = value_and_description[1].strip()

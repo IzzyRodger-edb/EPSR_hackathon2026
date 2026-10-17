@@ -17,7 +17,10 @@ __all__ = ["Project", "copy_folder"]
 
 
 def copy_folder(
-    source: str | PathLike[str], destination: str | PathLike[str], *, overwrite: bool = False
+    source: str | PathLike[str],
+    destination: str | PathLike[str],
+    *,
+    overwrite: bool = False,
 ) -> Path:
     """Copy the regular files of ``source`` (not subfolders) into a new folder ``destination``.
 
@@ -52,7 +55,9 @@ class Project:
     original folder; :meth:`snapshot` keeps intermediate states.
     """
 
-    def __init__(self, folder: str | PathLike[str], inp_name: str | None = None) -> None:
+    def __init__(
+        self, folder: str | PathLike[str], inp_name: str | None = None
+    ) -> None:
         self.folder = Path(folder)
         if not self.folder.is_dir():
             raise FileNotFoundError(f"simulation folder {self.folder} does not exist")
@@ -78,9 +83,13 @@ class Project:
         """Prefix of the output files, e.g. ``200DMSO400Water.EPSR``."""
         return self.inp_name.removesuffix(".inp")
 
-    def simulation(self, overrides: Overrides = None, *, verbose: bool = False) -> Simulation:
+    def simulation(
+        self, overrides: Overrides = None, *, verbose: bool = False
+    ) -> Simulation:
         """Read the folder into a new :class:`Simulation` (one EPSR run)."""
-        return Simulation(self.folder, self.inp_name, overrides=overrides, verbose=verbose)
+        return Simulation(
+            self.folder, self.inp_name, overrides=overrides, verbose=verbose
+        )
 
     def snapshot(self, label: str, *, overwrite: bool = False) -> Path:
         """Copy the folder's files to ``<folder>.snapshots/<label>/`` and return that path."""

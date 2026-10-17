@@ -16,7 +16,11 @@ from epsr.simulation import render_overrides
 from conftest import CompletedRun
 
 DATA_FILES = ["D6DMSO_D2O.mint01", "D6DMSO_HDO.mint01", "D6DMSO_H2O.mint01"]
-WEIGHTS_FILES = ["DMSODWaterD.NWTStot.wts", "DMSODWaterNull.NWTStot.wts", "DMSODWaterH.NWTStot.wts"]
+WEIGHTS_FILES = [
+    "DMSODWaterD.NWTStot.wts",
+    "DMSODWaterNull.NWTStot.wts",
+    "DMSODWaterH.NWTStot.wts",
+]
 
 
 # --------------------------------------------------------------- arrays and metadata
@@ -25,7 +29,9 @@ def test_grids_and_partials(completed_run: CompletedRun) -> None:
     nr, nq, n_pairs = simulation.nr, simulation.nq, simulation.n_pairs
     assert simulation.q.shape == (nq,) and simulation.r.shape == (nr,)
     assert simulation.q.dtype == np.float32 and simulation.r.dtype == np.float32
-    np.testing.assert_allclose(np.diff(simulation.q), simulation.control.qstep, rtol=1e-4)
+    np.testing.assert_allclose(
+        np.diff(simulation.q), simulation.control.qstep, rtol=1e-4
+    )
 
     expected_lengths = {"gr_inter": nr, "gr_intra": nr, "sq_inter": nq, "sq_intra": nq}
     for accessor_name, n_points in expected_lengths.items():
@@ -34,7 +40,9 @@ def test_grids_and_partials(completed_run: CompletedRun) -> None:
         assert all_pairs.shape == (n_pairs, n_points), accessor_name
         assert all_pairs.dtype == np.float32
         one_pair = accessor("O1", "H1")
-        np.testing.assert_array_equal(one_pair, all_pairs[simulation.pair_index("O1", "H1")])
+        np.testing.assert_array_equal(
+            one_pair, all_pairs[simulation.pair_index("O1", "H1")]
+        )
 
     assert simulation.current_gr().shape == (2, n_pairs, nr)
     assert simulation.current_sq().shape == (2, n_pairs, nq)
@@ -54,7 +62,9 @@ def test_pair_labels_and_lookup(completed_run: CompletedRun) -> None:
     simulation = completed_run.simulation
     labels = simulation.pair_labels
     assert len(labels) == simulation.n_pairs == 21
-    assert set(simulation.atom_types) == {atom_type for pair in labels for atom_type in pair}
+    assert set(simulation.atom_types) == {
+        atom_type for pair in labels for atom_type in pair
+    }
     for index, (first_type, second_type) in enumerate(labels):
         assert simulation.pair_index(first_type, second_type) == index
         assert simulation.pair_index(second_type, first_type) == index
@@ -71,7 +81,11 @@ def test_datasets_and_fits(completed_run: CompletedRun) -> None:
     datasets = simulation.datasets
     assert [dataset.infili for dataset in datasets] == DATA_FILES
     assert [Path(dataset.fnamedata).name for dataset in datasets] == DATA_FILES
-    assert [dataset.name for dataset in datasets] == ["D6DMSO_D2O", "D6DMSO_HDO", "D6DMSO_H2O"]
+    assert [dataset.name for dataset in datasets] == [
+        "D6DMSO_D2O",
+        "D6DMSO_HDO",
+        "D6DMSO_H2O",
+    ]
 
     for dataset_index in range(simulation.n_datasets):
         first_q, last_q = simulation.data_q_range(dataset_index)
@@ -81,7 +95,9 @@ def test_datasets_and_fits(completed_run: CompletedRun) -> None:
         assert fit.q.shape == fit.data.shape == fit.simulated.shape == fit.errors.shape
         assert fit.q.shape == expected_shape
         root_mean_square_residual = float(np.sqrt(np.mean(fit.residual**2)))
-        assert root_mean_square_residual < 0.05  # the refined model fits the data closely
+        assert (
+            root_mean_square_residual < 0.05
+        )  # the refined model fits the data closely
 
     assert len(simulation.summary.r_factor_per_dataset) == simulation.n_datasets
     with pytest.raises(IndexError):
@@ -198,7 +214,9 @@ def test_run_twice_is_refused(project: epsr.Project) -> None:
 def test_missing_folder(tmp_path: Path) -> None:
     with pytest.raises(epsr.EpsrIOError) as raised:
         epsr.Simulation(tmp_path / "nope", "x.EPSR.inp")
-    assert isinstance(raised.value, OSError) and isinstance(raised.value, epsr.EpsrError)
+    assert isinstance(raised.value, OSError) and isinstance(
+        raised.value, epsr.EpsrError
+    )
 
 
 def test_missing_input_file(project: epsr.Project) -> None:

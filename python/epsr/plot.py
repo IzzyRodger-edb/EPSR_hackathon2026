@@ -37,7 +37,9 @@ def _axes_or_new(ax: Any) -> Any:
     return new_axes
 
 
-def _selected_pairs(simulation: Simulation, pairs: Sequence[PairKey] | None) -> list[int]:
+def _selected_pairs(
+    simulation: Simulation, pairs: Sequence[PairKey] | None
+) -> list[int]:
     """Indices of the requested pairs, or of all pairs."""
     if pairs is None:
         return list(range(simulation.n_pairs))
@@ -107,7 +109,11 @@ def potentials(
     potential = simulation.potential
     all_potentials = getattr(potential, which)()
     for pair_index in _selected_pairs(simulation, pairs):
-        ax.plot(potential.r, all_potentials[pair_index], label=_pair_label(simulation, pair_index))
+        ax.plot(
+            potential.r,
+            all_potentials[pair_index],
+            label=_pair_label(simulation, pair_index),
+        )
     ax.axhline(0.0, color="0.6", lw=0.8)
     ax.set_xlabel(R_AXIS_LABEL)
     ax.set_ylabel(f"{which} potential (kJ/mol)")
@@ -129,7 +135,9 @@ def history(
     """One panel per column of a :class:`~epsr.History` against run number."""
     columns_to_plot = [name for name in columns if name in run_history.columns]
     if axes is None:
-        _, axes_grid = _pyplot().subplots(len(columns_to_plot), 1, sharex=True, squeeze=False)
+        _, axes_grid = _pyplot().subplots(
+            len(columns_to_plot), 1, sharex=True, squeeze=False
+        )
         axes = axes_grid[:, 0]
     for ax, column_name in zip(axes, columns_to_plot, strict=True):
         ax.plot(run_history.run, run_history.column(column_name), "-o", ms=3)

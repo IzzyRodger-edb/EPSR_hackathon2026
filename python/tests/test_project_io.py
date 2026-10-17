@@ -8,7 +8,13 @@ import numpy as np
 import pytest
 
 import epsr
-from epsr.io import ERG_COLUMNS, read_erg, read_keyword_file, read_table, read_table_series
+from epsr.io import (
+    ERG_COLUMNS,
+    read_erg,
+    read_keyword_file,
+    read_table,
+    read_table_series,
+)
 
 from conftest import CompletedRun
 
@@ -80,7 +86,9 @@ def test_read_keyword_file_pcof_and_nwts(template: Path) -> None:
     pcof_file = read_keyword_file(template / "200DMSO400Water.pcof")
     assert float(pcof_file.values["ereq"]) == pytest.approx(10.0)
     assert pcof_file.values["Gaussian"] == "Poisson"
-    assert pcof_file.trailer[0].strip() == "21"  # the number of pairs follows the `q` line
+    assert (
+        pcof_file.trailer[0].strip() == "21"
+    )  # the number of pairs follows the `q` line
 
     nwts_file = read_keyword_file(template / "DMSODWaterD.NWTS.dat")
     assert nwts_file.block_keyword == "component"
@@ -92,7 +100,9 @@ def test_read_table(completed_run: CompletedRun) -> None:
     project, simulation = completed_run
     gr_table = read_table(project.output("g01"))
     assert gr_table.x_label == "r"
-    assert gr_table.labels == [f"{first}-{second}" for first, second in simulation.pair_labels]
+    assert gr_table.labels == [
+        f"{first}-{second}" for first, second in simulation.pair_labels
+    ]
     assert set(gr_table.errors) == set(gr_table.columns)
     np.testing.assert_allclose(
         gr_table["O1-H1"][: simulation.nr], simulation.gr_inter("O1", "H1"), atol=1e-6
@@ -100,9 +110,13 @@ def test_read_table(completed_run: CompletedRun) -> None:
 
     total_fq_table = project.read_table("u01")
     assert total_fq_table.labels == DATASET_NAMES
-    np.testing.assert_allclose(total_fq_table["D6DMSO_D2O"], simulation.simulated_fq(0), atol=1e-6)
+    np.testing.assert_allclose(
+        total_fq_table["D6DMSO_D2O"], simulation.simulated_fq(0), atol=1e-6
+    )
 
-    coordination_table = read_table(project.output("z01"))  # values only, each pair twice
+    coordination_table = read_table(
+        project.output("z01")
+    )  # values only, each pair twice
     assert not coordination_table.errors and "S-S#2" in coordination_table.columns
     assert len(read_table_series(project.output("g01"))) == len(gr_table)
 

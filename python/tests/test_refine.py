@@ -48,9 +48,13 @@ def test_history_matches_erg(project: epsr.Project) -> None:
 
 
 def test_refine_stops_early(project: epsr.Project) -> None:
-    history = epsr.refine(project, 10, callback=lambda run_number, simulation: run_number == 2)
+    history = epsr.refine(
+        project, 10, callback=lambda run_number, simulation: run_number == 2
+    )
     assert len(history) == 2
-    history = epsr.refine(project, 10, until=lambda current_history: len(current_history) >= 1)
+    history = epsr.refine(
+        project, 10, until=lambda current_history: len(current_history) >= 1
+    )
     assert len(history) == 1
 
 
@@ -66,7 +70,10 @@ def test_refine_overrides_and_snapshots(project: epsr.Project) -> None:
     assert project.simulation().control.ntimes == 2
     assert project.simulation().potential.params.ereq == pytest.approx(12.0)
     snapshots_folder = project.folder.parent / f"{project.folder.name}.snapshots"
-    assert sorted(path.name for path in snapshots_folder.iterdir()) == ["run0001", "run0002"]
+    assert sorted(path.name for path in snapshots_folder.iterdir()) == [
+        "run0001",
+        "run0002",
+    ]
 
 
 def test_refine_accepts_path(project: epsr.Project) -> None:

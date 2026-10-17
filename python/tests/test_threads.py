@@ -18,7 +18,9 @@ MINIMUM_MAIN_THREAD_ITERATIONS = 1000
 
 
 def _run_in_threads(work: Callable[[int], None], n_threads: int) -> None:
-    threads = [threading.Thread(target=work, args=(index,)) for index in range(n_threads)]
+    threads = [
+        threading.Thread(target=work, args=(index,)) for index in range(n_threads)
+    ]
     for thread in threads:
         thread.start()
     for thread in threads:
@@ -52,7 +54,8 @@ def test_parallel_runs_match_sequential(template: Path, tmp_path: Path) -> None:
 
     n_parallel = 3
     parallel_folders = [
-        copy_files(template, tmp_path / f"parallel{index}") for index in range(n_parallel)
+        copy_files(template, tmp_path / f"parallel{index}")
+        for index in range(n_parallel)
     ]
     parallel_summaries: dict[int, epsr.Summary] = {}
 
@@ -61,7 +64,9 @@ def test_parallel_runs_match_sequential(template: Path, tmp_path: Path) -> None:
 
     _run_in_threads(run_one, n_parallel)
 
-    assert all(parallel_summaries[index] == sequential_summary for index in range(n_parallel))
+    assert all(
+        parallel_summaries[index] == sequential_summary for index in range(n_parallel)
+    )
     sequential_pcof = (sequential_folder / "200DMSO400Water.pcof").read_bytes()
     for folder in parallel_folders:
         assert (folder / "200DMSO400Water.pcof").read_bytes() == sequential_pcof
@@ -69,7 +74,8 @@ def test_parallel_runs_match_sequential(template: Path, tmp_path: Path) -> None:
 
 def test_refine_many(template: Path, tmp_path: Path) -> None:
     projects = [
-        epsr.Project.from_template(template, tmp_path / f"project{index}") for index in range(2)
+        epsr.Project.from_template(template, tmp_path / f"project{index}")
+        for index in range(2)
     ]
     histories = epsr.refine_many(projects, 2)
     assert len(histories) == 2
@@ -82,7 +88,9 @@ def test_refine_many(template: Path, tmp_path: Path) -> None:
 def test_tools_from_threads(template: Path, tmp_path: Path) -> None:
     """Tool runs from several threads are serialised safely and give the shipped weights."""
     n_threads = 4
-    folders = [copy_files(template, tmp_path / f"tool{index}") for index in range(n_threads)]
+    folders = [
+        copy_files(template, tmp_path / f"tool{index}") for index in range(n_threads)
+    ]
     errors: list[BaseException] = []
 
     def run_nwts(index: int) -> None:

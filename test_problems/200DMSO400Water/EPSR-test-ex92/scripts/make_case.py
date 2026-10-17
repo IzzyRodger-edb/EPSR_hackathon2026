@@ -6,7 +6,9 @@ usage: make_case.py DIR [inp:KEY=VALUE ...] [pcof:KEY=VALUE ...] [pcofline:N=TEX
   pcofline:N=TEXT replace line N (1-based) of the .pcof file by TEXT
 The value field is the text between the keyword and the run of 15 blanks that
 precedes the comment, as EPSR writes it."""
+
 import sys, re
+
 d = sys.argv[1]
 files = {"inp": f"{d}/200DMSO400Water.EPSR.inp", "pcof": f"{d}/200DMSO400Water.pcof"}
 txt = {k: open(v).read().split("\n") for k, v in files.items()}

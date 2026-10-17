@@ -60,7 +60,8 @@ class History:
         """Read the ``.erg`` file, one row per EPSR iteration ever run in the folder."""
         erg_data = read_erg(path)
         columns: dict[str, list[Any]] = {
-            name: list(erg_data[:, column_index]) for column_index, name in enumerate(ERG_COLUMNS)
+            name: list(erg_data[:, column_index])
+            for column_index, name in enumerate(ERG_COLUMNS)
         }
         columns["run"] = list(range(1, len(erg_data) + 1))
         return cls(columns)
@@ -71,7 +72,9 @@ class History:
         self._columns.setdefault("run", []).append(run_number)
         for name in SUMMARY_COLUMNS:
             self._columns.setdefault(name, []).append(getattr(summary, name))
-        self._columns.setdefault("r_factor_per_dataset", []).append(summary.r_factor_per_dataset)
+        self._columns.setdefault("r_factor_per_dataset", []).append(
+            summary.r_factor_per_dataset
+        )
         self.summaries.append(summary)
 
     @property
@@ -132,7 +135,9 @@ class History:
         return pandas.DataFrame(self._flat_columns())
 
 
-def _with_progress_bar(run_numbers: Iterable[int], enabled: bool | None, total: int) -> Any:
+def _with_progress_bar(
+    run_numbers: Iterable[int], enabled: bool | None, total: int
+) -> Any:
     """Wrap ``run_numbers`` in a tqdm progress bar when enabled and tqdm is installed."""
     if enabled is None:
         enabled = sys.stdout.isatty()
@@ -195,7 +200,9 @@ def refine(
         if snapshot_every and run_number % snapshot_every == 0:
             project.snapshot(f"run{run_number:04d}", overwrite=True)
 
-        callback_asks_to_stop = callback is not None and bool(callback(run_number, simulation))
+        callback_asks_to_stop = callback is not None and bool(
+            callback(run_number, simulation)
+        )
         target_reached = until is not None and until(history)
         if callback_asks_to_stop or target_reached:
             break
@@ -209,7 +216,9 @@ def _combine_overrides(overrides: Overrides, extra_overrides: Overrides) -> list
     dataset) so that all global keywords precede the dataset blocks. Otherwise
     the line lists are concatenated.
     """
-    both_are_mappings = isinstance(overrides, Mapping) and isinstance(extra_overrides, Mapping)
+    both_are_mappings = isinstance(overrides, Mapping) and isinstance(
+        extra_overrides, Mapping
+    )
     if not both_are_mappings:
         return render_overrides(overrides) + render_overrides(extra_overrides)
 
@@ -217,7 +226,8 @@ def _combine_overrides(overrides: Overrides, extra_overrides: Overrides) -> list
     merged: dict[str, Any] = {**overrides, **extra_overrides}
     if "data" in overrides and "data" in extra_overrides:
         merged_datasets = {
-            dataset_number: dict(keywords) for dataset_number, keywords in overrides["data"].items()
+            dataset_number: dict(keywords)
+            for dataset_number, keywords in overrides["data"].items()
         }
         for dataset_number, keywords in extra_overrides["data"].items():
             merged_datasets.setdefault(dataset_number, {}).update(keywords)
@@ -246,5 +256,8 @@ def refine_many(
         raise ValueError("refine_many: the same folder appears more than once")
     refine_options.setdefault("progress", False)
     with ThreadPoolExecutor(max_workers=workers or len(projects)) as pool:
-        futures = [pool.submit(refine, project, n_runs, **refine_options) for project in projects]
+        futures = [
+            pool.submit(refine, project, n_runs, **refine_options)
+            for project in projects
+        ]
         return [future.result() for future in futures]

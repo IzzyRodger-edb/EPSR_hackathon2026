@@ -9,7 +9,13 @@ import pytest
 import epsr
 from epsr import tools
 
-from epsr_cases import CASE_FILES_TO_SKIP, TEMPLATE, TEST_PROBLEMS, copy_files, load_case
+from epsr_cases import (
+    CASE_FILES_TO_SKIP,
+    TEMPLATE,
+    TEST_PROBLEMS,
+    copy_files,
+    load_case,
+)
 
 NWTS_SAMPLES = ["DMSODWaterD", "DMSODWaterH", "DMSODWaterNull"]
 CASES_FOLDER = TEST_PROBLEMS / "200DMSO400Water"
@@ -29,7 +35,15 @@ def _file_contents(folder: Path) -> dict[str, bytes]:
 def test_commands() -> None:
     command_names = tools.commands()
     assert len(command_names) == 35
-    expected_subset = {"nwts", "xwts", "partials", "makeato", "mixato", "fmole", "dockato"}
+    expected_subset = {
+        "nwts",
+        "xwts",
+        "partials",
+        "makeato",
+        "mixato",
+        "fmole",
+        "dockato",
+    }
     assert expected_subset <= set(command_names)
 
 
@@ -41,13 +55,17 @@ def test_unknown_tool(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("sample", NWTS_SAMPLES)
-def test_nwts_reproduces_shipped_weights(template: Path, tmp_path: Path, sample: str) -> None:
+def test_nwts_reproduces_shipped_weights(
+    template: Path, tmp_path: Path, sample: str
+) -> None:
     """EPSR-test-ex20: nwts rebuilds the .wts files shipped with EPSR-test byte for byte."""
     work_folder = copy_files(template, tmp_path / "work")
     weights_file = f"{sample}.NWTStot.wts"
     (work_folder / weights_file).unlink()
     tools.nwts(work_folder, f"{sample}.NWTS.dat")
-    assert (work_folder / weights_file).read_bytes() == (template / weights_file).read_bytes()
+    assert (work_folder / weights_file).read_bytes() == (
+        template / weights_file
+    ).read_bytes()
 
 
 def test_keywords_table() -> None:
@@ -107,7 +125,9 @@ def test_interactive_tool_with_answers(tmp_path: Path) -> None:
     case_folder = _case_folder("EPSR-test-ex28")
     work_folder = copy_files(case_folder, tmp_path / "work", CASE_FILES_TO_SKIP)
     command = next(
-        command for command in load_case(case_folder).commands if command.program == "makemole"
+        command
+        for command in load_case(case_folder).commands
+        if command.program == "makemole"
     )
     answers = []
     if command.stdin_file:
@@ -115,12 +135,16 @@ def test_interactive_tool_with_answers(tmp_path: Path) -> None:
 
     contents_before = _file_contents(work_folder)
     tools.run(work_folder, command.program, command.args, answers)
-    assert _file_contents(work_folder) != contents_before  # the tool wrote or updated files
+    assert (
+        _file_contents(work_folder) != contents_before
+    )  # the tool wrote or updated files
 
 
 def test_missing_keyword_file(tmp_path: Path) -> None:
     copy_files(TEMPLATE, tmp_path)
-    tools.run(tmp_path, "nwts", ["missing.NWTS.dat"])  # faithful to the Fortran: a silent no-op
+    tools.run(
+        tmp_path, "nwts", ["missing.NWTS.dat"]
+    )  # faithful to the Fortran: a silent no-op
     assert not (tmp_path / "missing.NWTS.dat").exists()
     with pytest.raises(FileNotFoundError):
         tools.nwts(tmp_path, "missing.NWTS.dat")
@@ -132,4 +156,6 @@ def test_tool_errors_are_epsr_errors(tmp_path: Path) -> None:
     answers = (case_folder / "makeato_Ow.stdin").read_text()
     with pytest.raises(epsr.EpsrUnsupportedError, match="SIGSEGV"):
         tools.run(tmp_path, "makeato", ["Ow"], answers)
-    assert (tmp_path / "Ow.ato").stat().st_size == 0  # an empty file, as the Fortran leaves it
+    assert (
+        tmp_path / "Ow.ato"
+    ).stat().st_size == 0  # an empty file, as the Fortran leaves it

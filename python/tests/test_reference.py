@@ -70,7 +70,9 @@ def test_outputs_match_fortran_reference(completed_run: CompletedRun) -> None:
             mismatches.append(file_name)
 
     if not IS_GLIBC:
-        pytest.skip("bit-for-bit agreement with the Fortran is only expected on Linux/glibc")
+        pytest.skip(
+            "bit-for-bit agreement with the Fortran is only expected on Linux/glibc"
+        )
     assert not mismatches, (
         f"{len(mismatches)} of {len(reference_rows)} files differ "
         f"from the Fortran reference: {mismatches}"
@@ -112,7 +114,13 @@ def test_wrapper_matches_cli_byte_for_byte(template: Path, tmp_path: Path) -> No
     for _ in range(2):  # two chained runs
         epsr.Simulation(wrapper_folder, TEMPLATE_INPUT_FILE).run()
         subprocess.run(
-            [str(cli_executable), str(cli_folder), "epsr", TEMPLATE_INPUT_FILE, "--quiet"],
+            [
+                str(cli_executable),
+                str(cli_folder),
+                "epsr",
+                TEMPLATE_INPUT_FILE,
+                "--quiet",
+            ],
             check=True,
             capture_output=True,
         )
@@ -145,7 +153,10 @@ def test_runs_are_deterministic(template: Path, tmp_path: Path) -> None:
 
     assert first_summary == second_summary
     for file_name in ("200DMSO400Water.pcof", "200DMSO400Water.ato"):
-        assert (first_folder / file_name).read_bytes() == (second_folder / file_name).read_bytes()
+        assert (first_folder / file_name).read_bytes() == (
+            second_folder / file_name
+        ).read_bytes()
     np.testing.assert_array_equal(
-        epsr.Simulation(first_folder).gr_inter(), epsr.Simulation(second_folder).gr_inter()
+        epsr.Simulation(first_folder).gr_inter(),
+        epsr.Simulation(second_folder).gr_inter(),
     )

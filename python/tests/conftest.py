@@ -34,16 +34,24 @@ def project(template: Path, tmp_path: Path) -> epsr.Project:
 
 
 @pytest.fixture(scope="module")
-def completed_run(template: Path, tmp_path_factory: pytest.TempPathFactory) -> CompletedRun:
+def completed_run(
+    template: Path, tmp_path_factory: pytest.TempPathFactory
+) -> CompletedRun:
     """One completed EPSR run on a copy of EPSR-test, shared by a test module (read-only use)."""
-    run_project = epsr.Project.from_template(template, tmp_path_factory.mktemp("run") / "work")
+    run_project = epsr.Project.from_template(
+        template, tmp_path_factory.mktemp("run") / "work"
+    )
     simulation = run_project.simulation()
     simulation.run()
     return CompletedRun(run_project, simulation)
 
 
 def _file_contents(folder: Path) -> dict[str, bytes]:
-    return {path.name: path.read_bytes() for path in sorted(folder.iterdir()) if path.is_file()}
+    return {
+        path.name: path.read_bytes()
+        for path in sorted(folder.iterdir())
+        if path.is_file()
+    }
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -54,6 +62,8 @@ def template_is_never_modified(template: Path) -> Iterator[None]:
     contents_after = _file_contents(template)
     all_names = contents_before.keys() | contents_after.keys()
     changed = sorted(
-        name for name in all_names if contents_before.get(name) != contents_after.get(name)
+        name
+        for name in all_names
+        if contents_before.get(name) != contents_after.get(name)
     )
     assert not changed, f"tests modified the template folder {template}: {changed}"

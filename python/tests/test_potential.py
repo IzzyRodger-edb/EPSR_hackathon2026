@@ -31,7 +31,10 @@ def test_read_potentials(simulation: epsr.Simulation) -> None:
 
     # total = reference + empirical, to single precision
     np.testing.assert_allclose(
-        potential.total(), potential.reference() + potential.empirical(), rtol=1e-6, atol=1e-4
+        potential.total(),
+        potential.reference() + potential.empirical(),
+        rtol=1e-6,
+        atol=1e-4,
     )
 
     pair_index = simulation.pair_index(*WATER_HYDROGEN_BOND)
@@ -46,8 +49,13 @@ def test_read_potentials(simulation: epsr.Simulation) -> None:
     assert parameters.ncoeffp == 116
     assert parameters.ereq == pytest.approx(10.0)
     assert not parameters.gaussian
-    assert potential.ep_coefficients().shape == (simulation.n_pairs, parameters.ncoeffp - 1)
-    np.testing.assert_array_equal(potential.ep_flags(), np.ones(simulation.n_pairs, np.float32))
+    assert potential.ep_coefficients().shape == (
+        simulation.n_pairs,
+        parameters.ncoeffp - 1,
+    )
+    np.testing.assert_array_equal(
+        potential.ep_flags(), np.ones(simulation.n_pairs, np.float32)
+    )
     assert potential.shared_pairs() == []
 
 
@@ -58,12 +66,18 @@ def test_type_params(simulation: epsr.Simulation) -> None:
     assert list(parameters_by_type) == simulation.atom_types
     assert parameters_by_type["S"].sigma == pytest.approx(3.56)
     assert parameters_by_type["S"].charge == pytest.approx(0.54)
-    assert parameters_by_type["H1"].mass == pytest.approx(2.0)  # deuterium: D6-DMSO in D2O
+    assert parameters_by_type["H1"].mass == pytest.approx(
+        2.0
+    )  # deuterium: D6-DMSO in D2O
 
     all_types = parameters_by_type.values()
-    total_charge = sum(parameters.charge * parameters.fraction for parameters in all_types)
+    total_charge = sum(
+        parameters.charge * parameters.fraction for parameters in all_types
+    )
     assert total_charge == pytest.approx(0.0, abs=1e-5)  # neutral system
-    assert sum(parameters.fraction for parameters in all_types) == pytest.approx(1.0, abs=1e-5)
+    assert sum(parameters.fraction for parameters in all_types) == pytest.approx(
+        1.0, abs=1e-5
+    )
 
 
 def test_set_get_round_trip_is_exact(simulation: epsr.Simulation) -> None:
@@ -80,8 +94,12 @@ def test_scale_down_is_linear(simulation: epsr.Simulation) -> None:
     original_ep = potential.empirical()
     original_coefficients = potential.ep_coefficients()
     potential.scale_ep(0.5)
-    np.testing.assert_allclose(potential.ep_coefficients(), 0.5 * original_coefficients, rtol=1e-6)
-    np.testing.assert_allclose(potential.empirical(), 0.5 * original_ep, rtol=1e-4, atol=1e-5)
+    np.testing.assert_allclose(
+        potential.ep_coefficients(), 0.5 * original_coefficients, rtol=1e-6
+    )
+    np.testing.assert_allclose(
+        potential.empirical(), 0.5 * original_ep, rtol=1e-4, atol=1e-5
+    )
 
 
 def test_ereq_limit_is_applied(simulation: epsr.Simulation) -> None:
@@ -123,16 +141,21 @@ def test_perturb_one_pair(simulation: epsr.Simulation) -> None:
     potential.perturb_ep(WATER_HYDROGEN_BOND, delta)
 
     coefficients_after = potential.ep_coefficients()
-    changed_pairs = np.nonzero(np.any(coefficients_after != coefficients_before, axis=1))[0]
+    changed_pairs = np.nonzero(
+        np.any(coefficients_after != coefficients_before, axis=1)
+    )[0]
     assert changed_pairs.tolist() == [pair_index]
     np.testing.assert_allclose(
-        coefficients_after[pair_index] - coefficients_before[pair_index], delta, atol=1e-6
+        coefficients_after[pair_index] - coefficients_before[pair_index],
+        delta,
+        atol=1e-6,
     )
 
     ep_after = potential.empirical()
     assert np.any(ep_after[pair_index] != ep_before[pair_index])
     np.testing.assert_array_equal(
-        np.delete(ep_after, pair_index, axis=0), np.delete(ep_before, pair_index, axis=0)
+        np.delete(ep_after, pair_index, axis=0),
+        np.delete(ep_before, pair_index, axis=0),
     )
 
 
@@ -152,11 +175,17 @@ def test_edits_persist_to_pcof(project: epsr.Project) -> None:
     simulation.potential.set_ep_coefficients(halved_coefficients)
     simulation.run()
     coefficients_read_back = project.simulation().potential.ep_coefficients()
-    np.testing.assert_allclose(coefficients_read_back, halved_coefficients, rtol=1e-6, atol=1e-9)
+    np.testing.assert_allclose(
+        coefficients_read_back, halved_coefficients, rtol=1e-6, atol=1e-9
+    )
 
 
-def test_edited_ep_changes_the_simulation(project: epsr.Project, template: Path) -> None:
-    unchanged_project = epsr.Project.from_template(template, project.folder.parent / "unchanged")
+def test_edited_ep_changes_the_simulation(
+    project: epsr.Project, template: Path
+) -> None:
+    unchanged_project = epsr.Project.from_template(
+        template, project.folder.parent / "unchanged"
+    )
     unchanged_summary = unchanged_project.simulation().run()
     simulation = project.simulation()
     simulation.potential.zero_ep()

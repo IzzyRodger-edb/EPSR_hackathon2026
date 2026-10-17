@@ -11,7 +11,9 @@ from epsr import tools
 
 EXAMPLES_FOLDER = Path(__file__).resolve().parent
 TEMPLATE = EXAMPLES_FOLDER.parents[1] / "EPSR-test"
-OUTPUT_ROOT = Path(os.environ.get("EPSR_EXAMPLES_WORK", EXAMPLES_FOLDER.parent / "work"))
+OUTPUT_ROOT = Path(
+    os.environ.get("EPSR_EXAMPLES_WORK", EXAMPLES_FOLDER.parent / "work")
+)
 WORK_FOLDER = OUTPUT_ROOT / "04_tools"
 
 project = epsr.Project.from_template(TEMPLATE, WORK_FOLDER, overwrite=True)
@@ -28,7 +30,13 @@ print("partials keywords:", partials_keywords.global_keywords)
 tools.write_keyword_file(
     folder / "water.PARTIALS.dat",
     "partials",
-    {"fnameato": "200DMSO400Water.ato", "nz": 300, "atom-c": "O1", "atom-z": "*", "atom-r": "*"},
+    {
+        "fnameato": "200DMSO400Water.ato",
+        "nz": 300,
+        "atom-c": "O1",
+        "atom-z": "*",
+        "atom-r": "*",
+    },
 )
 tools.partials(folder, "water.PARTIALS.dat")
 partials_table = epsr.read_table(folder / "water.PARTIALS.g01")
@@ -55,7 +63,9 @@ whole_box_arguments = [
     "0",
 ]
 tools.run(folder, "writexyz", whole_box_arguments)
-print("writexyz wrote", sorted(path.name for path in folder.glob("200DMSO400Water0*.xyz")))
+print(
+    "writexyz wrote", sorted(path.name for path in folder.glob("200DMSO400Water0*.xyz"))
+)
 
 #    The same program asking its questions on standard input: append? centre molecule,
 #    x/y and z limits, Euler angles, atom types to exclude. One answer per line.

@@ -389,7 +389,7 @@ impl State {
         let chisq = |wt: &F1<f32>| -> f32 {
             let terms: Vec<f32> = (nmin..npt + 1)
                 .into_par_iter()
-                .with_min_len(64)
+                .with_min_len(150)
                 .map(|i| {
                     let term = yin[i] - expand(nterms, i, expr, wt, summax);
                     term * term

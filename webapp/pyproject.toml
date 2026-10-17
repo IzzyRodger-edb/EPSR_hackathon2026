@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "epsrweb"
+version = "0.1.0"
+description = "Web application for the Mellor EPSR agent: upload diffraction data, run the Rust EPSR engine, publish figures to Overleaf"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "cryptography>=42",
+    "pandas>=2.0",
+    "seaborn>=0.13",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+# The agent itself. Installed from the sibling folder of this repository; it pulls in
+# `epsr` (the Rust engine) and `epsrvis`. Without it the app runs in demonstration
+# mode (see README).
+agent = ["mellor"]
+dev = ["pytest>=8", "httpx>=0.27"]
+
+[project.scripts]
+epsrweb = "epsrweb.__main__:main"
+
+[tool.uv.sources]
+mellor = { path = "../mellor" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+epsrweb = ["templates/*.html", "static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

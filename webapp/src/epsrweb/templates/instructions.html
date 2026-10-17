@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Instructions{% endblock %}
+{% block content %}
+<section class="prose">
+  <h1>Instructions</h1>
+  <p class="lede">
+    What to upload, what happens to it, how to read the results, and how to get the figures
+    into your paper.
+  </p>
+
+  <h2>1. What to upload</h2>
+  <p>
+    Gudrun <code>.mint01</code> files: plain text, three whitespace-separated columns.
+  </p>
+  <table class="numbers">
+    <thead><tr><th>Column</th><th>Quantity</th><th>Units</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Q</td><td>A<sup>-1</sup></td></tr>
+      <tr><td>2</td><td>differential cross section, F(Q)</td><td>barn sr<sup>-1</sup> atom<sup>-1</sup></td></tr>
+      <tr><td>3</td><td>the error on F(Q)</td><td>as column 2</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>
+      Header lines start with <code>#</code>, and <strong>the second one is the sample
+      title</strong> &mdash; that is the string the agent reads to recognise the sample
+      (H<sub>2</sub>O, D<sub>2</sub>O, HDO, SiO<sub>2</sub>, benzene, DMSO, Cu-BTC).
+    </li>
+    <li>
+      <strong>Upload every isotopic sample of one material together</strong>, in one run.
+      Two to four files is typical. They are what makes the refinement well determined; one
+      file alone will fit, but it will not be a determination of the partials.
+    </li>
+    <li>
+      Add a sentence in the prompt box if the titles do not say what the material is:
+      composition, temperature, density.
+    </li>
+    <li>
+      Files are checked on upload, before anything is queued. Rejections mean the file is not
+      a three-column table. Warnings are kept and shown in the log &mdash; the common ones are
+      data extending past 30 A<sup>-1</sup> (silently discarded, because EPSR interpolates onto
+      <code>nq 600</code> &times; <code>qstep 0.05</code>) and a missing zero sentinel row
+      (EPSR treats Q as a bin edge and drops the last point).
+    </li>
+    <li>
+      Do not worry about the file name: blanks and awkward characters are rewritten, because
+      EPSR truncates a data path at the first blank.
+    </li>
+  </ul>
+  <p class="quiet">
+    Raw detector data is not an input. <code>.mint01</code> is the <em>output</em> of
+    Gudrun's correction chain &mdash; attenuation, multiple scattering, vanadium
+    normalisation, inelasticity, self-scattering subtraction. If you have raw NeXus files,
+    reduce them first.
+  </p>
+
+  <h2>2. Choosing how the model system is decided</h2>
+  <dl>
+    <dt>Automatic / hosted model</dt>
+    <dd>
+      The agent inspects your data and proposes the model system: molecule geometry, force
+      field, composition, density and the isotopic substitution scheme. For a material in its
+      validated library (water, silica, DMSO/water, benzene, Cu-BTC) it adapts the validated
+      one; otherwise it proposes a new one, which the report marks unvalidated.
+    </dd>
+    <dt>No language model</dt>
+    <dd>
+      Pick a validated system from the list and skip the model entirely. Deterministic, free,
+      and the right choice when your material is one of those five, or when you want a
+      baseline to compare an agent-proposed run against.
+    </dd>
+    <dt>Local model</dt>
+    <dd>Only if the server has a GPU with about 8.4 GB free.</dd>
+  </dl>
+
+  <h2>3. What happens while you wait</h2>
+  <ol>
+    <li>The data is validated and the run gets a folder of its own.</li>
+    <li>The specification is chosen, the EPSR inputs and a standalone script are generated.</li>
+    <li>
+      The engine runs three stages: a <strong>scratch start</strong>, an
+      <strong>equilibration</strong> on the reference potential with the EP switched off, then
+      <strong>refinement</strong> with the empirical potential on.
+    </li>
+    <li>Figures, CSV tables, <code>analysis.json</code> and the PDF report are written.</li>
+  </ol>
+  <p>
+    The <strong>quick schedule</strong> (10 iterations per stage) takes a minute or two and is
+    for previews only &mdash; it does not converge. The <strong>full schedule</strong>
+    (99 + 2 &times; 100 iterations) is about ten minutes for water on a 20-core machine.
+  </p>
+  <p>
+    You can close the page. The job runs in its own process; the results page replays the
+    whole log when you return. <em>Stop</em> kills that process and keeps the partial folder.
+  </p>
+</section>
+<section class="prose">
+  <h2>4. Reading the results</h2>
+  <dl>
+    <dt>The fit (<code>02_fq_fit</code>, <code>sb_fit_overlay</code>)</dt>
+    <dd>
+      Measured against simulated F(Q) for each sample, with the difference. Look at
+      <em>where</em> in Q the misfit is. Below about 2 A<sup>-1</sup> in hydrogenous samples it
+      is usually inelasticity, which EPSR cannot fit; a misfit at the first sharp peak is a
+      density or a geometry problem.
+    </dd>
+    <dt>R-factor</dt>
+    <dd>
+      A few times 10<sup>-4</sup> for a liquid against good neutron data (water:
+      2.3 &times; 10<sup>-4</sup>). Near 10<sup>-2</sup> for a crystal modelled with
+      intermolecular bonds only. R squared near 1 means the fit follows the data.
+    </dd>
+    <dt>Convergence (<code>01_convergence</code>, <code>sb_convergence</code>)</dt>
+    <dd>
+      R-factor and energy should plateau; the EP amplitude should rise and then settle. Still
+      rising means it needs more iterations. <em>EP amplitude at <code>ereq</code></em> means
+      the cap is binding: a larger <code>ereq</code> may fit better, but a large EP says the
+      reference potential is poor.
+    </dd>
+    <dt>Partials (<code>05_partials</code>, <code>sb_partials</code>)</dt>
+    <dd>
+      First-peak positions are bond or neighbour distances: water O&middot;&middot;&middot;H
+      1.8 A, O&middot;&middot;&middot;O 2.8 A; silica Si&ndash;O 1.59 A. Coordination numbers
+      count neighbours within the first minimum.
+    </dd>
+    <dt>Potentials (<code>06_potentials</code>, <code>sb_potentials</code>)</dt>
+    <dd>
+      The empirical potential should be a correction, small next to the reference potential.
+      If it dominates, treat the structure with suspicion.
+    </dd>
+  </dl>
+  <p>
+    The <strong>Numbers</strong> tab is <code>analysis.json</code>: fit quality per data set,
+    the stages, the first-shell table, and any flags the analysis raised. The
+    <strong>Files</strong> tab has the long-format CSV tables, which pandas reads directly if
+    you want to plot something yourself.
+  </p>
+
+  <h2>5. Checking it yourself</h2>
+  <p>
+    Every run folder contains <code>run_&lt;name&gt;.py</code>, a standalone script with every
+    input file embedded. It reproduces the refinement with only the open-source wrapper and
+    toolkit &mdash; no language model:
+  </p>
+  <pre class="code">python run_water.py --out DIR</pre>
+  <p>
+    EPSR runs with EPSR's defaults throughout: <code>nq 600</code>, <code>qstep 0.05</code>,
+    <code>ntimes 5</code>, <code>feedback 0.9</code>.
+  </p>
+
+  <h2>6. Getting the figures into Overleaf</h2>
+  <ol>
+    <li>
+      In Overleaf: <strong>Account Settings &rarr; Git integration</strong>, create a Git
+      authentication token. This is a <strong>premium feature</strong>; if your account does
+      not have it, skip to step 5.
+    </li>
+    <li>
+      Copy your project's URL from the address bar and paste both it and the token into
+      <a href="/settings">Settings</a>. The token is encrypted at rest and never logged.
+    </li>
+    <li>
+      On a results page, open <strong>Figures</strong>, tick what you want, choose
+      <em>PDF where available</em> (vector, which is what you want in a paper) and press
+      <strong>Push to Overleaf</strong>.
+    </li>
+    <li>
+      The figures land in <code>figures/</code> in your project, named
+      <code>&lt;run id&gt;_&lt;figure&gt;.pdf</code> so two runs cannot overwrite each other.
+      The app shows you a ready-made block to paste:
+      <pre class="code">\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\linewidth]{figures/20261017-120000-ab12cd_sb_fit_overlay.pdf}
+  \caption{Measured and simulated structure factor ...}
+  \label{fig:20261017-120000-ab12cd_sb_fit_overlay}
+\end{figure}</pre>
+      If someone edited the project in the browser meanwhile, the push rebases once and
+      retries.
+    </li>
+    <li>
+      <strong>Without premium:</strong> <em>Download zip</em> gives you the same figures plus
+      a <code>figures.tex</code> containing those blocks. Drag the folder into the Overleaf
+      file tree. (If your project is already synchronised with GitHub, pushing to that
+      repository's <code>figures/</code> folder and pulling in Overleaf works too.)
+    </li>
+  </ol>
+
+  <h2>7. Limits worth knowing</h2>
+  <ul>
+    <li>
+      <strong>A model system outside the library is a proposal, not a validated model.</strong>
+      Check the force-field parameters in <code>spec.json</code> before you publish anything
+      from it.
+    </li>
+    <li>
+      <strong>The quick schedule does not converge.</strong> Do not quote numbers from it.
+    </li>
+    <li>
+      <strong>Asking the agent to run a new refinement in the chat overwrites this run's
+      results.</strong> Start a new run instead.
+    </li>
+    <li>
+      <strong>One run at a time per account</strong> by default: a refinement uses every core.
+    </li>
+    <li>
+      A full run is a few hundred megabytes, most of it the per-iteration trajectory. Delete
+      runs you no longer need; deleting removes the whole folder.
+    </li>
+  </ul>
+</section>
+{% endblock %}

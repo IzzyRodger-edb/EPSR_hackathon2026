@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+{% block title %}{{ run.title }}{% endblock %}
+{% block content %}
+<section data-run-id="{{ run.id }}" id="runroot"
+         data-status="{{ run.status }}" data-csrf="{{ csrf_token(request) }}">
+
+  <div class="headrow">
+    <div>
+      <h1>{{ run.title }}</h1>
+      <p class="quiet mono">
+        {{ run.id }} &middot; {{ run.backend }}{% if run.spec_source %} &middot;
+        specification from {{ run.spec_source }}{% endif %}
+        {% if run.quick %} &middot; quick schedule{% endif %}
+        &middot; {{ run.size }} on disk
+      </p>
+    </div>
+    <div class="headactions">
+      <span class="pill {{ run.status }}" id="statuspill">{{ run.status }}</span>
+      {% if run.status in ('queued', 'running') %}
+      <form method="post" action="/runs/{{ run.id }}/cancel" class="inline"
+            onsubmit="return confirm('Stop this run? Its worker process is killed and the partial folder is kept.')">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button class="button ghost" type="submit">Stop</button>
+      </form>
+      {% else %}
+      <form method="post" action="/runs/{{ run.id }}/delete" class="inline"
+            onsubmit="return confirm('Delete this run and its whole folder? This cannot be undone.')">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button class="button ghost danger" type="submit">Delete</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if run.demo %}
+  <div class="strip warn">
+    <strong>These are not results.</strong>
+    Mellor is not installed here, so no simulation ran. The measured F(Q) curves are your
+    own uploaded data; the simulated curves, potentials, g(r), R-factors and the whole
+    convergence history on this page are synthetic placeholders.
+  </div>
+  {% endif %}
+
+  {% if run.error %}
+  <div class="strip bad"><strong>{{ run.status }}:</strong> {{ run.error }}</div>
+  {% endif %}
+
+  {% if queue_position %}
+  <div class="strip">Queued at position {{ queue_position }}; waiting for a free worker.</div>
+  {% endif %}
+
+  <div class="tabs" role="tablist">
+    <button class="tab active" data-panel="panel-progress" role="tab">Progress</button>
+    <button class="tab" data-panel="panel-figures" role="tab">Figures</button>
+    <button class="tab" data-panel="panel-numbers" role="tab">Numbers</button>
+    <button class="tab" data-panel="panel-chat" role="tab">Ask</button>
+    <button class="tab" data-panel="panel-files" role="tab">Files</button>
+  </div>
+
+  <!-- ------------------------------------------------------------ progress -->
+  <div class="panel active" id="panel-progress">
+    {% if uploads %}
+    <p class="quiet">Input: {% for name in uploads %}<code>{{ name }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    {% endif %}
+    <pre class="log" id="log">{% for line in log_lines %}{{ line }}
+{% endfor %}</pre>
+    <p class="quiet">
+      The stream shows Mellor's own events: the phase it is in, each tool call, and every
+      line of the EPSR run log. It stops by itself when the job finishes.
+    </p>
+    {% if discussion %}
+    <h2>Discussion</h2>
+    <div class="prose markdown">{{ discussion }}</div>
+    {% endif %}
+  </div>
+
+  <!-- ------------------------------------------------------------- figures -->
+  <div class="panel" id="panel-figures">
+    {% if not figures %}
+      <p class="quiet">No figures yet. They are written at the end of the run.</p>
+    {% else %}
+    <form id="figform" method="post" action="/runs/{{ run.id }}/figures.zip">
+      <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+
+      <div class="publishbar">
+        <div>
+          <strong>Publish to Overleaf.</strong>
+          Tick figures, then push them into the <code>figures/</code> folder of your project.
+          <a href="/settings">Token and project</a>.
+        </div>
+        <div class="publishcontrols">
+          <label class="radio inline">
+            <input type="radio" name="figure_format" value="pdf" checked>
+            <span>PDF where available</span>
+          </label>
+          <label class="radio inline">
+            <input type="radio" name="figure_format" value="png">
+            <span>PNG</span>
+          </label>
+          {% if overleaf_enabled %}
+          <button type="button" class="button" id="pushbtn">Push to Overleaf</button>
+          {% endif %}
+          <button type="submit" class="button ghost">Download zip</button>
+        </div>
+      </div>
+      <div id="pushresult" class="pushresult" hidden></div>
+
+      <div class="gallery">
+        {% for figure in figures %}
+        <figure class="figcard">
+          <label class="figpick">
+            <input type="checkbox" name="figures" value="{{ figure.key }}">
+            <span class="figname mono">{{ figure.key }}</span>
+            <span class="pill {{ figure.source }}">{{ figure.source }}</span>
+          </label>
+          {% if figure.png %}
+          <a href="/runs/{{ run.id }}/files/{{ figure.best }}" target="_blank" rel="noopener">
+            <img src="/runs/{{ run.id }}/files/{{ figure.png }}" alt="{{ figure.caption }}" loading="lazy">
+          </a>
+          {% endif %}
+          <figcaption>
+            {{ figure.caption }}
+            <span class="quiet">
+              {% if figure.pdf %}<a href="/runs/{{ run.id }}/files/{{ figure.pdf }}">PDF</a>{% endif %}
+              {% if figure.png %}<a href="/runs/{{ run.id }}/files/{{ figure.png }}">PNG</a>{% endif %}
+            </span>
+          </figcaption>
+        </figure>
+        {% endfor %}
+      </div>
+    </form>
+    <p class="quiet">
+      Figures marked <span class="pill mellor">mellor</span> come from the repository's
+      <code>epsrvis</code> toolkit, as they appear in the PDF report. Those marked
+      <span class="pill seaborn">seaborn</span> are drawn by this app from the run's
+      long-format CSV tables, and exist as vector PDF.
+    </p>
+    {% endif %}
+  </div>
+
+  <!-- ------------------------------------------------------------- numbers -->
+  <div class="panel" id="panel-numbers">
+    {% if not analysis.present %}
+      <p class="quiet">
+        <code>analysis.json</code> has not been written yet. It appears when the run
+        finishes and holds every computed number.
+      </p>
+    {% else %}
+      {% if analysis.verdict %}
+      <p class="verdict"><strong>Verdict:</strong> {{ analysis.verdict }}</p>
+      {% endif %}
+      {% if analysis.flags %}
+      <ul class="flags">
+        {% for flag in analysis.flags %}<li>{{ flag }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+
+      {% macro datatable(rows, columns, caption) %}
+        {% if rows %}
+        <h2>{{ caption }}</h2>
+        <div class="tablewrap">
+          <table class="numbers">
+            <thead><tr>{% for column in columns %}<th>{{ column }}</th>{% endfor %}</tr></thead>
+            <tbody>
+              {% for row in rows %}
+              <tr>
+                {% for column in columns %}
+                <td>
+                  {% set value = row.get(column) %}
+                  {% if value is number and value is not integer %}{{ '%.4g'|format(value) }}
+                  {% elif value is none %}&mdash;
+                  {% else %}{{ value }}{% endif %}
+                </td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      {% endmacro %}
+
+      {{ datatable(analysis.fit, analysis.fit_columns, 'Fit quality per data set') }}
+      {{ datatable(analysis.runs, analysis.run_columns, 'Refinement stages') }}
+      {{ datatable(analysis.shells, analysis.shell_columns, 'First shell') }}
+
+      <h2>How to read these</h2>
+      <dl class="glossary">
+        <dt>R-factor</dt>
+        <dd>
+          Mean squared difference between data and simulation over the fitted Q range. For a
+          liquid against good neutron data it falls to a few times 10<sup>-4</sup> (water
+          reaches 2.3 &times; 10<sup>-4</sup>). A crystal modelled with intermolecular bonds
+          only stays near 10<sup>-2</sup>.
+        </dd>
+        <dt>R squared</dt>
+        <dd>Near 1 means the simulation follows the shape of the data.</dd>
+        <dt>EP amplitude at <code>ereq</code></dt>
+        <dd>
+          The empirical potential is as large as it is allowed to be. A larger
+          <code>ereq</code> may improve the fit, but a large EP means the reference potential
+          is poor.
+        </dd>
+        <dt>Pressure</dt>
+        <dd>Should be modest, a few kbar, for a liquid at its measured density.</dd>
+        <dt>Coordination number</dt>
+        <dd>Neighbours within the first minimum of g(r) &mdash; for water, about 5 oxygens
+          within 3.45 A and 1.8 hydrogen-bonded hydrogens per oxygen.</dd>
+      </dl>
+      <p class="quiet"><a href="/runs/{{ run.id }}/files/analysis.json">Download analysis.json</a>
+      for everything, including keys this page does not show.</p>
+    {% endif %}
+  </div>
+
+  <!-- ---------------------------------------------------------------- chat -->
+  <div class="panel" id="panel-chat">
+    <h2>Ask about this refinement</h2>
+    <p class="quiet">
+      The model answers from the run's own results through its tools; it can also look for
+      comparable published data. It cannot see this conversation's history, and asking it to
+      run a new refinement overwrites this run's results, so start a new run for that.
+    </p>
+    <div id="chatlog" class="chatlog"></div>
+    <form id="chatform" class="chatform">
+      <input type="text" id="chatinput" placeholder="What is the O-H hydrogen-bond distance, and how good is the fit?"
+             autocomplete="off" {% if run.status in ('queued', 'running') %}disabled{% endif %}>
+      <button type="submit" class="button" {% if run.status in ('queued', 'running') %}disabled{% endif %}>Ask</button>
+    </form>
+  </div>
+
+  <!-- --------------------------------------------------------------- files -->
+  <div class="panel" id="panel-files">
+    <h2>Everything this run produced</h2>
+    <p class="quiet">
+      One self-describing folder. <code>trajectory/</code> is deliberately not served: it is
+      the per-iteration record and runs to hundreds of megabytes.
+    </p>
+    <ul class="files">
+      {% for item in downloads %}
+      <li>
+        <a href="/runs/{{ run.id }}/files/{{ item.name }}">{{ item.name }}</a>
+        <span class="quiet">{{ item.label }} &middot; {{ item.size }}</span>
+      </li>
+      {% endfor %}
+      {% if has_epsr_folder %}
+      <li>
+        <a href="/runs/{{ run.id }}/epsr.zip">epsr.zip</a>
+        <span class="quiet">the EPSR simulation folder: inputs, .ato, .pcof and every output file</span>
+      </li>
+      {% endif %}
+      {% for name in uploads %}
+      <li>
+        <a href="/runs/{{ run.id }}/files/uploads/{{ name }}">uploads/{{ name }}</a>
+        <span class="quiet">your own data, as uploaded</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/app.js" defer></script>
+{% endblock %}

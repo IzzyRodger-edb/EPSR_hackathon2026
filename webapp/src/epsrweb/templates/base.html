@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}EPSR refinement{% endblock %} &middot; Mellor</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="topbar">
+  <a class="brand" href="/">EPSR <span>/ Mellor</span></a>
+  <nav>
+    {% set user = current_user(request) %}
+    {% if user %}
+      <a href="/" {% if request.url.path == '/' %}class="here"{% endif %}>My runs</a>
+      <a href="/new" {% if request.url.path == '/new' %}class="here"{% endif %}>New run</a>
+    {% endif %}
+    <a href="/instructions" {% if request.url.path == '/instructions' %}class="here"{% endif %}>Instructions</a>
+    <a href="/about" {% if request.url.path == '/about' %}class="here"{% endif %}>About</a>
+    {% if user %}
+      <a href="/settings" {% if request.url.path == '/settings' %}class="here"{% endif %}>Settings</a>
+      <form method="post" action="/logout" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+        <button type="submit" class="linkish">Sign out</button>
+      </form>
+    {% else %}
+      <a href="/login">Sign in</a>
+    {% endif %}
+  </nav>
+</header>
+
+{% if not mellor_status.available %}
+<div class="strip warn">
+  <strong>Demonstration mode.</strong>
+  {% if mellor_status.missing == 'epsr' %}
+    The EPSR engine is not built in this environment, so no refinement can run and every
+    number on a results page is synthetic.
+  {% else %}
+    The refinement stack is not complete in this environment, so no refinement can run and
+    every number on a results page is synthetic.
+  {% endif %}
+  <span class="quiet">({{ mellor_status.reason }})</span>
+  <a href="/about#install">How to complete the installation</a>
+</div>
+{% endif %}
+
+{% if request.query_params.get('notice') %}
+<div class="strip ok">{{ request.query_params.get('notice') }}</div>
+{% endif %}
+{% if request.query_params.get('error') %}
+<div class="strip bad">{{ request.query_params.get('error') }}</div>
+{% endif %}
+
+<main id="main">
+{% block content %}{% endblock %}
+</main>
+
+<footer>
+  <p>
+    EPSR engine: a Rust translation of A. K. Soper's Fortran suite, verified byte for byte
+    against it. The language model proposes the model system and writes prose; every number
+    comes from the engine.
+  </p>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

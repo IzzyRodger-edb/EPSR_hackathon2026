@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Structure refinement from diffraction data{% endblock %}
+{% block content %}
+<section class="hero">
+  <h1>Refine a structure against your diffraction data, and get the figures into your paper</h1>
+  <p class="lede">
+    Upload the Gudrun <code>.mint01</code> files for one material. The agent reads them,
+    proposes a model system, generates the EPSR inputs and runs the Rust EPSR engine. You
+    get the fit, the partial pair distribution functions, the refined empirical potential,
+    a PDF report, and a button that commits any figure straight into the
+    <code>figures/</code> folder of your Overleaf project.
+  </p>
+  <p class="actions">
+    <a class="button" href="/register">Create an account</a>
+    <a class="button ghost" href="/login">Sign in</a>
+    <a class="button ghost" href="/instructions">What do I need?</a>
+  </p>
+</section>
+
+<section class="cards">
+  <article>
+    <h2>1. Upload</h2>
+    <p>
+      Two to four isotopic samples of the same material, as Gudrun
+      <code>.mint01</code> tables. The files are checked before anything is queued: three
+      numeric columns, ascending Q, within EPSR's limits.
+    </p>
+  </article>
+  <article>
+    <h2>2. Refine</h2>
+    <p>
+      A scratch start, an equilibration on the reference potential, then refinement with the
+      empirical potential switched on. You watch the iterations, the R-factor and the engine
+      log as they happen.
+    </p>
+  </article>
+  <article>
+    <h2>3. Publish</h2>
+    <p>
+      Tick the figures you want. They are pushed to Overleaf over its Git bridge as PDF,
+      with a ready-made <code>\includegraphics</code> block for each. No Overleaf
+      subscription? Download the same thing as a zip.
+    </p>
+  </article>
+</section>
+{% endblock %}

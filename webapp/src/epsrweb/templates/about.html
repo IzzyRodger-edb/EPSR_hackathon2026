@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block content %}
+<section class="prose">
+  <h1>About: what this does, and the theory behind it</h1>
+
+  <h2>The problem</h2>
+  <p>
+    A diffraction measurement on a liquid or a glass does not give you a structure. It gives
+    you one curve per sample: the differential scattering cross section F(Q), which is a
+    weighted sum of all the partial structure factors of the material. For water there are
+    three partials (O&ndash;O, O&ndash;H, H&ndash;H) behind every single measured curve, so
+    one measurement cannot be inverted &mdash; the problem is underdetermined.
+  </p>
+  <p>
+    Two things make it tractable. First, <strong>isotopic substitution</strong>: hydrogen and
+    deuterium scatter neutrons quite differently, so H<sub>2</sub>O, D<sub>2</sub>O and an
+    HDO mixture weight the same three partials in three different ways. Measure all three and
+    the problem becomes well determined. Second, <strong>a model</strong>: an atomistic
+    configuration is guaranteed to be physically possible &mdash; atoms do not overlap,
+    molecules keep their geometry &mdash; which is a constraint no direct inversion of the
+    data can impose.
+  </p>
+
+  <h2>Empirical Potential Structure Refinement</h2>
+  <p>
+    EPSR, due to A. K. Soper, is how those two ideas are combined. A Monte Carlo simulation of
+    a periodic box of molecules runs on a <em>reference potential</em> &mdash; Lennard-Jones
+    plus Coulomb, a standard force field. That alone gives a plausible liquid, but not one
+    that agrees with your data.
+  </p>
+  <p>
+    So after every few cycles the simulated F(Q) is computed for each of your samples and
+    compared with the measurement. The difference, in Q space, is fed back as a correction to
+    an <em>empirical potential</em> (EP): one extra pair potential per atom pair, refined
+    iteratively, that nudges the simulation towards the data. Its amplitude is capped by a
+    parameter called <code>ereq</code>, which is what stops the refinement from inventing
+    whatever potential reproduces the noise.
+  </p>
+  <p>
+    The result is a set of atomic configurations consistent both with a sensible force field
+    and with every measured data set at once. From them come the partial pair distribution
+    functions g(r) &mdash; and from those, the quantities people actually quote: peak
+    positions, coordination numbers, hydrogen-bond counts, bond-angle distributions,
+    tetrahedral order.
+  </p>
+
+  <h2>How to tell whether it worked</h2>
+  <ul>
+    <li>
+      <strong>The R-factor plateaus.</strong> It is the mean squared difference between data
+      and simulation over the fitted Q range. For a liquid against good neutron data it falls
+      to a few times 10<sup>-4</sup>.
+    </li>
+    <li>
+      <strong>The EP amplitude settles below <code>ereq</code>.</strong> Still rising means
+      the refinement has not finished. Pinned at <code>ereq</code> means the fit is being
+      limited by the cap, and a large EP next to the reference potential means the reference
+      potential was poor.
+    </li>
+    <li>
+      <strong>The structural numbers stop moving.</strong> First-peak positions and
+      coordination numbers that are still drifting are not results yet.
+    </li>
+    <li>
+      <strong>The pressure is plausible</strong> &mdash; a few kbar for a liquid at its
+      measured density.
+    </li>
+  </ul>
+  <p>
+    Residual misfit is not always failure. In hydrogenous samples the region below
+    Q &asymp; 2 A<sup>-1</sup> is dominated by inelasticity effects that EPSR does not model,
+    and it is normal for the fit to be worst there.
+  </p>
+</section>
+<section class="prose">
+  <h2>What this software is</h2>
+  <p>
+    The engine is a <strong>Rust translation of the Fortran EPSR suite</strong>, verified byte
+    for byte against the original on its test case and on three real systems: water on
+    SANDALS, amorphous silica and the Cu-BTC framework on NIMROD. Around it:
+  </p>
+  <dl>
+    <dt><code>epsr</code></dt>
+    <dd>the Python interface to the Rust engine.</dd>
+    <dt><code>epsrvis</code></dt>
+    <dd>
+      the analysis and plotting toolkit. It records a refinement iteration by iteration,
+      which is what makes the convergence and residual-map figures possible: EPSR itself only
+      writes its result files after the last iteration of each call, and overwrites them each
+      time.
+    </dd>
+    <dt><strong>Mellor</strong></dt>
+    <dd>
+      the agent. It inspects your data, proposes a model system as JSON, generates the EPSR
+      input files and a standalone Python script, runs the engine, analyses the result and
+      writes the discussion.
+    </dd>
+    <dt>this web app</dt>
+    <dd>
+      accounts, uploads, the job queue, the seaborn figures drawn from the run's CSV tables,
+      and the Overleaf publishing step.
+    </dd>
+  </dl>
+
+  <h2 id="trust">What the language model does and does not do</h2>
+  <p>
+    The model <strong>only</strong> produces the specification of the model system and the
+    prose. It never runs the simulation, never computes a number, and cannot execute shell
+    commands or read anything outside the folder of your run. Every figure and every number
+    on a results page comes from the engine.
+  </p>
+  <p>
+    That boundary is why each run folder contains <code>run_&lt;name&gt;.py</code>: a
+    standalone script, with the input files embedded, that reproduces the refinement using
+    only the open-source wrapper and toolkit &mdash; no model involved. If you doubt a result,
+    run that.
+  </p>
+  <p>
+    A model system outside the validated library is the model's proposal, and is marked
+    unvalidated in the report. Its force-field parameters are then yours to check.
+  </p>
+
+  <h2 id="install">Completing the installation</h2>
+  <p>
+    This app runs with or without the refinement stack. Without it you get the interface,
+    the upload validation and the Overleaf path, and every results page is stamped as a
+    demonstration. Three packages have to be importable by the server process:
+  </p>
+  <pre class="code">pip install -e ./python                                  # epsr: the engine (compiles Rust)
+pip install -e ./visualisation/python_visualisation_toolkit   # epsrvis: analysis and plots
+pip install -e ./mellor                                  # the agent itself
+pip install -e ./mellor --no-deps                        # ... or without re-resolving</pre>
+  <p>
+    The first one is the one that fails. It builds a Rust extension through
+    <code>maturin</code>, which targets the same ABI as your Python interpreter: on Windows
+    that means the <strong>MSVC</strong> toolchain, so you need Visual Studio Build Tools
+    with &ldquo;Desktop development with C++&rdquo; and
+    <code>rustup default stable-x86_64-pc-windows-msvc</code>. A GNU-only Rust toolchain
+    cannot link it. On Linux and macOS a stock Rust install and a C compiler are enough.
+  </p>
+  <p>
+    Restart the server afterwards; <code>/healthz</code> reports <code>mellor=yes</code>
+    when it worked, and the banner at the top of this page disappears. Keep the repository
+    checkout intact: Mellor resolves <code>../python</code> and
+    <code>../visualisation/python_visualisation_toolkit</code> relative to its own folder.
+  </p>
+  <p class="quiet">
+    For the local language-model backend add <code>pip install -e "./mellor[local]"</code>,
+    which pulls in torch; for the hosted backend set a Hugging Face token in
+    <a href="/settings">Settings</a>. Neither is needed for the
+    &ldquo;no language model&rdquo; option, which refines against a validated system.
+  </p>
+
+  <h2>References</h2>
+  <ol class="refs">
+    <li>
+      A. K. Soper, &ldquo;Empirical potential Monte Carlo simulation of fluid
+      structure&rdquo;, <em>Chem. Phys.</em> <strong>202</strong>, 295&ndash;306 (1996).
+    </li>
+    <li>
+      A. K. Soper, &ldquo;Partial structure factors from disordered materials diffraction
+      data: an approach using empirical potential structure refinement&rdquo;,
+      <em>Phys. Rev. B</em> <strong>72</strong>, 104204 (2005).
+    </li>
+    <li>
+      A. K. Soper, &ldquo;Empirical Potential Structure Refinement: EPSRshell, a user's
+      guide&rdquo;, Rutherford Appleton Laboratory Technical Report RAL-TR-2011-012 (2011)
+      &mdash; the manual of the original Fortran program the Rust engine reproduces.
+    </li>
+    <li>
+      A. K. Soper, &ldquo;GudrunN and GudrunX: programs for correcting raw neutron and X-ray
+      diffraction data to differential scattering cross section&rdquo;, RAL-TR-2011-013
+      (2011) &mdash; the program that produces the <code>.mint01</code> files you upload.
+    </li>
+    <li>
+      T. G. A. Youngs, &ldquo;Dissolve: next generation software for the interrogation of
+      total scattering data by empirical potential generation&rdquo;, <em>Mol. Phys.</em>
+      <strong>117</strong>, 3464&ndash;3477 (2019) &mdash; the source of the example systems
+      and data.
+    </li>
+  </ol>
+  <p class="quiet">
+    Longer explanations live in the repository: <code>python/docs/user_guide.md</code> for the
+    workflow and the files, <code>validation/README.md</code> for the three validated systems
+    on real data and their numbers, and the visualisation toolkit's README for what each
+    figure shows and how the R-factor, R squared, coordination number and tetrahedral order
+    are defined.
+  </p>
+</section>
+{% endblock %}

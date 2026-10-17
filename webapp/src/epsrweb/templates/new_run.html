@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}New run{% endblock %}
+{% block content %}
+<section class="narrow">
+  <h1>New refinement</h1>
+  <p class="lede">
+    Upload every isotopic sample of one material together. The titles in the file headers are
+    what the agent reads to recognise the samples, so add a sentence below if they do not say
+    what the material is.
+  </p>
+
+  <form method="post" action="/runs" enctype="multipart/form-data" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+
+    <label>Data files
+      <input type="file" name="files" multiple required accept=".mint01,.dat,.txt,.msubw01">
+      <span class="quiet">
+        Gudrun <code>.mint01</code> tables: Q, F(Q), error. Up to {{ max_files }} files,
+        {{ max_upload }} each. Checked before the job is queued.
+      </span>
+    </label>
+
+    <label>Title <span class="quiet">(optional)</span>
+      <input type="text" name="title" maxlength="200" placeholder="Liquid water at 25 C">
+    </label>
+
+    <label>Anything the agent should know <span class="quiet">(optional)</span>
+      <textarea name="prompt" rows="3"
+        placeholder="Liquid water at 25 C, three isotopic samples: H2O, D2O and a 50:50 HDO mixture."></textarea>
+      <span class="quiet">
+        Composition, temperature and density if the file headers do not carry them.
+      </span>
+    </label>
+
+    <fieldset>
+      <legend>How should the model system be chosen?</legend>
+      {% for value, label, needs_token in backends %}
+      <label class="radio">
+        <input type="radio" name="backend" value="{{ value }}" {% if loop.first %}checked{% endif %}>
+        <span>{{ label }}</span>
+      </label>
+      {% endfor %}
+      <label>Validated system <span class="quiet">(used by the "no language model" option)</span>
+        <select name="system">
+          <option value="">let the agent decide</option>
+          {% for system in known_systems %}
+          <option value="{{ system }}">{{ system }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Model id <span class="quiet">(hosted or local backends)</span>
+        <input type="text" name="model" value="{{ default_model }}">
+      </label>
+    </fieldset>
+
+    <label class="check">
+      <input type="checkbox" name="quick" value="1" checked>
+      <span>
+        Quick schedule &mdash; 10 iterations per stage, a minute or two. Leave this on for a
+        first look; turn it off for the full schedule (99 + 2 &times; 100 iterations, about ten
+        minutes for water on a 20-core machine).
+      </span>
+    </label>
+
+    <button type="submit" class="button">Start the refinement</button>
+  </form>
+
+  <details class="aside">
+    <summary>What happens next</summary>
+    <ol>
+      <li>The files are validated and copied into a folder that belongs to this run alone.</li>
+      <li>The agent proposes a model system; the code generates the EPSR inputs and a
+        standalone Python script.</li>
+      <li>The engine runs a scratch start, an equilibration on the reference potential, then
+        refinement with the empirical potential.</li>
+      <li>Figures, the tidy CSV tables, the analysis and the PDF report are written; the
+        results page draws its own seaborn figures from the tables.</li>
+    </ol>
+    <p>
+      You can leave the page: the job keeps running and the results page replays the whole
+      log when you come back.
+    </p>
+  </details>
+</section>
+{% endblock %}

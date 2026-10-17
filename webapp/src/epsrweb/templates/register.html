@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Create an account{% endblock %}
+{% block content %}
+<section class="narrow">
+  <h1>Create an account</h1>
+  <p class="quiet">
+    Your runs, uploads and chat transcripts are kept under your account and are deleted
+    with it. Nothing is shared with other users.
+  </p>
+  <form method="post" action="/register" class="stack">
+    <label>Email address
+      <input type="email" name="email" autocomplete="username" required autofocus>
+    </label>
+    <label>Password <span class="quiet">(at least 10 characters)</span>
+      <input type="password" name="password" autocomplete="new-password" required minlength="10">
+    </label>
+    <label>Password again
+      <input type="password" name="confirm" autocomplete="new-password" required minlength="10">
+    </label>
+    <button type="submit" class="button">Create account</button>
+  </form>
+</section>
+{% endblock %}

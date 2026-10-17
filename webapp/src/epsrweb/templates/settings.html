@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<section class="narrow">
+  <h1>Settings</h1>
+  <p class="quiet">Signed in as <strong>{{ user.email }}</strong>.</p>
+
+  <h2>Overleaf</h2>
+  <p>
+    Overleaf has no public upload API. The supported route is its <strong>Git bridge</strong>,
+    which this server drives for you: it clones your project, copies the figures you ticked
+    into <code>figures/</code>, commits and pushes.
+  </p>
+  <div class="strip">
+    Git integration is an <strong>Overleaf premium feature</strong> (Commons institutions,
+    group subscriptions or an individual subscription). Without it the push will be refused
+    and you should use <em>Download zip</em> on the results page instead, which gives you the
+    same figures plus a <code>figures.tex</code> of ready-made blocks to drag into the editor.
+  </div>
+
+  <form method="post" action="/settings/overleaf" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <label>Project URL
+      <input type="text" name="project" placeholder="https://www.overleaf.com/project/65f1c0ffee1234567890abcd"
+             value="{{ user.overleaf_project_url or '' }}">
+      <span class="quiet">
+        {% if user.overleaf_project_id %}Current project id:
+        <code>{{ user.overleaf_project_id }}</code>.{% else %}
+        Open the project in Overleaf and copy the address bar.{% endif %}
+      </span>
+    </label>
+    <label>Git authentication token
+      <input type="password" name="token" autocomplete="off"
+             placeholder="{% if user.has_overleaf_token %}stored; leave blank to keep it{% else %}olp_...{% endif %}">
+      <span class="quiet">
+        Overleaf &rarr; Account Settings &rarr; Git integration &rarr; create a token.
+        Git uses the username <code>git</code> with the token as the password; this server
+        supplies it to git through an askpass helper, so it never appears on a command line
+        or in a stored remote.
+      </span>
+    </label>
+    <button type="submit" class="button">Save</button>
+  </form>
+
+  {% if user.has_overleaf_token %}
+  <form method="post" action="/settings/overleaf/forget" class="inline"
+        onsubmit="return confirm('Delete the stored token? Revoke it in Overleaf too.')">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <button type="submit" class="linkish danger">Delete the stored token</button>
+  </form>
+  {% endif %}
+
+  <div class="strip warn">
+    <strong>One token covers every project in your account.</strong> It is encrypted at rest
+    here with a key the application holds, is never logged, and is never rendered back into a
+    page. Even so, treat it as a password: delete it above and revoke it in Overleaf when you
+    are done, and never use an account token on a server you do not trust.
+  </div>
+
+  <h2>Hugging Face</h2>
+  <p>
+    Needed for the hosted backend, which is how the agent runs on a server without a GPU.
+    The token must be fine-grained with <em>Make calls to Inference Providers</em>; tokens are
+    billed per token to the account that owns them. A full pipeline is a few tens of thousands
+    of tokens.
+  </p>
+  <p class="quiet">
+    {% if server_hf_token %}This server has its own <code>HF_TOKEN</code>, which is used when
+    you have not set one.{% else %}This server has no <code>HF_TOKEN</code> of its own, so a
+    hosted run needs a token here.{% endif %}
+  </p>
+  <form method="post" action="/settings/hf" class="stack">
+    <input type="hidden" name="csrf" value="{{ csrf_token(request) }}">
+    <label>Token
+      <input type="password" name="token" autocomplete="off"
+             placeholder="{% if user.has_hf_token %}stored; submit blank to delete it{% else %}hf_...{% endif %}">
+    </label>
+    <button type="submit" class="button">Save</button>
+  </form>
+
+  {% if pushes %}
+  <h2>Recent pushes to Overleaf</h2>
+  <table class="numbers">
+    <thead><tr><th>When</th><th>Project</th><th>Figures</th><th>Result</th></tr></thead>
+    <tbody>
+      {% for push in pushes %}
+      <tr>
+        <td class="mono quiet">{{ push.created_at }}</td>
+        <td class="mono quiet">{{ push.project_id }}</td>
+        <td class="quiet">{{ push.figures }}</td>
+        <td>
+          <span class="pill {{ 'done' if push.status == 'ok' else 'failed' }}">{{ push.status }}</span>
+          <div class="quiet">{{ push.detail }}</div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+{% endblock %}

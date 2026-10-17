@@ -240,7 +240,9 @@ this plan — flagged here, out of scope.
 For every parallel change, in order:
 
 1. `cargo test` — the reference hashes in `tests/reference_hashes.txt` must pass
-   **unchanged** (no regenerated references).
+   **unchanged** (no regenerated references). (Since the bug-fix pass, a few
+   feature-gated ex-cases deliberately diverge from the Fortran — see
+   `FORTRAN_BUGS.md`; the main-case hashes are unaffected and this rule stands.)
 2. Run the test case at `RAYON_NUM_THREADS=1` and at the machine's core count; output
    hashes must be identical at any thread count.
 3. Compare before/after `timing>` phase lines to confirm the change actually pays — if

@@ -29,3 +29,10 @@ Inputs are generated from the base EPSR-test files by `scripts/` (see `scripts/m
 ## Verification
 gcov: `npairspcof=npairspcof+1` executed twice, `check_symbol` ncoeffp block once.
 Rust vs Fortran: **ALL IDENTICAL** in both passes.
+
+## Expected divergence from the Fortran (deliberate bug fix)
+
+Since the bug-fix pass (see FORTRAN_BUGS.md at the repo root), this case
+deliberately differs from the Fortran reference because of the new-pair fix: a pair added at save time now gets coulfac/efacp/coordex defaults (1.0/1.0/0.0) instead of unset zeros, so later passes include its Coulomb term and refine its EP.
+The difference is the fix working; run_ex_test.sh reporting SOME FILES DIFFER
+here is expected.

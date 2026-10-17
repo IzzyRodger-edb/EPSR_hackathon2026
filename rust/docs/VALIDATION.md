@@ -135,12 +135,46 @@ so that results are identical; these are flagged in comments:
   iterations of a multi-iteration run; gfortran writes the value from the
   last `.erg` line, which the port reproduces (`Epsr::rfacraw_last`).
 
+### Fortran bugs deliberately FIXED in the port (documented divergences)
+Since the bug-fix pass (see `FORTRAN_BUGS.md` at the repo root), a small set
+of feature-gated Fortran bugs is fixed rather than reproduced, so the
+affected ex-cases **deliberately differ** from the Fortran:
+
+* **Three-body angles corrupted to radians at `.pcof` save time** (the
+  in-memory cosines/width/amplitudes were overwritten by `save_files_others`
+  every iteration, blowing up the triplet energy from iteration 2). Fixed in
+  `threebody.rs::write_pcof_threebody`; ex110/ex111 diverge from iteration 2
+  (ex110 iteration-2 energy: Fortran +1953.6 kJ/mol, Rust −39.4); ex112–114
+  remain identical.
+* **Coordination-constraint angle built from the same arm twice**
+  (`adistcc(i,ia)` for both arms). Fixed in `coordconstraint.rs`; ex117 and
+  ex118 diverge (ex115/116/119 do not exercise angle constraints and remain
+  identical).
+* **New pair added at save time had `coulfac`/`efacp`/`coordex` = 0** (no
+  Coulomb term, EP never refined). Fixed in `pcof.rs`; ex108 diverges
+  (ex109's fresh-start pairs are re-read from file before use and remain
+  identical).
+* **`igauss` incremented instead of decremented on a `.pcof` read error**
+  (bad Gaussian double-counted). Fixed in `pcof.rs`; error path only, no case
+  affected.
+* **Pressure keyword `ca` selected no axis** (`ac` rejected). Fixed in
+  `pressure.rs`; no case uses `ca`/`ac`, so none diverges today.
+
+The main test case, `reference_hashes.txt`, `thread_invariance.rs` and the
+water/silica validation exercise none of these features and remain
+byte-identical to the Fortran. So "115/115 identical" above now carries the
+documented exceptions listed here; the affected case READMEs say the same.
+
 ### Threads
 All OpenMP loops executed by the test case write to independent array
 elements and are therefore thread-count independent, except the
 close-contact counter `potex` in `atogen`, which is updated without
 synchronisation.  It only matters when `rminex > 0` (not the case in the test
-input).  The Rust port is serial and corresponds to `OMP_NUM_THREADS=1`.
+input).  The Rust port parallelises the corresponding loops with rayon
+(`PARALLELISM_PLAN.md`) and is byte-identical at any thread count
+(`tests/thread_invariance.rs`); the `potex` counter is accumulated per thread
+and merged, so the Fortran's race is fixed properly.  The scalar reference
+comparison corresponds to `OMP_NUM_THREADS=1`.
 
 ### Coverage
 Every optional feature of `epsr` now has a reference comparison (FORTRAN_MAP.md lists feature → case). The

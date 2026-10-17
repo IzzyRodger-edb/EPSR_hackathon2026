@@ -1,0 +1,67 @@
+[build-system]
+requires = ["maturin>=1.5,<2"]
+build-backend = "maturin"
+
+[project]
+name = "epsr-py"
+version = "0.1.0"
+description = "Python interface to the Rust port of EPSR (Empirical Potential Structure Refinement)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Scientific/Engineering :: Chemistry",
+]
+
+[project.optional-dependencies]
+plot = ["matplotlib>=3.7"]
+pandas = ["pandas>=2.0"]
+progress = ["tqdm>=4.60"]
+all = ["matplotlib>=3.7", "pandas>=2.0", "tqdm>=4.60"]
+
+[dependency-groups]
+dev = ["maturin>=1.5,<2", "pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+
+[tool.maturin]
+# Mixed Rust/Python project: the pure-Python package `epsr/` sits next to this file
+# and the extension is installed as `epsr._core`.
+module-name = "epsr._core"
+bindings = "pyo3"
+profile = "release"
+
+[tool.uv]
+# Rebuild the extension whenever the bindings or the Rust engine change.
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "src/**/*.rs" },
+    { file = "../rust/epsr-core/Cargo.toml" },
+    { file = "../rust/epsr-core/src/**/*.rs" },
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: long-running tests (full replay of the EPSR-test-ex verification cases)",
+]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+extend-exclude = ["target"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "NPY"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = false
+warn_unused_ignores = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+files = ["epsr"]

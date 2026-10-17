@@ -1,0 +1,29 @@
+[package]
+name = "epsr-py"
+description = "Python bindings (PyO3) for the Rust EPSR engine"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+# Own workspace root: keeps PyO3 and Python headers out of rust/ (see PLAN.md §2).
+[workspace]
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+epsr-core = { path = "../rust/epsr-core" }
+pyo3 = { version = "0.30", features = ["abi3-py310"] }
+numpy = "0.30"
+
+[profile.release]
+opt-level = 3
+debug = 1
+
+[profile.dev]
+# The engine is very slow unoptimised; build dependencies optimised even in debug.
+[profile.dev.package."*"]
+opt-level = 3

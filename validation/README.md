@@ -20,7 +20,78 @@ For how these calculations map onto the Rust API (for the Python wrapper), see
 
 ## Results
 
-RESULTS_PLACEHOLDER
+**Both cases: every file is byte-identical between Fortran and Rust after every
+step.** The only masking is the date on line 2 of `.EPSR.out` and the timing
+columns of `fort.35`.
+
+| case | steps | EPSR iterations | files compared after the last step | result |
+|------|-------|-----------------|------------------------------------|--------|
+| water | 15 (7 setup, 4 EPSR runs, 4 edits) | 300 | 39 | ALL STEPS IDENTICAL |
+| silica_bulk | 12 (5 setup, 4 EPSR runs, 3 edits) | 300 | 36 | ALL STEPS IDENTICAL |
+
+That covers the setup programs (`makemole`, `mixato`, `randomise`, `fmole`, `nwts`),
+a scratch start without a `.pcof`, 99 iterations on the reference potential, and two
+100-iteration runs with the empirical potential, the second restarting from the
+first's files. MC trajectories are chaotic, so a one-ulp difference anywhere would
+have grown into visible differences within a few iterations.
+
+The same steps run through the **library API** (`api_driver/`, i.e. `run_tool` and
+`Epsr::setup` + `run`, as a Python wrapper would call them) also give a folder
+identical to the Fortran one. The only extra files are the driver's own
+`api_fit_<n>.txt`.
+
+State after the last run (from `sim.summary`; identical to the Fortran `.erg`):
+
+| case | energy / molecule [kJ/mol] | EPSR pressure | EP amplitude `energabs` | R-factor total | R-factor per data set |
+|------|------------------|----------|-----------|---------|-------------|
+| water | −44.89 | 3.87 | 3.00 (= `ereq`) | 2.22×10⁻⁴ | D₂O 2.13×10⁻⁴, HDO 2.30×10⁻⁴, H₂O 2.24×10⁻⁴ |
+| silica | −845.3 | 108.7 | 23.7 (rising towards `ereq` 50) | 2.30×10⁻⁴ | 2.30×10⁻⁴ |
+
+R-factor history: water fell from 2.1×10⁻² (random start) to 6.1×10⁻⁴ after the
+reference-potential stage, then to 2.2×10⁻⁴ with the EP. Silica went from
+3.5×10⁻³ to 1.0×10⁻³, then to 2.3×10⁻⁴. The water energy of −45 kJ/mol is typical
+for this kind of water model. The silica schedule is too short for a converged
+refinement: the EP amplitude was still rising and the pressure is high.
+
+Speed: Rust took 1.2–1.6× as long as the Fortran. Each code ran single-threaded and the two codes alternated, but the two cases sometimes ran at the same time on this multi-core machine.
+Water: 1.32 vs 1.62 s per iteration on the reference potential, 1.55 vs 2.4 s with
+the EP. Silica: 2.05 vs 2.7 s, then 2.1 vs 3.1–3.2 s.
+
+### Discrepancies and issues found
+
+1. **`fmole` with the molecule's `.mol` file present: not ported (Rust stops).**
+   The Fortran `fmole` first runs `makemole` on every template whose `.mol` is in
+   the folder. That is the normal situation, because the user just ran `makemole`.
+   The Rust port stops with `not supported by the Rust port: fmole: template
+   ./Water.mol exists ...`. This is a known, documented gap
+   (`rust/epsr-core/src/tools/fmole.rs`, header comment). Porting it needs care:
+   that `makemole` runs inside `fmole` and writes `fmole`'s random-number state into
+   the template `.ato`. On the first attempt the Rust `fmole` exited with that error,
+   so `Water.ato` and `waterbox.ato` differed from the Fortran from then on.
+   *Workaround used:* delete `Water.mol` before `fmole` (step 4 of `water/steps.txt`).
+   The Rust code was not changed.
+2. **The setup programs depend on the current working directory (faithful, but
+   matters for the wrapper).** `mixato` (and the other interactive programs) read
+   `system_commands.txt`, write `dirlist.txt` and open typed file names in the
+   *current* directory, not in the folder passed to them. Run from another
+   directory, both the Fortran and the Rust `mixato` report "No .ato files found"
+   and write no box. A wrapper must `chdir` into the folder. Setting up several
+   folders in parallel therefore needs separate processes, not threads. This
+   contradicts a remark in `rust/docs/PYTHON_WRAPPER_NOTES.md` §7; see
+   PYTHON_WRAPPER_WORKFLOW.md §6.1.
+3. **Unexplained one-off failure of the API driver (not reproduced).** One early
+   run of both cases through `api_driver`, launched in parallel, stopped at the
+   second `Epsr::setup` with `Io("No such file or directory (os error 2)")`. The
+   message names no file. Both cases then ran through the same driver binary
+   without error, one of them concurrently with other jobs. The error could have
+   come from the driver or from the engine; I couldn't tell which. It is listed
+   here because an `EpsrError::Io` without a file name is hard to diagnose. Adding
+   the path to those messages would help wrapper users.
+
+Faithful Fortran behaviours worth knowing (reproduced by the port, not bugs in it):
+a `.pcof` with zero pairs switches Coulomb off; the default `.pcof` has `ereq = 0`;
+`ireset`/`iinit` are reset to 0 after a run; `nrtype 5` treats Q as bin edges.
+See PYTHON_WRAPPER_WORKFLOW.md §6.
 
 ## How to reproduce
 

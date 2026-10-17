@@ -24,7 +24,15 @@ progress = ["tqdm>=4.60"]
 all = ["matplotlib>=3.7", "pandas>=2.0", "tqdm>=4.60"]
 
 [dependency-groups]
-dev = ["maturin>=1.5,<2", "pytest>=8", "ruff>=0.6", "mypy>=1.10"]
+dev = [
+    "maturin>=1.5,<2",
+    "pytest>=8",
+    "ruff>=0.6",
+    "mypy>=1.10",
+    "pytest-xdist>=3.8.0",
+    "black>=26.10.1",
+    "isort>=9.0.2",
+]
 
 [tool.maturin]
 # Mixed Rust/Python project: the pure-Python package `epsr/` sits next to this file
@@ -50,13 +58,26 @@ markers = [
 ]
 addopts = "-ra"
 
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+extend-exclude = "target"
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = ["epsr"]
+known_local_folder = ["epsr_cases", "conftest"]
+skip_glob = ["target/*", ".venv/*"]
+
 [tool.ruff]
-line-length = 110
+# Linting only: formatting is done by black, import order by isort.
+line-length = 100
 target-version = "py310"
-extend-exclude = ["target"]
+extend-exclude = ["target", "*.md"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM", "NPY"]
+select = ["E", "F", "W", "UP", "B", "SIM", "NPY", "N"]
 
 [tool.mypy]
 python_version = "3.10"

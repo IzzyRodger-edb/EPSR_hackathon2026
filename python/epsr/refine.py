@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from collections.abc import Callable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from os import PathLike
 from pathlib import Path
@@ -12,13 +12,14 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from .io import ERG_COLUMNS, _import_optional, read_erg
+from .io import ERG_COLUMNS, import_optional, read_erg
 from .project import Project
 from .simulation import Overrides, Simulation, Summary, render_overrides
 
 __all__ = ["History", "refine", "refine_many"]
 
-_SUMMARY_COLUMNS = (
+#: Summary fields recorded for every run (in addition to ``run`` and ``r_factor_per_dataset``).
+SUMMARY_COLUMNS = (
     "iteration",
     "energy",
     "energy_inter",
@@ -38,108 +39,110 @@ class History:
     """Column-oriented record of EPSR runs.
 
     Each column is available as an attribute returning a numpy array, e.g.
-    ``hist.r_factor``. A history built from :func:`refine` has the columns of
+    ``history.r_factor``. A history built from :func:`refine` has the columns of
     :class:`~epsr.Summary` plus ``run`` and ``r_factor_per_dataset`` (2-D); one
     read from an ``.erg`` file (:meth:`from_erg`) has :data:`epsr.io.ERG_COLUMNS`.
     """
 
     def __init__(self, columns: dict[str, list[Any]] | None = None) -> None:
-        self._cols: dict[str, list[Any]] = columns if columns is not None else {}
+        self._columns: dict[str, list[Any]] = columns if columns is not None else {}
         self.summaries: list[Summary] = []
 
     @classmethod
     def from_summaries(cls, summaries: Sequence[Summary]) -> History:
-        h = cls()
-        for s in summaries:
-            h.append(s)
-        return h
+        history = cls()
+        for summary in summaries:
+            history.append(summary)
+        return history
 
     @classmethod
     def from_erg(cls, path: str | PathLike[str]) -> History:
         """Read the ``.erg`` file, one row per EPSR iteration ever run in the folder."""
-        data = read_erg(path)
-        cols: dict[str, list[Any]] = {name: list(data[:, i]) for i, name in enumerate(ERG_COLUMNS)}
-        cols["run"] = list(range(1, len(data) + 1))
-        return cls(cols)
+        erg_data = read_erg(path)
+        columns: dict[str, list[Any]] = {
+            name: list(erg_data[:, column_index]) for column_index, name in enumerate(ERG_COLUMNS)
+        }
+        columns["run"] = list(range(1, len(erg_data) + 1))
+        return cls(columns)
 
     def append(self, summary: Summary) -> None:
-        n = len(self) + 1
-        self._cols.setdefault("run", []).append(n)
-        for name in _SUMMARY_COLUMNS:
-            self._cols.setdefault(name, []).append(getattr(summary, name))
-        self._cols.setdefault("r_factor_per_dataset", []).append(summary.r_factor_per_dataset)
+        """Add one run's summary as a new row."""
+        run_number = len(self) + 1
+        self._columns.setdefault("run", []).append(run_number)
+        for name in SUMMARY_COLUMNS:
+            self._columns.setdefault(name, []).append(getattr(summary, name))
+        self._columns.setdefault("r_factor_per_dataset", []).append(summary.r_factor_per_dataset)
         self.summaries.append(summary)
 
     @property
     def columns(self) -> list[str]:
-        return list(self._cols)
+        return list(self._columns)
 
     def column(self, name: str) -> npt.NDArray[Any]:
         try:
-            return np.asarray(self._cols[name])
+            return np.asarray(self._columns[name])
         except KeyError:
             raise KeyError(f"no column {name!r}; columns are {self.columns}") from None
 
     def __getattr__(self, name: str) -> npt.NDArray[Any]:
+        # Called only for names that are not normal attributes: treat them as columns.
         if name.startswith("_"):
             raise AttributeError(name)
         try:
             return self.column(name)
-        except KeyError as e:
-            raise AttributeError(str(e)) from None
+        except KeyError as error:
+            raise AttributeError(str(error)) from None
 
     def __len__(self) -> int:
-        return len(self._cols.get("run", []))
+        return len(self._columns.get("run", []))
 
-    def __getitem__(self, i: int) -> dict[str, Any]:
-        return {k: v[i] for k, v in self._cols.items()}
+    def __getitem__(self, row: int) -> dict[str, Any]:
+        """One row as a dict of column values."""
+        return {name: values[row] for name, values in self._columns.items()}
 
     def __iter__(self) -> Iterator[dict[str, Any]]:
-        return (self[i] for i in range(len(self)))
+        return (self[row] for row in range(len(self)))
 
     def __repr__(self) -> str:
         return f"<epsr.History {len(self)} rows, columns {self.columns}>"
 
-    def _flat(self) -> dict[str, npt.NDArray[Any]]:
-        out: dict[str, npt.NDArray[Any]] = {}
-        for k in self._cols:
-            a = self.column(k)
-            if a.ndim == 2:
-                for j in range(a.shape[1]):
-                    out[f"{k}_{j}"] = a[:, j]
+    def _flat_columns(self) -> dict[str, npt.NDArray[Any]]:
+        """All columns as 1-D arrays; a 2-D column ``name`` becomes ``name_0``, ``name_1``..."""
+        flat: dict[str, npt.NDArray[Any]] = {}
+        for name in self._columns:
+            values = self.column(name)
+            if values.ndim == 2:
+                for sub_index in range(values.shape[1]):
+                    flat[f"{name}_{sub_index}"] = values[:, sub_index]
             else:
-                out[k] = a
-        return out
+                flat[name] = values
+        return flat
 
     def to_csv(self, path: str | PathLike[str]) -> Path:
         """Write the history as CSV (2-D columns are split into ``name_0, name_1...``)."""
-        flat = self._flat()
+        flat = self._flat_columns()
         path = Path(path)
-        np.savetxt(
-            path,
-            np.column_stack(list(flat.values())) if flat else np.empty((0, 0)),
-            delimiter=",",
-            header=",".join(flat),
-            comments="",
-        )
+        table = np.column_stack(list(flat.values())) if flat else np.empty((0, 0))
+        np.savetxt(path, table, delimiter=",", header=",".join(flat), comments="")
         return path
 
     def to_dataframe(self) -> Any:
         """Return a ``pandas.DataFrame`` (requires the ``pandas`` extra)."""
-        pd = _import_optional("pandas", "pandas")
-        return pd.DataFrame(self._flat())
+        pandas = import_optional("pandas", extra="pandas")
+        return pandas.DataFrame(self._flat_columns())
 
 
-def _progress(iterable: Sequence[int], enabled: bool | None, total: int) -> Any:
+def _with_progress_bar(run_numbers: Iterable[int], enabled: bool | None, total: int) -> Any:
+    """Wrap ``run_numbers`` in a tqdm progress bar when enabled and tqdm is installed."""
     if enabled is None:
         enabled = sys.stdout.isatty()
     if not enabled:
-        return iterable
+        return run_numbers
     try:
         from tqdm.auto import tqdm
     except ImportError:
-        return iterable
-    return tqdm(iterable, total=total, desc="EPSR", unit="run")
+        return run_numbers
+    return tqdm(run_numbers, total=total, desc="EPSR", unit="run")
 
 
 def refine(
@@ -169,7 +172,8 @@ def refine(
         Applied to the first run only, after ``overrides`` (e.g. ``{"ireset": 1}``,
         which must not be repeated).
     callback:
-        ``callback(k, sim)`` after run ``k`` (1-based); return ``True`` to stop.
+        ``callback(run_number, simulation)`` after each run (1-based); return
+        ``True`` to stop.
     until:
         ``until(history)`` after each run; stop when it returns true.
     snapshot_every:
@@ -177,37 +181,48 @@ def refine(
     progress:
         Show a ``tqdm`` progress bar (if installed). Default: when stdout is a terminal.
     """
-    proj = project if isinstance(project, Project) else Project(project)
-    hist = History()
-    for k in _progress(range(1, n_runs + 1), progress, n_runs):
-        lines = _combine_overrides(overrides, initial_overrides if k == 1 else None)
-        sim = proj.simulation(lines, verbose=verbose)
-        sim.run()
-        hist.append(sim.summary)
-        if snapshot_every and k % snapshot_every == 0:
-            proj.snapshot(f"run{k:04d}", overwrite=True)
-        stop = bool(callback(k, sim)) if callback is not None else False
-        if stop or (until is not None and until(hist)):
+    if not isinstance(project, Project):
+        project = Project(project)
+    history = History()
+
+    for run_number in _with_progress_bar(range(1, n_runs + 1), progress, n_runs):
+        first_run_overrides = initial_overrides if run_number == 1 else None
+        override_lines = _combine_overrides(overrides, first_run_overrides)
+        simulation = project.simulation(override_lines, verbose=verbose)
+        simulation.run()
+        history.append(simulation.summary)
+
+        if snapshot_every and run_number % snapshot_every == 0:
+            project.snapshot(f"run{run_number:04d}", overwrite=True)
+
+        callback_asks_to_stop = callback is not None and bool(callback(run_number, simulation))
+        target_reached = until is not None and until(history)
+        if callback_asks_to_stop or target_reached:
             break
-    return hist
+    return history
 
 
-def _combine_overrides(overrides: Overrides, extra: Overrides) -> list[str]:
+def _combine_overrides(overrides: Overrides, extra_overrides: Overrides) -> list[str]:
     """Combine two override sets into one list of input lines.
 
-    Two mappings are merged (``extra`` wins; ``data`` blocks merged per dataset)
-    so that all global keywords precede the dataset blocks. Otherwise the line
-    lists are concatenated.
+    Two mappings are merged (``extra_overrides`` wins; ``data`` blocks merged per
+    dataset) so that all global keywords precede the dataset blocks. Otherwise
+    the line lists are concatenated.
     """
-    if isinstance(overrides, Mapping) and isinstance(extra, Mapping):
-        merged: dict[str, Any] = {**overrides, **extra}
-        if "data" in overrides and "data" in extra:
-            data = {n: dict(v) for n, v in overrides["data"].items()}
-            for n, v in extra["data"].items():
-                data.setdefault(n, {}).update(v)
-            merged["data"] = data
-        return render_overrides(merged)
-    return render_overrides(overrides) + render_overrides(extra)
+    both_are_mappings = isinstance(overrides, Mapping) and isinstance(extra_overrides, Mapping)
+    if not both_are_mappings:
+        return render_overrides(overrides) + render_overrides(extra_overrides)
+
+    assert isinstance(overrides, Mapping) and isinstance(extra_overrides, Mapping)
+    merged: dict[str, Any] = {**overrides, **extra_overrides}
+    if "data" in overrides and "data" in extra_overrides:
+        merged_datasets = {
+            dataset_number: dict(keywords) for dataset_number, keywords in overrides["data"].items()
+        }
+        for dataset_number, keywords in extra_overrides["data"].items():
+            merged_datasets.setdefault(dataset_number, {}).update(keywords)
+        merged["data"] = merged_datasets
+    return render_overrides(merged)
 
 
 def refine_many(
@@ -215,7 +230,7 @@ def refine_many(
     n_runs: int,
     *,
     workers: int | None = None,
-    **kwargs: Any,
+    **refine_options: Any,
 ) -> list[History]:
     """Refine several *different* folders in parallel threads.
 
@@ -223,10 +238,13 @@ def refine_many(
     concurrently. Keyword arguments are passed to :func:`refine` (``progress``
     defaults to off). Never pass the same folder twice.
     """
-    folders = [Path(p.folder if isinstance(p, Project) else p).resolve() for p in projects]
+    folders = [
+        Path(project.folder if isinstance(project, Project) else project).resolve()
+        for project in projects
+    ]
     if len(set(folders)) != len(folders):
         raise ValueError("refine_many: the same folder appears more than once")
-    kwargs.setdefault("progress", False)
+    refine_options.setdefault("progress", False)
     with ThreadPoolExecutor(max_workers=workers or len(projects)) as pool:
-        futures = [pool.submit(refine, p, n_runs, **kwargs) for p in projects]
-        return [f.result() for f in futures]
+        futures = [pool.submit(refine, project, n_runs, **refine_options) for project in projects]
+        return [future.result() for future in futures]

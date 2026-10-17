@@ -5,39 +5,47 @@ from __future__ import annotations
 import shutil
 from os import PathLike
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .io import KeywordFile, Table, read_keyword_file, read_table_series
 from .simulation import Overrides, Simulation, find_inp
 
+if TYPE_CHECKING:
+    from .refine import History
+
 __all__ = ["Project", "copy_folder"]
 
 
-def copy_folder(src: str | PathLike[str], dst: str | PathLike[str], *, overwrite: bool = False) -> Path:
-    """Copy the regular files of ``src`` (not subfolders) into a new folder ``dst``.
+def copy_folder(
+    source: str | PathLike[str], destination: str | PathLike[str], *, overwrite: bool = False
+) -> Path:
+    """Copy the regular files of ``source`` (not subfolders) into a new folder ``destination``.
 
-    Refuses to touch an existing non-empty ``dst`` unless ``overwrite`` is true,
-    in which case ``dst`` is deleted first.
+    Refuses to touch an existing non-empty ``destination`` unless ``overwrite``
+    is true, in which case ``destination`` is deleted first.
     """
-    src, dst = Path(src), Path(dst)
-    if not src.is_dir():
-        raise FileNotFoundError(f"template folder {src} does not exist")
-    if dst.exists() and any(dst.iterdir()):
+    source, destination = Path(source), Path(destination)
+    if not source.is_dir():
+        raise FileNotFoundError(f"template folder {source} does not exist")
+    if destination.exists() and any(destination.iterdir()):
         if not overwrite:
-            raise FileExistsError(f"{dst} exists and is not empty; pass overwrite=True to replace it")
-        shutil.rmtree(dst)
-    dst.mkdir(parents=True, exist_ok=True)
-    for p in src.iterdir():
-        if p.is_file():
-            shutil.copy2(p, dst / p.name)
-    return dst
+            raise FileExistsError(
+                f"{destination} exists and is not empty; pass overwrite=True to replace it"
+            )
+        shutil.rmtree(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+    for source_file in source.iterdir():
+        if source_file.is_file():
+            shutil.copy2(source_file, destination / source_file.name)
+    return destination
 
 
 class Project:
     """An EPSR simulation folder.
 
-    >>> proj = Project.from_template("EPSR-test", "work/dmso")   # copy, then work on the copy
-    >>> sim = proj.simulation(overrides={"ntimes": 5})
-    >>> sim.run()
+    >>> project = Project.from_template("EPSR-test", "work/dmso")  # copy, then use the copy
+    >>> simulation = project.simulation(overrides={"ntimes": 5})
+    >>> simulation.run()
 
     Every EPSR run rewrites ``.ato``, ``.pcof``, ``.EPSR.inp`` and ``.EPSR.inpa``
     in the folder and appends to ``.erg``. Always work on a copy of your
@@ -68,7 +76,7 @@ class Project:
     @property
     def run_name(self) -> str:
         """Prefix of the output files, e.g. ``200DMSO400Water.EPSR``."""
-        return self.inp_name[: -len(".inp")] if self.inp_name.endswith(".inp") else self.inp_name
+        return self.inp_name.removesuffix(".inp")
 
     def simulation(self, overrides: Overrides = None, *, verbose: bool = False) -> Simulation:
         """Read the folder into a new :class:`Simulation` (one EPSR run)."""
@@ -76,18 +84,21 @@ class Project:
 
     def snapshot(self, label: str, *, overwrite: bool = False) -> Path:
         """Copy the folder's files to ``<folder>.snapshots/<label>/`` and return that path."""
-        dst = self.folder.parent / f"{self.folder.name}.snapshots" / label
-        return copy_folder(self.folder, dst, overwrite=overwrite)
+        snapshot_folder = self.folder.parent / f"{self.folder.name}.snapshots" / label
+        return copy_folder(self.folder, snapshot_folder, overwrite=overwrite)
 
-    def output(self, ext: str) -> Path:
-        """Path of an output file: ``output("g01")`` → ``<folder>/<run_name>.g01``."""
-        return self.folder / f"{self.run_name}.{ext.lstrip('.')}"
+    def output(self, extension: str) -> Path:
+        """Path of an output file: ``output("g01")`` is ``<folder>/<run_name>.g01``."""
+        return self.folder / f"{self.run_name}.{extension.lstrip('.')}"
 
-    def read_table(self, ext: str) -> Table:
-        """Read a result table (``"g01"``, ``"f01"``, ``"u01"``...), merging ``02``, ``03``... files."""
-        return read_table_series(self.output(ext))
+    def read_table(self, extension: str) -> Table:
+        """Read a result table (``"g01"``, ``"u01"``...).
 
-    def history(self):  # type: ignore[no-untyped-def]  # -> History (import cycle)
+        Continuation files (``02``, ``03``...) are merged in.
+        """
+        return read_table_series(self.output(extension))
+
+    def history(self) -> History:
         """The ``.erg`` energy history as a :class:`epsr.History`."""
         from .refine import History
 
@@ -99,14 +110,22 @@ class Project:
 
     def files(self) -> dict[str, Path | list[Path]]:
         """The main input files named by the ``.EPSR.inp`` file."""
-        inp = self.input_file()
-        out: dict[str, Path | list[Path]] = {"inp": self.folder / self.inp_name}
-        for key, name in (("ato", "fnameato"), ("pcof", "fnamepcof")):
-            words = inp.words(name)
-            if words:
-                out[key] = self.folder / words[0]
-        out["data"] = [self.folder / b["datafile"].split()[0] for b in inp.blocks if b.get("datafile")]
-        out["weights"] = [self.folder / b["wtsfile"].split()[0] for b in inp.blocks if b.get("wtsfile")]
-        out["erg"] = self.output("erg")
-        out["out"] = self.output("out")
-        return out
+        input_file = self.input_file()
+        paths: dict[str, Path | list[Path]] = {"inp": self.folder / self.inp_name}
+        for key, keyword in (("ato", "fnameato"), ("pcof", "fnamepcof")):
+            file_name = input_file.words(keyword)
+            if file_name:
+                paths[key] = self.folder / file_name[0]
+        paths["data"] = [
+            self.folder / block["datafile"].split()[0]
+            for block in input_file.blocks
+            if block.get("datafile")
+        ]
+        paths["weights"] = [
+            self.folder / block["wtsfile"].split()[0]
+            for block in input_file.blocks
+            if block.get("wtsfile")
+        ]
+        paths["erg"] = self.output("erg")
+        paths["out"] = self.output("out")
+        return paths

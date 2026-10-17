@@ -1,4 +1,7 @@
-"""Accessors, shapes, overrides, run-order rules and error mapping of ``epsr.Simulation``."""
+"""Accessors, shapes, overrides, run-order rules and error mapping of ``epsr.Simulation``.
+
+In the test case, atom types S, C, O and H belong to DMSO; O1 and H1 to water.
+"""
 
 from __future__ import annotations
 
@@ -10,101 +13,117 @@ import pytest
 import epsr
 from epsr.simulation import render_overrides
 
+from conftest import CompletedRun
+
+DATA_FILES = ["D6DMSO_D2O.mint01", "D6DMSO_HDO.mint01", "D6DMSO_H2O.mint01"]
+WEIGHTS_FILES = ["DMSODWaterD.NWTStot.wts", "DMSODWaterNull.NWTStot.wts", "DMSODWaterH.NWTStot.wts"]
+
 
 # --------------------------------------------------------------- arrays and metadata
-def test_grids_and_partials(ran: tuple[epsr.Project, epsr.Simulation]) -> None:
-    _, sim = ran
-    nr, nq, npairs = sim.nr, sim.nq, sim.n_pairs
-    assert sim.q.shape == (nq,) and sim.r.shape == (nr,)
-    assert sim.q.dtype == np.float32 and sim.r.dtype == np.float32
-    np.testing.assert_allclose(np.diff(sim.q), sim.control.qstep, rtol=1e-4)
-    for name, n in (("gr_inter", nr), ("gr_intra", nr), ("sq_inter", nq), ("sq_intra", nq)):
-        arr = getattr(sim, name)()
-        assert arr.shape == (npairs, n), name
-        assert arr.dtype == np.float32
-        np.testing.assert_array_equal(getattr(sim, name)(("O", "H")), arr[sim.pair_index("O", "H")])
-    assert sim.current_gr().shape == (2, npairs, nr)
-    assert sim.current_sq().shape == (2, npairs, nq)
-    # g(r) of an intermolecular pair tends to 1 at large r
-    g = sim.gr_inter(("O", "O"))
-    assert abs(float(np.mean(g[-50:])) - 1.0) < 0.05
+def test_grids_and_partials(completed_run: CompletedRun) -> None:
+    simulation = completed_run.simulation
+    nr, nq, n_pairs = simulation.nr, simulation.nq, simulation.n_pairs
+    assert simulation.q.shape == (nq,) and simulation.r.shape == (nr,)
+    assert simulation.q.dtype == np.float32 and simulation.r.dtype == np.float32
+    np.testing.assert_allclose(np.diff(simulation.q), simulation.control.qstep, rtol=1e-4)
+
+    expected_lengths = {"gr_inter": nr, "gr_intra": nr, "sq_inter": nq, "sq_intra": nq}
+    for accessor_name, n_points in expected_lengths.items():
+        accessor = getattr(simulation, accessor_name)
+        all_pairs = accessor()
+        assert all_pairs.shape == (n_pairs, n_points), accessor_name
+        assert all_pairs.dtype == np.float32
+        one_pair = accessor("O1", "H1")
+        np.testing.assert_array_equal(one_pair, all_pairs[simulation.pair_index("O1", "H1")])
+
+    assert simulation.current_gr().shape == (2, n_pairs, nr)
+    assert simulation.current_sq().shape == (2, n_pairs, nq)
+    # An intermolecular g(r) tends to 1 at large r.
+    water_oxygen_gr = simulation.gr_inter("O1", "O1")
+    assert float(np.mean(water_oxygen_gr[-50:])) == pytest.approx(1.0, abs=0.05)
 
 
-def test_arrays_are_copies(ran: tuple[epsr.Project, epsr.Simulation]) -> None:
-    _, sim = ran
-    g = sim.gr_inter()
-    g[:] = 0.0
-    assert np.any(sim.gr_inter() != 0.0)
+def test_arrays_are_copies(completed_run: CompletedRun) -> None:
+    simulation = completed_run.simulation
+    returned_array = simulation.gr_inter()
+    returned_array[:] = 0.0
+    assert np.any(simulation.gr_inter() != 0.0)
 
 
-def test_pair_labels_and_lookup(ran: tuple[epsr.Project, epsr.Simulation]) -> None:
-    _, sim = ran
-    labels = sim.pair_labels
-    assert len(labels) == sim.n_pairs == 21
-    assert set(sim.atom_types) == {a for p in labels for a in p}
-    for i, (a, b) in enumerate(labels):
-        assert sim.pair_index(a, b) == i
-        assert sim.pair_index(b, a) == i
-        assert sim.pair_index((a, b)) == i
-        assert sim.pair_index(i) == i
+def test_pair_labels_and_lookup(completed_run: CompletedRun) -> None:
+    simulation = completed_run.simulation
+    labels = simulation.pair_labels
+    assert len(labels) == simulation.n_pairs == 21
+    assert set(simulation.atom_types) == {atom_type for pair in labels for atom_type in pair}
+    for index, (first_type, second_type) in enumerate(labels):
+        assert simulation.pair_index(first_type, second_type) == index
+        assert simulation.pair_index(second_type, first_type) == index
+        assert simulation.pair_index((first_type, second_type)) == index
+        assert simulation.pair_index(index) == index
     with pytest.raises(KeyError):
-        sim.pair_index("X", "Y")
+        simulation.pair_index("X", "Y")
     with pytest.raises(IndexError):
-        sim.pair_index(99)
+        simulation.pair_index(99)
 
 
-def test_datasets_and_fits(ran: tuple[epsr.Project, epsr.Simulation]) -> None:
-    _, sim = ran
-    ds = sim.datasets
-    assert [d.infili for d in ds] == ["D6DMSO_D2O.mint01", "D6DMSO_HDO.mint01", "D6DMSO_H2O.mint01"]
-    assert [Path(d.fnamedata).name for d in ds] == [d.infili for d in ds]
-    assert [d.name for d in ds] == ["D6DMSO_D2O", "D6DMSO_HDO", "D6DMSO_H2O"]
-    for i in range(sim.n_datasets):
-        lo, hi = sim.data_q_range(i)
-        assert 0 <= lo < hi < sim.nq
-        f = sim.fit(i)
-        assert f.q.shape == f.data.shape == f.simulated.shape == f.errors.shape == (hi - lo + 1,)
-        # the refined model fits the data closely
-        assert float(np.sqrt(np.mean(f.residual**2))) < 0.05
-    assert len(sim.summary.r_factor_per_dataset) == sim.n_datasets
+def test_datasets_and_fits(completed_run: CompletedRun) -> None:
+    simulation = completed_run.simulation
+    datasets = simulation.datasets
+    assert [dataset.infili for dataset in datasets] == DATA_FILES
+    assert [Path(dataset.fnamedata).name for dataset in datasets] == DATA_FILES
+    assert [dataset.name for dataset in datasets] == ["D6DMSO_D2O", "D6DMSO_HDO", "D6DMSO_H2O"]
+
+    for dataset_index in range(simulation.n_datasets):
+        first_q, last_q = simulation.data_q_range(dataset_index)
+        assert 0 <= first_q < last_q < simulation.nq
+        fit = simulation.fit(dataset_index)
+        expected_shape = (last_q - first_q + 1,)
+        assert fit.q.shape == fit.data.shape == fit.simulated.shape == fit.errors.shape
+        assert fit.q.shape == expected_shape
+        root_mean_square_residual = float(np.sqrt(np.mean(fit.residual**2)))
+        assert root_mean_square_residual < 0.05  # the refined model fits the data closely
+
+    assert len(simulation.summary.r_factor_per_dataset) == simulation.n_datasets
     with pytest.raises(IndexError):
-        sim.data_fq(3)
-    np.testing.assert_array_equal(sim.data_fq(-1), sim.data_fq(2))
+        simulation.data_fq(3)
+    np.testing.assert_array_equal(simulation.data_fq(-1), simulation.data_fq(2))
 
 
-def test_configuration(ran: tuple[epsr.Project, epsr.Simulation]) -> None:
-    _, sim = ran
-    assert sim.n_molecules == 600
-    assert sim.n_atoms == 200 * 10 + 400 * 3
-    pos = sim.positions
-    assert pos.shape == (sim.n_atoms, 3) and pos.dtype == np.float32
-    assert len(sim.atom_labels) == sim.n_atoms
-    mols = sim.molecule_atoms
-    assert len(mols) == sim.n_molecules
-    assert mols[0] == range(0, 10) and mols[-1].stop == sim.n_atoms
-    assert sim.box_size == pytest.approx(33.1213, abs=1e-3)
-    assert sim.density == pytest.approx(0.0880700, rel=1e-4)
-    # density consistent with the box
-    assert sim.n_atoms / sim.box_size**3 == pytest.approx(sim.density, rel=1e-4)
+def test_configuration(completed_run: CompletedRun) -> None:
+    simulation = completed_run.simulation
+    atoms_per_dmso, atoms_per_water = 10, 3
+    assert simulation.n_molecules == 600
+    assert simulation.n_atoms == 200 * atoms_per_dmso + 400 * atoms_per_water
+
+    positions = simulation.positions
+    assert positions.shape == (simulation.n_atoms, 3) and positions.dtype == np.float32
+    assert len(simulation.atom_labels) == simulation.n_atoms
+
+    molecules = simulation.molecule_atoms
+    assert len(molecules) == simulation.n_molecules
+    assert molecules[0] == range(0, atoms_per_dmso)
+    assert molecules[-1].stop == simulation.n_atoms
+
+    assert simulation.box_size == pytest.approx(33.1213, abs=1e-3)
+    assert simulation.density == pytest.approx(0.0880700, rel=1e-4)
+    density_from_box = simulation.n_atoms / simulation.box_size**3
+    assert density_from_box == pytest.approx(simulation.density, rel=1e-4)
 
 
-def test_summary_and_control(ran: tuple[epsr.Project, epsr.Simulation]) -> None:
-    proj, sim = ran
-    s = sim.summary
-    assert isinstance(s, epsr.Summary)
-    assert s.iteration == 1
-    assert s.fortran["rfactot"] == pytest.approx(s.r_factor)
-    assert set(s.as_dict()) >= {"energy", "pressure", "r_factor", "ep_amplitude"}
-    c = sim.control
-    assert (c.nq, c.ntimes, c.niter) == (600, 5, 1)
-    assert [Path(w).name for w in sim.weights_files] == [
-        "DMSODWaterD.NWTStot.wts",
-        "DMSODWaterNull.NWTStot.wts",
-        "DMSODWaterH.NWTStot.wts",
-    ]
-    assert sim.output_path("g01") == proj.output("g01")
-    assert sim.output_path("g01").exists()
-    assert sim.completed and sim.last_iteration == 1
+def test_summary_and_control(completed_run: CompletedRun) -> None:
+    simulation = completed_run.simulation
+    summary = simulation.summary
+    assert isinstance(summary, epsr.Summary)
+    assert summary.iteration == 1
+    assert summary.fortran["rfactot"] == pytest.approx(summary.r_factor)
+    assert set(summary.as_dict()) >= {"energy", "pressure", "r_factor", "ep_amplitude"}
+
+    control = simulation.control
+    assert (control.nq, control.ntimes, control.niter) == (600, 5, 1)
+    assert [Path(path).name for path in simulation.weights_files] == WEIGHTS_FILES
+    assert simulation.output_path("g01") == completed_run.project.output("g01")
+    assert simulation.output_path("g01").exists()
+    assert simulation.completed and simulation.last_iteration == 1
 
 
 # --------------------------------------------------------------- overrides
@@ -121,20 +140,25 @@ def test_render_overrides() -> None:
     with pytest.raises(ValueError):
         render_overrides({"data": {0: {"tweak": 1.0}}})
     with pytest.raises(TypeError):
-        render_overrides({"ntimes": {"a": 1}})
+        render_overrides({"ntimes": {"nested": 1}})
 
 
 def test_dict_overrides_reach_engine(project: epsr.Project) -> None:
-    sim = project.simulation(
-        {"ntimes": 2, "ereq": 15.0, "feedback": 0.8, "potfac": [0.5, 0.5], "data": {3: {"tweak": 1.1}}}
-    )
-    assert sim.control.ntimes == 2
-    p = sim.potential.params
-    assert p.ereq == pytest.approx(15.0)
-    assert p.feedback == pytest.approx(0.8)
-    assert sim.get_parameter("ereq") == "15.0"
-    assert sim.datasets[2].tweak == pytest.approx(1.1)
-    assert sim.datasets[0].tweak == pytest.approx(1.0)
+    overrides = {
+        "ntimes": 2,
+        "ereq": 15.0,
+        "feedback": 0.8,
+        "potfac": [0.5, 0.5],
+        "data": {3: {"tweak": 1.1}},
+    }
+    simulation = project.simulation(overrides)
+    assert simulation.control.ntimes == 2
+    potential_parameters = simulation.potential.params
+    assert potential_parameters.ereq == pytest.approx(15.0)
+    assert potential_parameters.feedback == pytest.approx(0.8)
+    assert simulation.get_parameter("ereq") == "15.0"
+    assert simulation.datasets[2].tweak == pytest.approx(1.1)
+    assert simulation.datasets[0].tweak == pytest.approx(1.0)
 
 
 def test_overrides_are_saved_to_input(project: epsr.Project) -> None:
@@ -145,34 +169,36 @@ def test_overrides_are_saved_to_input(project: epsr.Project) -> None:
 
 # --------------------------------------------------------------- run-order rules
 def test_iterate_rules(project: epsr.Project) -> None:
-    sim = project.simulation({"niter": 2})
+    simulation = project.simulation({"niter": 2})
     with pytest.raises(ValueError, match="out of range"):
-        sim.iterate(0)
+        simulation.iterate(0)
     with pytest.raises(ValueError, match="in order"):
-        sim.iterate(2)
-    s1 = sim.iterate(1)
-    assert s1.iteration == 1 and not sim.completed
+        simulation.iterate(2)
+
+    first_summary = simulation.iterate(1)
+    assert first_summary.iteration == 1 and not simulation.completed
     with pytest.raises(RuntimeError):
-        sim.run()
-    sim.iterate(2)
-    assert sim.completed
+        simulation.run()
+
+    simulation.iterate(2)
+    assert simulation.completed
     with pytest.raises(ValueError, match="new Simulation"):
-        sim.iterate(3)
-    assert list(sim.iterations()) == []
+        simulation.iterate(3)
+    assert list(simulation.iterations()) == []
 
 
 def test_run_twice_is_refused(project: epsr.Project) -> None:
-    sim = project.simulation()
-    sim.run()
+    simulation = project.simulation()
+    simulation.run()
     with pytest.raises(RuntimeError):
-        sim.run()
+        simulation.run()
 
 
 # --------------------------------------------------------------- errors
 def test_missing_folder(tmp_path: Path) -> None:
-    with pytest.raises(epsr.EpsrIOError) as e:
+    with pytest.raises(epsr.EpsrIOError) as raised:
         epsr.Simulation(tmp_path / "nope", "x.EPSR.inp")
-    assert isinstance(e.value, OSError) and isinstance(e.value, epsr.EpsrError)
+    assert isinstance(raised.value, OSError) and isinstance(raised.value, epsr.EpsrError)
 
 
 def test_missing_input_file(project: epsr.Project) -> None:
@@ -181,26 +207,27 @@ def test_missing_input_file(project: epsr.Project) -> None:
 
 
 def test_bad_keyword(project: epsr.Project) -> None:
-    with pytest.raises(epsr.EpsrInputError) as e:
+    with pytest.raises(epsr.EpsrInputError) as raised:
         project.simulation(["no_such_keyword 1"])
-    assert isinstance(e.value, ValueError)
+    assert isinstance(raised.value, ValueError)
 
 
 def test_inp_autodetect(project: epsr.Project, tmp_path: Path) -> None:
     assert epsr.Simulation(project.folder).inp_name == "200DMSO400Water.EPSR.inp"
-    (tmp_path / "empty").mkdir()
+    empty_folder = tmp_path / "empty"
+    empty_folder.mkdir()
     with pytest.raises(FileNotFoundError):
-        epsr.Simulation(tmp_path / "empty")
+        epsr.Simulation(empty_folder)
 
 
-def test_unsupported_maps_to_not_implemented(project: epsr.Project) -> None:
-    """An .ato file without the ecore/dcore line is 'not supported' (the Fortran hangs)."""
-    ato = project.folder / "200DMSO400Water.ato"
-    lines = ato.read_text(encoding="latin-1").splitlines()
-    ato.write_text("\n".join(lines[:1]) + "\n", encoding="latin-1")
-    with pytest.raises(epsr.EpsrError) as e:
+def test_truncated_configuration_is_an_epsr_error(project: epsr.Project) -> None:
+    """An .ato file without the ecore/dcore line is rejected (the Fortran would hang)."""
+    ato_file = project.folder / "200DMSO400Water.ato"
+    first_line = ato_file.read_text(encoding="latin-1").splitlines()[0]
+    ato_file.write_text(first_line + "\n", encoding="latin-1")
+    with pytest.raises(epsr.EpsrError) as raised:
         project.simulation()
-    # Truncating the file may surface as an input error or as "unsupported"
-    assert isinstance(e.value, (epsr.EpsrUnsupportedError, epsr.EpsrInputError))
-    if isinstance(e.value, epsr.EpsrUnsupportedError):
-        assert isinstance(e.value, NotImplementedError)
+    # Truncating the file may surface as an input error or as "unsupported".
+    assert isinstance(raised.value, (epsr.EpsrUnsupportedError, epsr.EpsrInputError))
+    if isinstance(raised.value, epsr.EpsrUnsupportedError):
+        assert isinstance(raised.value, NotImplementedError)

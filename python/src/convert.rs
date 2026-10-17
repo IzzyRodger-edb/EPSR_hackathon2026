@@ -2,7 +2,7 @@
 
 use epsr_core::EpsrError;
 use numpy::{PyArray1, PyArray2, PyArrayMethods};
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyRuntimeError, PyValueError};
 use pyo3::prelude::*;
 
 /// Map an engine error to the Python exception classes defined in
@@ -11,40 +11,49 @@ use pyo3::prelude::*;
 ///
 /// The classes live in Python so that they can use multiple inheritance with the
 /// built-in exception types.
-pub fn to_py(e: EpsrError) -> PyErr {
-    let name = match &e {
+pub fn to_py(error: EpsrError) -> PyErr {
+    let class_name = match &error {
         EpsrError::Io(_) => "EpsrIOError",
         EpsrError::Input(_) => "EpsrInputError",
         EpsrError::Unsupported(_) => "EpsrUnsupportedError",
     };
-    let msg = e.to_string();
+    let message = error.to_string();
     Python::attach(|py| {
-        match py.import("epsr.errors").and_then(|m| m.getattr(name)) {
-            Ok(cls) => match cls.call1((msg.clone(),)) {
-                Ok(inst) => PyErr::from_value(inst),
-                Err(err) => err,
+        let exception_class = py
+            .import("epsr.errors")
+            .and_then(|errors_module| errors_module.getattr(class_name));
+        match exception_class {
+            Ok(exception_class) => match exception_class.call1((message.clone(),)) {
+                Ok(exception) => PyErr::from_value(exception),
+                Err(construction_error) => construction_error,
             },
             // The pure-Python package is missing (extension imported on its own).
-            Err(_) => PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(msg),
+            Err(_) => PyRuntimeError::new_err(message),
         }
     })
 }
 
 /// A 1-D float32 array copied from a slice.
-pub fn arr1<'py>(py: Python<'py>, s: &[f32]) -> Bound<'py, PyArray1<f32>> {
-    PyArray1::from_slice(py, s)
+pub fn array_1d<'py>(py: Python<'py>, values: &[f32]) -> Bound<'py, PyArray1<f32>> {
+    PyArray1::from_slice(py, values)
 }
 
-/// A 2-D float32 array `(rows.len(), ncols)` copied from equally long rows.
-/// An empty row list gives shape `(0, ncols)`.
-pub fn arr2<'py>(py: Python<'py>, rows: Vec<&[f32]>, ncols: usize) -> PyResult<Bound<'py, PyArray2<f32>>> {
-    let mut flat = Vec::with_capacity(rows.len() * ncols);
-    for r in &rows {
-        if r.len() != ncols {
-            return Err(PyValueError::new_err(format!("internal error: row of length {} (expected {ncols})", r.len())));
+/// A 2-D float32 array `(rows.len(), n_columns)` copied from equally long rows.
+/// An empty row list gives shape `(0, n_columns)`.
+pub fn array_2d<'py>(
+    py: Python<'py>,
+    rows: Vec<&[f32]>,
+    n_columns: usize,
+) -> PyResult<Bound<'py, PyArray2<f32>>> {
+    let mut all_values = Vec::with_capacity(rows.len() * n_columns);
+    for row in &rows {
+        if row.len() != n_columns {
+            return Err(PyValueError::new_err(format!(
+                "internal error: row of length {} (expected {n_columns})",
+                row.len()
+            )));
         }
-        flat.extend_from_slice(r);
+        all_values.extend_from_slice(row);
     }
-    let a = PyArray1::from_vec(py, flat);
-    a.reshape([rows.len(), ncols])
+    PyArray1::from_vec(py, all_values).reshape([rows.len(), n_columns])
 }

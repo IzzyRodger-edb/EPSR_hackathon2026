@@ -15,7 +15,7 @@ from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, fields
 from os import PathLike
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
@@ -37,11 +37,11 @@ __all__ = [
     "find_inp",
 ]
 
-F32 = npt.NDArray[np.float32]
+Float32Array = npt.NDArray[np.float32]
 #: A pair is selected by its index in ``pair_labels`` or by its two atom-type labels.
-PairKey = Union[int, tuple[str, str]]
+PairKey = int | tuple[str, str]
 #: Overrides: raw ``.EPSR.inp`` lines, or a mapping rendered by :func:`render_overrides`.
-Overrides = Union[Mapping[str, Any], Sequence[str], None]
+Overrides = Mapping[str, Any] | Sequence[str] | None
 
 
 @dataclass(frozen=True)
@@ -68,29 +68,40 @@ class Summary:
     fortran: Mapping[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     @classmethod
-    def from_fortran(cls, d: Mapping[str, Any]) -> Summary:
+    def from_fortran(cls, fortran_values: Mapping[str, Any]) -> Summary:
+        """Build from the engine's summary dict (Fortran variable names)."""
         return cls(
-            iteration=int(d["iter"]),
-            energy_inter=float(d["foldsv"]),
-            energy_intra=float(d["foldsb"]),
-            energy=float(d["energd"]),
-            pressure=float(d["pressd"]),
-            ep_amplitude=float(d["energabs"]),
-            r_factor=float(d["rfactot"]),
-            r_factor_raw=float(d["rfacraw"]),
-            r_factor_per_dataset=tuple(float(x) for x in d["rfacd"]),
-            ep_up=float(d["epcup"]),
-            ep_coefficient=float(d["epccoeff"]),
-            gr_roughness=float(d["sentb"]),
-            chisq=float(d["chisq"]),
-            fortran=dict(d),
+            iteration=int(fortran_values["iter"]),
+            energy_inter=float(fortran_values["foldsv"]),
+            energy_intra=float(fortran_values["foldsb"]),
+            energy=float(fortran_values["energd"]),
+            pressure=float(fortran_values["pressd"]),
+            ep_amplitude=float(fortran_values["energabs"]),
+            r_factor=float(fortran_values["rfactot"]),
+            r_factor_raw=float(fortran_values["rfacraw"]),
+            r_factor_per_dataset=tuple(float(value) for value in fortran_values["rfacd"]),
+            ep_up=float(fortran_values["epcup"]),
+            ep_coefficient=float(fortran_values["epccoeff"]),
+            gr_roughness=float(fortran_values["sentb"]),
+            chisq=float(fortran_values["chisq"]),
+            fortran=dict(fortran_values),
         )
 
     def as_dict(self) -> dict[str, Any]:
         """The descriptive fields as a plain dict (without :attr:`fortran`)."""
-        d = asdict(self)
-        d.pop("fortran")
-        return d
+        values = asdict(self)
+        values.pop("fortran")
+        return values
+
+
+def _from_fortran_dict(cls: Any, fortran_values: Mapping[str, Any]) -> Any:
+    """Build a dataclass whose field names equal the engine's dict keys."""
+    return cls(
+        **{
+            dataclass_field.name: fortran_values[dataclass_field.name]
+            for dataclass_field in fields(cls)
+        }
+    )
 
 
 @dataclass(frozen=True)
@@ -116,8 +127,8 @@ class Dataset:
         return Path(self.fnamedata).stem
 
     @classmethod
-    def from_fortran(cls, d: Mapping[str, Any]) -> Dataset:
-        return cls(**{f.name: d[f.name] for f in fields(cls)})
+    def from_fortran(cls, fortran_values: Mapping[str, Any]) -> Dataset:
+        return _from_fortran_dict(cls, fortran_values)
 
 
 @dataclass(frozen=True)
@@ -161,8 +172,8 @@ class Control:
     pressure: Mapping[str, Any]
 
     @classmethod
-    def from_fortran(cls, d: Mapping[str, Any]) -> Control:
-        return cls(**{f.name: d[f.name] for f in fields(cls)})
+    def from_fortran(cls, fortran_values: Mapping[str, Any]) -> Control:
+        return _from_fortran_dict(cls, fortran_values)
 
 
 @dataclass(frozen=True)
@@ -170,25 +181,26 @@ class Fit:
     """Data and simulated F(Q) of one dataset over its fitted Q range."""
 
     name: str
-    q: F32
-    data: F32
-    errors: F32
-    simulated: F32
+    q: Float32Array
+    data: Float32Array
+    errors: Float32Array
+    simulated: Float32Array
     q_range: tuple[int, int]  # 0-based inclusive indices into the full Q grid
 
     @property
-    def residual(self) -> F32:
+    def residual(self) -> Float32Array:
         return self.data - self.simulated
 
 
-def _fmt_value(v: Any) -> str:
-    if isinstance(v, bool):
-        return "T" if v else "F"
-    if isinstance(v, (list, tuple, np.ndarray)):
-        return " ".join(_fmt_value(x) for x in v)
-    if isinstance(v, (float, np.floating)):
-        return repr(float(v))
-    return str(v)
+def _format_value(value: Any) -> str:
+    """Write a Python value the way EPSR input files expect it."""
+    if isinstance(value, bool):
+        return "T" if value else "F"
+    if isinstance(value, (list, tuple, np.ndarray)):
+        return " ".join(_format_value(item) for item in value)
+    if isinstance(value, (float, np.floating)):
+        return repr(float(value))
+    return str(value)
 
 
 def render_overrides(overrides: Overrides) -> list[str]:
@@ -214,38 +226,46 @@ def render_overrides(overrides: Overrides) -> list[str]:
         return [overrides]
     if not isinstance(overrides, Mapping):
         lines = list(overrides)
-        if not all(isinstance(x, str) for x in lines):
+        if not all(isinstance(line, str) for line in lines):
             raise TypeError("override lines must be strings")
         return lines
+
     lines = []
-    data = None
-    for key, value in overrides.items():
-        if key == "data":
-            data = value
+    dataset_overrides = None
+    for keyword, value in overrides.items():
+        if keyword == "data":
+            dataset_overrides = value
             continue
         if isinstance(value, Mapping):
-            raise TypeError(f"override {key!r}: nested mappings are only allowed under 'data'")
-        lines.append(f"{key} {_fmt_value(value)}")
-    if data is not None:
-        if not isinstance(data, Mapping):
-            raise TypeError("override 'data' must map dataset numbers (1-based) to keyword mappings")
-        for n in sorted(data):
-            if not isinstance(n, int) or n < 1:
-                raise ValueError(f"dataset numbers in overrides are 1-based integers, got {n!r}")
-            lines.append(f"data {n}")
-            for key, value in data[n].items():
-                lines.append(f"{key} {_fmt_value(value)}")
+            raise TypeError(f"override {keyword!r}: nested mappings are only allowed under 'data'")
+        lines.append(f"{keyword} {_format_value(value)}")
+
+    if dataset_overrides is not None:
+        if not isinstance(dataset_overrides, Mapping):
+            raise TypeError(
+                "override 'data' must map dataset numbers (1-based) to keyword mappings"
+            )
+        for dataset_number in sorted(dataset_overrides):
+            if not isinstance(dataset_number, int) or dataset_number < 1:
+                raise ValueError(
+                    f"dataset numbers in overrides are 1-based integers, got {dataset_number!r}"
+                )
+            lines.append(f"data {dataset_number}")
+            for keyword, value in dataset_overrides[dataset_number].items():
+                lines.append(f"{keyword} {_format_value(value)}")
     return lines
 
 
 def find_inp(folder: str | PathLike[str]) -> str:
     """Name of the single ``*.EPSR.inp`` file in ``folder``."""
     folder = Path(folder)
-    found = sorted(p.name for p in folder.glob("*.EPSR.inp"))
-    if len(found) != 1:
-        what = "no" if not found else f"{len(found)}"
-        raise FileNotFoundError(f"{what} *.EPSR.inp files in {folder}; pass inp_name explicitly")
-    return found[0]
+    input_files = sorted(path.name for path in folder.glob("*.EPSR.inp"))
+    if len(input_files) != 1:
+        how_many = "no" if not input_files else str(len(input_files))
+        raise FileNotFoundError(
+            f"{how_many} *.EPSR.inp files in {folder}; pass inp_name explicitly"
+        )
+    return input_files[0]
 
 
 class Simulation:
@@ -267,7 +287,8 @@ class Simulation:
 
     Notes
     -----
-    * **Files are modified in place** when the last iteration finishes. Use
+    * **Files are modified in place** when the last iteration finishes, and
+      creating the object already rewrites the ``.qdr`` trend file. Use
       :meth:`epsr.Project.from_template` to work on a copy.
     * One object is one EPSR invocation: call :meth:`run` once, or
       :meth:`iterate` for ``1..niter`` in order. For the next run create a new
@@ -288,101 +309,111 @@ class Simulation:
         self.folder = Path(folder)
         self.inp_name = inp_name if inp_name is not None else find_inp(self.folder)
         self.overrides = render_overrides(overrides)
-        self._sim = _core.Simulation(str(self.folder), self.inp_name, self.overrides, verbose)
-        self._pair_labels: list[tuple[str, str]] = [tuple(p) for p in self._sim.pair_labels()]  # type: ignore[misc]
-        self._pair_lookup = {}
-        for i, (a, b) in enumerate(self._pair_labels):
-            self._pair_lookup.setdefault((a, b), i)
-            self._pair_lookup.setdefault((b, a), i)
+        #: The Rust engine object (``epsr._core.Simulation``), with Fortran names.
+        self._engine = _core.Simulation(str(self.folder), self.inp_name, self.overrides, verbose)
+
+        self._pair_labels: list[tuple[str, str]] = [
+            (first_type, second_type) for first_type, second_type in self._engine.pair_labels()
+        ]
+        # Both orders of a pair map to the same index.
+        self._pair_index_by_labels: dict[tuple[str, str], int] = {}
+        for index, (first_type, second_type) in enumerate(self._pair_labels):
+            self._pair_index_by_labels.setdefault((first_type, second_type), index)
+            self._pair_index_by_labels.setdefault((second_type, first_type), index)
 
     def __repr__(self) -> str:
-        state = "completed" if self.completed else f"iteration {self.last_iteration}/{self.control.niter}"
+        if self.completed:
+            state = "completed"
+        else:
+            state = f"iteration {self.last_iteration}/{self.control.niter}"
         return f"<epsr.Simulation {self.folder / self.inp_name} ({state})>"
 
     # ---------------------------------------------------------------- running
     def run(self) -> Summary:
         """Run all ``niter`` iterations and write every output file (``Epsr::run``)."""
-        self._sim.run()
+        self._engine.run()
         return self.summary
 
     def iterate(self, iteration: int) -> Summary:
         """Run iteration ``iteration`` (``1..niter``, in order); see :meth:`iterations`."""
-        return Summary.from_fortran(self._sim.iterate(iteration))
+        return Summary.from_fortran(self._engine.iterate(iteration))
 
     def iterations(self) -> Iterator[Summary]:
         """Run the remaining iterations one by one, yielding each :class:`Summary`.
 
         Equivalent to :meth:`run`: the output files are written after the last one.
         """
-        for i in range(self.last_iteration + 1, self.control.niter + 1):
-            yield self.iterate(i)
+        for iteration in range(self.last_iteration + 1, self.control.niter + 1):
+            yield self.iterate(iteration)
 
     @property
     def last_iteration(self) -> int:
         """Number of the last completed iteration (0 before the first)."""
-        return self._sim.last_iter
+        return self._engine.last_iter
 
     @property
     def completed(self) -> bool:
         """True once all ``niter`` iterations have run and the files are written."""
-        return self._sim.last_iter >= self._sim.control["niter"]
+        return self._engine.last_iter >= self._engine.control["niter"]
 
     # ---------------------------------------------------------------- metadata
     @property
     def run_name(self) -> str:
         """The run name, e.g. ``200DMSO400Water.EPSR`` (prefix of every output file)."""
-        return self.inp_name[: -len(".inp")] if self.inp_name.endswith(".inp") else self.inp_name
+        return self.inp_name.removesuffix(".inp")
 
-    def output_path(self, ext: str) -> Path:
+    def output_path(self, extension: str) -> Path:
         """Path of an output file, e.g. ``output_path("g01")``."""
-        return self.folder / f"{self.run_name}.{ext.lstrip('.')}"
+        return self.folder / f"{self.run_name}.{extension.lstrip('.')}"
 
     @property
     def summary(self) -> Summary:
         """Results of the most recent iteration."""
-        return Summary.from_fortran(self._sim.summary)
+        return Summary.from_fortran(self._engine.summary)
 
     @property
     def control(self) -> Control:
-        return Control.from_fortran(self._sim.control)
+        return Control.from_fortran(self._engine.control)
 
     @property
     def datasets(self) -> list[Dataset]:
-        return [Dataset.from_fortran(d) for d in self._sim.datasets]
+        return [Dataset.from_fortran(values) for values in self._engine.datasets]
 
     @property
     def n_datasets(self) -> int:
-        return self._sim.n_datasets
+        return self._engine.n_datasets
 
     @property
     def n_pairs(self) -> int:
-        return self._sim.n_pairs
+        return self._engine.n_pairs
 
     @property
     def nq(self) -> int:
-        return self._sim.nq
+        """Number of Q points."""
+        return self._engine.nq
 
     @property
     def nr(self) -> int:
-        return self._sim.nr
+        """Number of r points."""
+        return self._engine.nr
 
     @property
     def n_atoms(self) -> int:
-        return self._sim.n_atoms
+        return self._engine.n_atoms
 
     @property
     def n_molecules(self) -> int:
-        return self._sim.n_molecules
+        return self._engine.n_molecules
 
     @property
     def density(self) -> float:
         """Atomic number density (atoms/Å³, ``rho``)."""
-        return self._sim.rho
+        return self._engine.rho
 
     @property
     def box_size(self) -> float:
         """Box side (Å, ``dmax``)."""
-        return self._sim.box_size()
+        return self._engine.box_size()
 
     @property
     def pair_labels(self) -> list[tuple[str, str]]:
@@ -391,127 +422,150 @@ class Simulation:
 
     @property
     def atom_types(self) -> list[str]:
-        return self._sim.atom_types()
+        return self._engine.atom_types()
 
     @property
     def atom_labels(self) -> list[str]:
-        return self._sim.atom_labels()
+        return self._engine.atom_labels()
 
     @property
     def molecule_atoms(self) -> list[range]:
         """For each molecule, the range of its atom indices (0-based)."""
-        return [range(a, b) for a, b in self._sim.molecule_atoms()]
+        return [range(start, stop) for start, stop in self._engine.molecule_atoms()]
 
     @property
     def weights_files(self) -> list[str]:
         """Paths of the weights file of each dataset."""
-        return self._sim.weights_files()
+        return self._engine.weights_files()
 
     @property
-    def positions(self) -> F32:
+    def positions(self) -> Float32Array:
         """``(n_atoms, 3)`` atom positions in Å."""
-        return self._sim.atom_positions()
+        return self._engine.atom_positions()
 
     def get_parameter(self, name: str, dataset: int | None = None) -> str | None:
         """Current value of an input keyword; ``dataset`` is a 0-based index."""
-        return self._sim.get_parameter(name, dataset)
+        return self._engine.get_parameter(name, dataset)
 
-    def pair_index(self, a: str | PairKey, b: str | None = None) -> int:
-        """Index of the pair ``(a, b)`` in :attr:`pair_labels` (order-insensitive).
+    def pair_index(self, pair_or_type: str | PairKey, other_type: str | None = None) -> int:
+        """Index of a pair in :attr:`pair_labels` (the order of the two types does not matter).
 
-        Accepts ``pair_index("O", "H")``, ``pair_index(("O", "H"))`` or an int.
+        Accepts ``pair_index("O1", "H1")``, ``pair_index(("O1", "H1"))`` or an int.
         """
-        if isinstance(a, (int, np.integer)) and b is None:
-            i = int(a)
-            if not -self.n_pairs <= i < self.n_pairs:
-                raise IndexError(f"pair index {i} out of range (n_pairs = {self.n_pairs})")
-            return i % self.n_pairs
-        if isinstance(a, tuple) and b is None:
-            a, b = a
-        if not isinstance(a, str) or not isinstance(b, str):
+        if isinstance(pair_or_type, (int, np.integer)) and other_type is None:
+            index = int(pair_or_type)
+            if not -self.n_pairs <= index < self.n_pairs:
+                raise IndexError(f"pair index {index} out of range (n_pairs = {self.n_pairs})")
+            return index % self.n_pairs
+
+        labels: tuple[object, object]
+        if isinstance(pair_or_type, tuple) and other_type is None:
+            labels = pair_or_type
+        else:
+            labels = (pair_or_type, other_type)
+        first_type, second_type = labels
+        if not isinstance(first_type, str) or not isinstance(second_type, str):
             raise TypeError("select a pair by index, by two labels, or by a (label, label) tuple")
         try:
-            return self._pair_lookup[(a, b)]
+            return self._pair_index_by_labels[(first_type, second_type)]
         except KeyError:
-            raise KeyError(f"no atom-type pair {a}-{b}; pairs are {self._pair_labels}") from None
+            raise KeyError(
+                f"no atom-type pair {first_type}-{second_type}; pairs are {self._pair_labels}"
+            ) from None
 
     # ---------------------------------------------------------------- grids
     @property
-    def q(self) -> F32:
+    def q(self) -> Float32Array:
         """Q grid (Å⁻¹)."""
-        return self._sim.q_grid()
+        return self._engine.q_grid()
 
     @property
-    def r(self) -> F32:
+    def r(self) -> Float32Array:
         """r grid (Å)."""
-        return self._sim.r_grid()
+        return self._engine.r_grid()
 
     # ---------------------------------------------------------------- partials
-    def _select(self, arr: F32, pair: str | PairKey | None, b: str | None) -> F32:
-        return arr if pair is None else arr[self.pair_index(pair, b)]
+    def _select_pair(
+        self, all_pairs: Float32Array, pair: str | PairKey | None, other_type: str | None
+    ) -> Float32Array:
+        """All rows, or the row of one pair."""
+        if pair is None:
+            return all_pairs
+        return all_pairs[self.pair_index(pair, other_type)]
 
-    def gr_inter(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
+    def gr_inter(
+        self, pair: str | PairKey | None = None, other_type: str | None = None
+    ) -> Float32Array:
         """Running-average intermolecular partial g(r).
 
         ``(n_pairs, nr)``, or ``(nr,)`` for one pair given as an index, two labels
-        (``gr_inter("O", "H")``) or a label tuple.
+        (``gr_inter("O1", "H1")``) or a label tuple.
         """
-        return self._select(self._sim.gr_inter(), pair, b)
+        return self._select_pair(self._engine.gr_inter(), pair, other_type)
 
-    def gr_intra(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
+    def gr_intra(
+        self, pair: str | PairKey | None = None, other_type: str | None = None
+    ) -> Float32Array:
         """Running-average intramolecular partial g(r)."""
-        return self._select(self._sim.gr_intra(), pair, b)
+        return self._select_pair(self._engine.gr_intra(), pair, other_type)
 
-    def sq_inter(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
+    def sq_inter(
+        self, pair: str | PairKey | None = None, other_type: str | None = None
+    ) -> Float32Array:
         """Running-average intermolecular partial S(Q): ``(n_pairs, nq)``."""
-        return self._select(self._sim.sq_inter(), pair, b)
+        return self._select_pair(self._engine.sq_inter(), pair, other_type)
 
-    def sq_intra(self, pair: str | PairKey | None = None, b: str | None = None) -> F32:
+    def sq_intra(
+        self, pair: str | PairKey | None = None, other_type: str | None = None
+    ) -> Float32Array:
         """Running-average intramolecular partial S(Q)."""
-        return self._select(self._sim.sq_intra(), pair, b)
+        return self._select_pair(self._engine.sq_intra(), pair, other_type)
 
-    def current_gr(self) -> F32:
+    def current_gr(self) -> Float32Array:
         """``(2, n_pairs, nr)`` histograms of the current configuration (0 = inter, 1 = intra)."""
-        return self._sim.current_gr()
+        return self._engine.current_gr()
 
-    def current_sq(self) -> F32:
+    def current_sq(self) -> Float32Array:
         """``(2, n_pairs, nq)`` partial S(Q) of the current configuration (0 = inter, 1 = intra)."""
-        return self._sim.current_sq()
+        return self._engine.current_sq()
 
     # ---------------------------------------------------------------- data
-    def _dataset_index(self, i: int) -> int:
-        if not -self.n_datasets <= i < self.n_datasets:
-            raise IndexError(f"dataset index {i} out of range (n_datasets = {self.n_datasets})")
-        return i % self.n_datasets
+    def _dataset_index(self, dataset: int) -> int:
+        """Check a 0-based dataset index (negative values count from the end)."""
+        if not -self.n_datasets <= dataset < self.n_datasets:
+            raise IndexError(
+                f"dataset index {dataset} out of range (n_datasets = {self.n_datasets})"
+            )
+        return dataset % self.n_datasets
 
-    def data_fq(self, i: int) -> F32:
-        """Measured F(Q) of dataset ``i`` (0-based) on the Q grid; zero outside the data."""
-        return self._sim.data_fq(self._dataset_index(i))
+    def data_fq(self, dataset: int) -> Float32Array:
+        """Measured F(Q) of a dataset (0-based) on the Q grid; zero outside the data."""
+        return self._engine.data_fq(self._dataset_index(dataset))
 
-    def data_errors(self, i: int) -> F32:
-        """Errors of the measured F(Q) of dataset ``i`` on the Q grid."""
-        return self._sim.data_errors(self._dataset_index(i))
+    def data_errors(self, dataset: int) -> Float32Array:
+        """Errors of the measured F(Q) of a dataset on the Q grid."""
+        return self._engine.data_errors(self._dataset_index(dataset))
 
-    def simulated_fq(self, i: int) -> F32:
-        """Simulated total F(Q) of dataset ``i``."""
-        return self._sim.simulated_fq(self._dataset_index(i))
+    def simulated_fq(self, dataset: int) -> Float32Array:
+        """Simulated total F(Q) of a dataset."""
+        return self._engine.simulated_fq(self._dataset_index(dataset))
 
-    def data_q_range(self, i: int) -> tuple[int, int]:
-        """First and last Q index (0-based, inclusive) fitted for dataset ``i``."""
-        return self._sim.data_q_range(self._dataset_index(i))
+    def data_q_range(self, dataset: int) -> tuple[int, int]:
+        """First and last Q index (0-based, inclusive) fitted for a dataset."""
+        return self._engine.data_q_range(self._dataset_index(dataset))
 
-    def fit(self, i: int) -> Fit:
-        """Data, errors and simulation of dataset ``i`` over its fitted Q range."""
-        i = self._dataset_index(i)
-        lo, hi = self.data_q_range(i)
-        s = slice(lo, hi + 1)
+    def fit(self, dataset: int) -> Fit:
+        """Data, errors and simulation of a dataset over its fitted Q range."""
+        dataset = self._dataset_index(dataset)
+        first_index, last_index = self.data_q_range(dataset)
+        fitted_range = slice(first_index, last_index + 1)
         return Fit(
-            name=self.datasets[i].name,
-            q=self.q[s],
-            data=self.data_fq(i)[s],
-            errors=self.data_errors(i)[s],
-            simulated=self.simulated_fq(i)[s],
-            q_range=(lo, hi),
+            name=self.datasets[dataset].name,
+            q=self.q[fitted_range],
+            data=self.data_fq(dataset)[fitted_range],
+            errors=self.data_errors(dataset)[fitted_range],
+            simulated=self.simulated_fq(dataset)[fitted_range],
+            q_range=(first_index, last_index),
         )
 
     # ---------------------------------------------------------------- potentials

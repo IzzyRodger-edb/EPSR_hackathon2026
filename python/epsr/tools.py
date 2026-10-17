@@ -13,13 +13,26 @@ same arguments as on the command line (``epsr-rs <folder> <command> <args>``).
   cases show the expected order of answers for each program.
 
 Outputs are files in the folder; read the column files with :func:`epsr.io.read_table`.
-Tools hold no global state, so different folders may be processed in parallel
-threads; never run two tools on the same folder at once.
+
+**Working directory.** Like the Fortran, several programs (the box builders
+``makeato``, ``mixato``, ``fmole``, ``addato``, ``randomise``, ``makelattice``,
+``makelatticeato``) read ``system_commands.txt`` and write ``dirlist.txt`` in the
+*current working directory*, because the EPSR shell runs every program from
+inside the simulation folder. :func:`run` therefore changes the working directory
+to ``folder`` for the duration of the call and passes ``./`` as the folder, exactly
+as ``epsr-rs`` is used by the EPSR verification scripts. Because the working
+directory is process-wide, tool runs are serialised by a lock (one tool at a time
+per process), and other threads should not rely on relative paths while a tool
+runs. :class:`epsr.Simulation` does not depend on the working directory and is
+not affected.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+import os
+import threading
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass
 from os import PathLike
 from pathlib import Path
@@ -31,6 +44,7 @@ __all__ = [
     "commands",
     "run",
     "keywords",
+    "ToolKeyword",
     "ToolKeywords",
     "write_keyword_file",
     "nwts",
@@ -42,16 +56,38 @@ __all__ = [
     "writexyz",
 ]
 
+#: Serialises tool runs: they change the process-wide working directory.
+_WORKING_DIRECTORY_LOCK = threading.RLock()
+
+#: Column layout of the keyword files EPSR writes (Fortran format ``(a11,1x,a,15x,a)``).
+KEYWORD_COLUMN_WIDTH = 11
+DESCRIPTION_GAP = " " * 15
+
 
 def commands() -> list[str]:
     """Names of the 35 auxiliary programs."""
     return list(_core.tool_commands())
 
 
-def _answers(answers: str | Sequence[str]) -> str:
+@contextmanager
+def _working_directory(folder: Path) -> Iterator[None]:
+    """Temporarily make ``folder`` the working directory (one thread at a time)."""
+    with _WORKING_DIRECTORY_LOCK:
+        previous_directory = os.getcwd()
+        os.chdir(folder)
+        try:
+            yield
+        finally:
+            os.chdir(previous_directory)
+
+
+def _standard_input_text(answers: str | Sequence[str]) -> str:
+    """The answers as the text a program reads from standard input (newline-terminated)."""
     if isinstance(answers, str):
-        return answers if not answers or answers.endswith("\n") else answers + "\n"
-    return "".join(f"{a}\n" for a in answers)
+        if answers and not answers.endswith("\n"):
+            return answers + "\n"
+        return answers
+    return "".join(f"{answer}\n" for answer in answers)
 
 
 def run(
@@ -77,12 +113,30 @@ def run(
         Standard input for interactive programs: a string, or a sequence of
         lines (joined with newlines).
 
+    Runs with the working directory set to ``folder`` (see the module notes).
     Raises :class:`epsr.EpsrError` subclasses on failure. Releases the GIL.
+
+    Like the Fortran programs, keyword-file tools do nothing when their input
+    file is missing; the typed helpers (:func:`nwts`, :func:`partials`...)
+    raise ``FileNotFoundError`` instead.
     """
-    folder = Path(folder)
+    folder = Path(folder).resolve()
     if not folder.is_dir():
         raise FileNotFoundError(f"folder {folder} does not exist")
-    _core.run_tool(str(folder), command, [str(a) for a in args], _answers(answers), verbose)
+    arguments = [str(argument) for argument in args]
+    with _working_directory(folder):
+        _core.run_tool("./", command, arguments, _standard_input_text(answers), verbose)
+
+
+@dataclass(frozen=True)
+class ToolKeyword:
+    """One entry of a program's keyword table."""
+
+    name: str
+    value_type: str  # "c" text, "i" integer, "r" real
+    flag: int  # Fortran ``iflag``
+    default: str
+    description: str
 
 
 @dataclass(frozen=True)
@@ -93,8 +147,8 @@ class ToolKeywords:
     extinp: str  # input-file extension, e.g. ".NWTS.dat"
     dataprompt: str  # name of the repeated block ("component", "distribution"...) or ""
     dataprompttext: str
-    #: ``(keyword, type, iflag, default, description)``; type is ``c``/``i``/``r``.
-    symbols: tuple[tuple[str, str, int, str, str], ...]
+    symbols: tuple[ToolKeyword, ...]
+    #: Fortran markers, e.g. ``nsymboluptodata``: the number of keywords before the first block.
     marks: Mapping[str, int]
 
     @property
@@ -106,39 +160,56 @@ class ToolKeywords:
 
     @property
     def global_keywords(self) -> list[str]:
-        return [s[0] for s in self.symbols[: self.n_global]]
+        return [keyword.name for keyword in self.symbols[: self.n_global]]
 
     @property
     def block_keywords(self) -> list[str]:
-        end = self.marks.get("nsymboldata", len(self.symbols))
-        return [s[0] for s in self.symbols[self.n_global : end]]
+        end_of_block = self.marks.get("nsymboldata", len(self.symbols))
+        return [keyword.name for keyword in self.symbols[self.n_global : end_of_block]]
 
     def defaults(self) -> dict[str, str]:
-        return {s[0]: s[3] for s in self.symbols}
+        return {keyword.name: keyword.default for keyword in self.symbols}
 
     def descriptions(self) -> dict[str, str]:
-        return {s[0]: s[4] for s in self.symbols}
+        return {keyword.name: keyword.description for keyword in self.symbols}
 
 
 def keywords(command: str) -> ToolKeywords:
     """The keyword table of ``command`` (``nwts``, ``partials``, ``coord``...)."""
-    d = _core.tool_keywords(command)
+    table = _core.tool_keywords(command)
+    symbols = tuple(
+        ToolKeyword(
+            name=str(name),
+            value_type=str(value_type),
+            flag=int(flag),
+            default=str(default),
+            description=str(description),
+        )
+        for name, value_type, flag, default, description in table["symbols"]
+    )
     return ToolKeywords(
-        name=d["name"],
-        extinp=d["extinp"],
-        dataprompt=d["dataprompt"],
-        dataprompttext=d["dataprompttext"],
-        symbols=tuple(tuple(s) for s in d["symbols"]),  # type: ignore[misc]
-        marks=dict(d["marks"]),
+        name=table["name"],
+        extinp=table["extinp"],
+        dataprompt=table["dataprompt"],
+        dataprompttext=table["dataprompttext"],
+        symbols=symbols,
+        marks=dict(table["marks"]),
     )
 
 
-def _fmt(v: Any) -> str:
-    if isinstance(v, bool):
-        return "T" if v else "F"
-    if isinstance(v, (list, tuple)):
-        return " ".join(_fmt(x) for x in v)
-    return str(v)
+def _format_value(value: Any) -> str:
+    """Write a Python value the way EPSR keyword files expect it."""
+    if isinstance(value, bool):
+        return "T" if value else "F"
+    if isinstance(value, (list, tuple)):
+        return " ".join(_format_value(item) for item in value)
+    return str(value)
+
+
+def _check_keywords(given: Mapping[str, Any], allowed: list[str], what: str) -> None:
+    unknown = set(given) - set(allowed)
+    if unknown:
+        raise ValueError(f"unknown {what} {sorted(unknown)}; valid: {allowed}")
 
 
 def write_keyword_file(
@@ -160,53 +231,83 @@ def write_keyword_file(
     the program rewrites it on exit.
     """
     path = Path(path)
-    kw = keywords(command)
-    allowed = set(kw.global_keywords)
-    unknown = set(values) - allowed
-    if unknown:
-        raise ValueError(f"unknown {command} keywords {sorted(unknown)}; valid: {kw.global_keywords}")
-    block_allowed = set(kw.block_keywords)
+    table = keywords(command)
     blocks = list(blocks or [])
-    if blocks and not kw.dataprompt:
+    _check_keywords(values, table.global_keywords, f"{command} keywords")
+    if blocks and not table.dataprompt:
         raise ValueError(f"{command} input files have no repeated blocks")
-    for b in blocks:
-        bad = set(b) - block_allowed
-        if bad:
-            raise ValueError(f"unknown {command} block keywords {sorted(bad)}; valid: {kw.block_keywords}")
+    for block in blocks:
+        _check_keywords(block, table.block_keywords, f"{command} block keywords")
+
     if title is None:
-        title = path.name[: -len(kw.extinp)] if path.name.endswith(kw.extinp) else path.stem
-    defaults, descr = kw.defaults(), kw.descriptions()
+        title = (
+            path.name.removesuffix(table.extinp) if path.name.endswith(table.extinp) else path.stem
+        )
+    defaults = table.defaults()
+    descriptions = table.descriptions()
 
-    def line(k: str, v: Any) -> str:
-        return f"{k:<11} {_fmt(v)}{' ' * 15}{descr[k]}"
+    def keyword_line(keyword: str, value: Any) -> str:
+        return (
+            f"{keyword:<{KEYWORD_COLUMN_WIDTH}} {_format_value(value)}"
+            f"{DESCRIPTION_GAP}{descriptions[keyword]}"
+        )
 
-    out = [f"{title}{' ' * 15}Title of this file"]
-    for k in kw.global_keywords:
-        out.append(line(k, values.get(k, defaults[k])))
-    for n, b in enumerate(blocks, start=1):
-        out += ["", f"{kw.dataprompt} {n:>3}", ""]
-        for k in kw.block_keywords:
-            out.append(line(k, b.get(k, defaults[k])))
-    out.append("q")
-    path.write_text("\n".join(out) + "\n", encoding="latin-1")
+    lines = [f"{title}{DESCRIPTION_GAP}Title of this file"]
+    for keyword in table.global_keywords:
+        lines.append(keyword_line(keyword, values.get(keyword, defaults[keyword])))
+    for block_number, block in enumerate(blocks, start=1):
+        lines += ["", f"{table.dataprompt} {block_number:>3}", ""]
+        for keyword in table.block_keywords:
+            lines.append(keyword_line(keyword, block.get(keyword, defaults[keyword])))
+    lines.append("q")
+    path.write_text("\n".join(lines) + "\n", encoding="latin-1")
     return path
 
 
-def _keyword_tool(command: str):  # type: ignore[no-untyped-def]
-    def tool(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
-        run(folder, command, [dat_file], verbose=verbose)
+def _run_keyword_tool(
+    command: str, folder: str | PathLike[str], dat_file: str, verbose: bool
+) -> None:
+    """Run a keyword-file program, refusing a missing input file.
 
-    tool.__name__ = command
-    tool.__doc__ = f"Run ``{command}`` on the keyword file ``dat_file`` in ``folder``."
-    return tool
+    The Fortran program (and :func:`run`) silently does nothing in that case.
+    """
+    input_file = Path(folder) / dat_file
+    if not input_file.is_file():
+        raise FileNotFoundError(f"{command} input file {input_file} does not exist")
+    run(folder, command, [dat_file], verbose=verbose)
 
 
-nwts = _keyword_tool("nwts")
-xwts = _keyword_tool("xwts")
-partials = _keyword_tool("partials")
-coord = _keyword_tool("coord")
-triangles = _keyword_tool("triangles")
-torangles = _keyword_tool("torangles")
+def nwts(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+    """Neutron weights from a ``.NWTS.dat`` file. Raises FileNotFoundError if it is missing."""
+    _run_keyword_tool("nwts", folder, dat_file, verbose)
+
+
+def xwts(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+    """X-ray weights from a ``.XWTS.dat`` file. Raises FileNotFoundError if it is missing."""
+    _run_keyword_tool("xwts", folder, dat_file, verbose)
+
+
+def partials(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+    """Partial g(r) from a ``.PARTIALS.dat`` file. Raises FileNotFoundError if it is missing."""
+    _run_keyword_tool("partials", folder, dat_file, verbose)
+
+
+def coord(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+    """Coordination numbers from a ``.COORD.dat`` file.
+
+    Raises FileNotFoundError if the file is missing.
+    """
+    _run_keyword_tool("coord", folder, dat_file, verbose)
+
+
+def triangles(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+    """Bond angles from a ``.TRIANGLES.dat`` file. Raises FileNotFoundError if it is missing."""
+    _run_keyword_tool("triangles", folder, dat_file, verbose)
+
+
+def torangles(folder: str | PathLike[str], dat_file: str, *, verbose: bool = False) -> None:
+    """Torsion angles from a ``.TORANGLES.dat`` file. Raises FileNotFoundError if it is missing."""
+    _run_keyword_tool("torangles", folder, dat_file, verbose)
 
 
 def writexyz(folder: str | PathLike[str], ato_file: str, answers: str | Sequence[str] = "") -> None:

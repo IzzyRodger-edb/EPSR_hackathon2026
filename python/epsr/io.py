@@ -6,6 +6,7 @@ numpy. Nothing here changes a simulation folder.
 
 from __future__ import annotations
 
+import importlib
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field
@@ -26,6 +27,8 @@ __all__ = [
     "ERG_COLUMNS",
 ]
 
+FloatArray = npt.NDArray[np.float64]
+
 #: Columns of the ``.erg`` file, one line per iteration (written by ``epsr.rs``,
 #: Fortran format ``(10(1x,e13.6))``).
 ERG_COLUMNS = (
@@ -41,7 +44,11 @@ ERG_COLUMNS = (
     "parab_c",  # cparab
 )
 
-_SPLIT_VALUE = re.compile(r"\s{8,}")
+#: In keyword files the value is separated from its description by a long run of blanks.
+VALUE_DESCRIPTION_SEPARATOR = re.compile(r"\s{8,}")
+
+#: Marker EPSR writes after the run name on the first line of a keyword file.
+TITLE_MARKER = "Title of this file"
 
 
 @dataclass
@@ -56,15 +63,15 @@ class Table:
 
     path: Path
     x_label: str
-    x: npt.NDArray[np.float64]
-    columns: dict[str, npt.NDArray[np.float64]]
-    errors: dict[str, npt.NDArray[np.float64]] = field(default_factory=dict)
+    x: FloatArray
+    columns: dict[str, FloatArray]
+    errors: dict[str, FloatArray] = field(default_factory=dict)
 
     @property
     def labels(self) -> list[str]:
         return list(self.columns)
 
-    def __getitem__(self, label: str) -> npt.NDArray[np.float64]:
+    def __getitem__(self, label: str) -> FloatArray:
         return self.columns[label]
 
     def __len__(self) -> int:
@@ -72,23 +79,24 @@ class Table:
 
     def to_dataframe(self) -> Any:
         """Return a ``pandas.DataFrame`` (requires the ``pandas`` extra)."""
-        pd = _import_optional("pandas", "pandas")
+        pandas = import_optional("pandas", extra="pandas")
         data: dict[str, Any] = {self.x_label: self.x}
-        for k, v in self.columns.items():
-            data[k] = v
-            if k in self.errors:
-                data[f"{k} err"] = self.errors[k]
-        return pd.DataFrame(data)
+        for label, values in self.columns.items():
+            data[label] = values
+            if label in self.errors:
+                data[f"{label} err"] = self.errors[label]
+        return pandas.DataFrame(data)
 
 
-def _unique(labels: Iterable[str]) -> list[str]:
-    seen: dict[str, int] = {}
-    out = []
-    for lab in labels:
-        n = seen.get(lab, 0) + 1
-        seen[lab] = n
-        out.append(lab if n == 1 else f"{lab}#{n}")
-    return out
+def _make_labels_unique(labels: Iterable[str]) -> list[str]:
+    """Append ``#2``, ``#3``... to labels that occur more than once."""
+    times_seen: dict[str, int] = {}
+    unique_labels = []
+    for label in labels:
+        count = times_seen.get(label, 0) + 1
+        times_seen[label] = count
+        unique_labels.append(label if count == 1 else f"{label}#{count}")
+    return unique_labels
 
 
 def read_table(path: str | PathLike[str]) -> Table:
@@ -98,61 +106,73 @@ def read_table(path: str | PathLike[str]) -> Table:
     column group; the numeric rows are ``x y1 [e1] y2 [e2] ...``.
     """
     path = Path(path)
-    with path.open(encoding="latin-1") as f:
-        header = f.readline()
+    with path.open(encoding="latin-1") as file:
+        header = file.readline()
     if not header.startswith("#"):
         raise ValueError(f"{path} is not an EPSR column file (no '#' header line)")
-    words = header[1:].split()
-    x_label, labels = (words[0], words[1:]) if words else ("x", [])
-    data = np.loadtxt(path, comments="#", ndmin=2, encoding="latin-1")
-    ncol = data.shape[1] - 1
-    labels = _unique(labels)
-    columns: dict[str, npt.NDArray[np.float64]] = {}
-    errors: dict[str, npt.NDArray[np.float64]] = {}
-    if labels and ncol == 2 * len(labels):
-        for i, lab in enumerate(labels):
-            columns[lab] = data[:, 1 + 2 * i]
-            errors[lab] = data[:, 2 + 2 * i]
-    elif labels and ncol == len(labels):
-        for i, lab in enumerate(labels):
-            columns[lab] = data[:, 1 + i]
+
+    header_words = header[1:].split()
+    if header_words:
+        x_label, labels = header_words[0], _make_labels_unique(header_words[1:])
     else:
-        for i in range(ncol):
-            columns[f"col{i + 1}"] = data[:, 1 + i]
+        x_label, labels = "x", []
+
+    data = np.loadtxt(path, comments="#", ndmin=2, encoding="latin-1")
+    n_value_columns = data.shape[1] - 1
+    columns: dict[str, FloatArray] = {}
+    errors: dict[str, FloatArray] = {}
+
+    if labels and n_value_columns == 2 * len(labels):
+        # value and error column for every label
+        for index, label in enumerate(labels):
+            columns[label] = data[:, 1 + 2 * index]
+            errors[label] = data[:, 2 + 2 * index]
+    elif labels and n_value_columns == len(labels):
+        # one value column per label, no errors
+        for index, label in enumerate(labels):
+            columns[label] = data[:, 1 + index]
+    else:
+        # header does not match the data: number the columns
+        for index in range(n_value_columns):
+            columns[f"col{index + 1}"] = data[:, 1 + index]
+
     return Table(path=path, x_label=x_label, x=data[:, 0], columns=columns, errors=errors)
 
 
-def read_table_series(first: str | PathLike[str]) -> Table:
+def read_table_series(first_file: str | PathLike[str]) -> Table:
     """Read ``name.EXT01`` and any continuation files ``EXT02``, ``EXT03``...
 
     EPSR writes at most 100 columns per file; wide outputs continue in the
     next numbered file. The tables are merged into one.
     """
-    first = Path(first)
-    m = re.search(r"(\d\d)$", first.name)
-    if not m:
-        return read_table(first)
-    stem = first.name[: m.start()]
-    table = read_table(first)
-    n = int(m.group(1)) + 1
-    while (nxt := first.with_name(f"{stem}{n:02d}")).exists():
-        more = read_table(nxt)
-        for lab, col in more.columns.items():
-            key = lab if lab not in table.columns else f"{lab}#{n}"
-            table.columns[key] = col
-            if lab in more.errors:
-                table.errors[key] = more.errors[lab]
-        n += 1
+    first_file = Path(first_file)
+    number_match = re.search(r"(\d\d)$", first_file.name)
+    if not number_match:
+        return read_table(first_file)
+
+    name_without_number = first_file.name[: number_match.start()]
+    table = read_table(first_file)
+    file_number = int(number_match.group(1)) + 1
+    while (next_file := first_file.with_name(f"{name_without_number}{file_number:02d}")).exists():
+        continuation = read_table(next_file)
+        for label, values in continuation.columns.items():
+            key = label if label not in table.columns else f"{label}#{file_number}"
+            table.columns[key] = values
+            if label in continuation.errors:
+                table.errors[key] = continuation.errors[label]
+        file_number += 1
     return table
 
 
-def read_erg(path: str | PathLike[str]) -> npt.NDArray[np.float64]:
+def read_erg(path: str | PathLike[str]) -> FloatArray:
     """Read the ``.erg`` energy history: an ``(n_iterations, 10)`` array.
 
     Column meanings are listed in :data:`ERG_COLUMNS`.
     """
     data = np.loadtxt(Path(path), ndmin=2)
-    return data.reshape(-1, len(ERG_COLUMNS)) if data.size else np.empty((0, len(ERG_COLUMNS)))
+    if data.size == 0:
+        return np.empty((0, len(ERG_COLUMNS)))
+    return data.reshape(-1, len(ERG_COLUMNS))
 
 
 @dataclass
@@ -179,80 +199,89 @@ class KeywordFile:
 
     def words(self, key: str) -> list[str]:
         """The value of ``key`` split into words (empty if absent)."""
-        v = self.values.get(key)
-        return v.split() if v else []
+        value = self.values.get(key)
+        return value.split() if value else []
 
 
 def _block_keywords() -> set[str]:
-    kws = {"data"}
+    """Words that start a repeated block: ``data`` and every tool's ``dataprompt``."""
+    block_keywords = {"data"}
     try:
         from . import _core
 
-        for name in _core.tool_tables():
-            dp = _core.tool_keywords(name)["dataprompt"]
-            if dp:
-                kws.add(dp)
+        for table_name in _core.tool_tables():
+            dataprompt = _core.tool_keywords(table_name)["dataprompt"]
+            if dataprompt:
+                block_keywords.add(dataprompt)
     except ImportError:  # extension not built: fall back to the common ones
-        kws.update({"component", "distribution", "centre"})
-    return kws
+        block_keywords.update({"component", "distribution", "centre"})
+    return block_keywords
+
+
+def _has_title_line(first_line: str) -> bool:
+    """EPSR writes ``<name>   Title of this file`` first; ``.pcof`` files have no title."""
+    return first_line.rstrip().endswith(TITLE_MARKER) or len(first_line.split()) == 1
 
 
 def read_keyword_file(path: str | PathLike[str]) -> KeywordFile:
     """Parse an EPSR keyword file.
 
-    The optional first line is the title (``<name>  Title of this file``). Lines are ``keyword  value(s)  description``; values are separated from the
-    description by a run of at least 8 blanks (the files EPSR writes use 15).
+    The optional first line is the title (``<name>  Title of this file``).
+    Lines are ``keyword  value(s)  description``; values are separated from
+    the description by a run of at least 8 blanks (EPSR writes 15).
     A line ``q`` ends the keyword section.
     """
     path = Path(path)
     lines = path.read_text(encoding="latin-1").splitlines()
-    # EPSR writes a title line "<name>   Title of this file"; .pcof files have none.
-    has_title = bool(lines) and (lines[0].rstrip().endswith("Title of this file") or len(lines[0].split()) == 1)
+    has_title = bool(lines) and _has_title_line(lines[0])
     title = lines[0].split()[0] if has_title else ""
-    start = 1 if has_title else 0
-    blockkw = _block_keywords()
+    first_keyword_line = 1 if has_title else 0
+
+    block_keywords = _block_keywords()
     values: dict[str, str] = {}
-    descr: dict[str, str] = {}
+    descriptions: dict[str, str] = {}
     blocks: list[dict[str, str]] = []
     block_keyword: str | None = None
-    current = values
+    current_section = values
     trailer: list[str] = []
-    for i, line in enumerate(lines[start:], start=start):
-        w = line.split()
-        if not w:
+
+    for line_number, line in enumerate(lines[first_keyword_line:], start=first_keyword_line):
+        words = line.split()
+        if not words:
             continue
-        if w[0] == "q" and len(w) == 1:
-            trailer = lines[i + 1 :]
+        if words == ["q"]:
+            trailer = lines[line_number + 1 :]
             break
-        if w[0] in blockkw and len(w) == 2 and w[1].isdigit():
-            block_keyword = w[0]
-            current = {}
-            blocks.append(current)
+        is_block_header = words[0] in block_keywords and len(words) == 2 and words[1].isdigit()
+        if is_block_header:
+            block_keyword = words[0]
+            current_section = {}
+            blocks.append(current_section)
             continue
-        kw = w[0]
-        rest = line.lstrip()[len(kw) :].lstrip()
-        parts = _SPLIT_VALUE.split(rest, maxsplit=1)
-        current[kw] = parts[0].strip()
-        if len(parts) > 1 and kw not in descr:
-            descr[kw] = parts[1].strip()
+        keyword = words[0]
+        text_after_keyword = line.lstrip()[len(keyword) :].lstrip()
+        value_and_description = VALUE_DESCRIPTION_SEPARATOR.split(text_after_keyword, maxsplit=1)
+        current_section[keyword] = value_and_description[0].strip()
+        if len(value_and_description) > 1 and keyword not in descriptions:
+            descriptions[keyword] = value_and_description[1].strip()
+
     return KeywordFile(
         path=path,
         title=title,
         values=values,
         block_keyword=block_keyword,
         blocks=blocks,
-        descriptions=descr,
+        descriptions=descriptions,
         trailer=trailer,
     )
 
 
-def _import_optional(module: str, extra: str) -> Any:
-    import importlib
-
+def import_optional(module_name: str, extra: str) -> Any:
+    """Import an optional dependency, with an installation hint if it is missing."""
     try:
-        return importlib.import_module(module)
-    except ImportError as e:  # pragma: no cover - depends on environment
+        return importlib.import_module(module_name)
+    except ImportError as error:  # pragma: no cover - depends on environment
         raise ImportError(
-            f"{module} is required for this feature; install it with `uv sync --extra {extra}` "
-            f"(or `uv add epsr-py[{extra}]`)"
-        ) from e
+            f"{module_name} is required for this feature; install it with "
+            f"`uv sync --extra {extra}` (or `uv add epsr-py[{extra}]`)"
+        ) from error

@@ -97,7 +97,9 @@ Everything is read from the environment once, at start-up ([`config.py`](src/eps
 | `EPSRWEB_MAX_FILES` | `6` | files per run |
 | `RAYON_NUM_THREADS` | unset | caps the engine's threads, set per worker process |
 | `MELLOR_BACKEND` | `auto` | default backend: `auto`, `transformers`, `hf-api`, `scripted` |
-| `MELLOR_MODEL` | `Qwen/Qwen3-235B-A22B-Instruct-2507` | default model id |
+| `MELLOR_MODEL` | `Qwen/Qwen3-235B-A22B-Instruct-2507` | default hosted model |
+| `EPSRWEB_LOCAL_MODEL` | `Qwen/Qwen3-4B-Instruct-2507` | default model on this machine's GPU, also used by Automatic when torch is installed |
+| `EPSRWEB_CHAT_IDLE_SECONDS` | `600` | how long the chat process keeps its model loaded after the last question |
 | `HF_TOKEN` | unset | server-wide Hugging Face token, used when a user has not stored their own |
 | `EPSRWEB_ALLOW_REGISTRATION` | `true` | set false to close sign-ups |
 | `EPSRWEB_COOKIE_SECURE` | `false` | set true behind HTTPS |
@@ -138,6 +140,8 @@ for a paper.
 | [`mellor_adapter.py`](src/epsrweb/mellor_adapter.py) | **the only module that calls Mellor**, and the demo fallback switch |
 | [`jobs.py`](src/epsrweb/jobs.py) | the queue: one `multiprocessing.Process` per run, with cancellation |
 | [`worker.py`](src/epsrweb/worker.py) | what runs in that process |
+| [`chat.py`](src/epsrweb/chat.py), [`chat_worker.py`](src/epsrweb/chat_worker.py) | follow-up questions, in one long-lived process that keeps its model |
+| [`processes.py`](src/epsrweb/processes.py) | stopping a child together with the EPSR script it started |
 | [`events.py`](src/epsrweb/events.py) | the progress stream, as a JSONL file the SSE endpoint tails |
 | [`plots.py`](src/epsrweb/plots.py) | the app's seaborn figures, from `tables/*.csv` |
 | [`overleaf.py`](src/epsrweb/overleaf.py) | the Git bridge and the zip fallback |
@@ -152,8 +156,15 @@ for a paper.
 **One process per job, not a thread pool.** `run_pipeline` blocks, the engine saturates the
 CPU, and Mellor has no cancellation: the documented way to stop a run is to kill its worker.
 A `ProcessPoolExecutor` task cannot be interrupted, so the manager starts a process per job
-and keeps the handle. "Stop" terminates it and keeps the partial folder. Runs that were in
-flight when the server stopped are marked `interrupted` at the next start-up, not lost.
+and keeps the handle. "Stop" terminates its process group, the EPSR script included, and
+keeps the partial folder. Ctrl+C does the same for every running job; those runs are
+marked `interrupted` at the next start-up, not lost.
+
+**Questions go to one chat process, not the web server.** It loads the model on the first
+question and keeps it, so later questions skip the load, and it is stopped after
+`EPSRWEB_CHAT_IDLE_SECONDS` without one. It answers one question at a time. The local model
+fits on the GPU once, so a run that needs it waits for the question in flight, and a local
+question is refused while a run holds the model.
 
 **Progress goes through a file.** The worker appends Mellor's `on_event` dicts to
 `events.jsonl`; the SSE endpoint tails it. That crosses the process boundary, lets the
@@ -180,17 +191,22 @@ duplicate the toolkit and rot.
 uv run pytest -q
 ```
 
-51 tests, in four groups. **Units**: passwords, sessions, CSRF, token encryption, the
+Five groups. **Units**: passwords, sessions, CSRF, token encryption, the
 `.mint01` validator, path-escape refusals, Overleaf id parsing, redaction, LaTeX generation
 and the zip. **The Mellor contract**: `test_mellor_source.py` parses the sibling package's
 source and pins every assumption the adapter makes — signatures, return types, dataclass
 fields, figure names, table names, the event types the log pane renders — so a rename fails
 in a second instead of ten minutes into a run; `test_mellor_contract.py` checks the same
-things by import where the engine is built. **The HTTP layer** end to end — register, sign in, upload two real water data sets from
+things by import where the engine is built. **Resources**: one question at a time, the
+local model never on the GPU twice, the default model per backend, and that stopping a
+worker stops the EPSR script it started. **The HTTP layer** end to end — register, sign in, upload two real water data sets from
 `../experimental_data/`, wait for the job through the queue, and check the figures, the PDF,
 the CSV tables, the zip with its LaTeX blocks, the chat endpoint, deletion, and that one
 account cannot reach another's run. The suite runs in about two minutes and needs no
-network, no GPU and no Overleaf account; nothing in it ever pushes to a remote.
+network, no GPU and no Overleaf account; nothing in it ever pushes to a remote. That timing
+is for demonstration mode: with `--extra agent --extra local` synced, every upload in the
+HTTP tests runs the local model. `uv run --isolated pytest -q` runs them in a temporary
+environment without the agent, leaving `.venv/` alone.
 
 ## Deployment notes
 

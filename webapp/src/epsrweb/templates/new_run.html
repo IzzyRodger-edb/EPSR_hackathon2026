@@ -48,8 +48,10 @@
           {% endfor %}
         </select>
       </label>
-      <label>Model id <span class="quiet">(hosted or local backends)</span>
-        <input type="text" name="model" value="{{ default_model }}">
+      <label>Model id <span class="quiet">(hosted or local backend only; leave blank for
+        {{ default_local_model }} on this machine or {{ default_model }} hosted.
+        Automatic always uses these defaults.)</span>
+        <input type="text" name="model" value="" placeholder="default for the backend">
       </label>
     </fieldset>
 

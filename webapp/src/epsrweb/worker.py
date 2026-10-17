@@ -52,6 +52,11 @@ def run_job(job: dict[str, Any]) -> None:
     `job` must be picklable: it carries strings and paths only, never a database
     connection or an open file.
     """
+    from . import processes
+
+    # Its own process group, so that "Stop" and the server's shutdown can end the
+    # EPSR script this process starts as well as the process itself.
+    processes.become_group_leader()
     run_dir = Path(job["run_dir"])
     run_dir.mkdir(parents=True, exist_ok=True)
     _configure_logging(run_dir)

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -34,11 +35,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.jobs.start()
         LOG.info("job manager started with %d worker slot(s)", settings.max_workers)
         yield
-        app.state.jobs.stop()
+        # Stop the running refinements and the chat process with the server,
+        # rather than leave them to finish (or to hold up the exit) on their own.
+        app.state.jobs.stop(terminate_running=True)
 
     app = FastAPI(title="EPSR / Mellor", docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.settings = settings
     app.state.jobs = jobs_module.JobManager(settings)
+    #: Set by `__main__` on Ctrl+C, so that long requests end instead of holding
+    #: the shutdown up.
+    app.state.shutting_down = threading.Event()
 
     templates = Jinja2Templates(directory=str(HERE / "templates"))
     templates.env.globals.update(
@@ -48,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         backends=mellor_adapter.BACKENDS,
         known_systems=mellor_adapter.known_systems(),
         default_model=settings.default_model,
+        default_local_model=settings.default_local_model,
         max_files=settings.max_files_per_run,
         max_upload=storage.human_size(settings.max_upload_bytes),
         overleaf_push_enabled=settings.overleaf_push_enabled,

@@ -48,7 +48,13 @@ class Settings:
     max_files_per_run: int
     rayon_threads: int | None
     default_backend: str
+    #: The hosted model (`hf-api`), and the model run on this machine's GPU
+    #: (`transformers`, and `auto` when torch is installed). The local default is
+    #: the small model that fits a 12 GB card; see `mellor_adapter.choose_model`.
     default_model: str
+    default_local_model: str
+    #: Seconds the chat process keeps its model loaded after the last question.
+    chat_idle_seconds: int
     allow_registration: bool
     cookie_secure: bool
     session_max_age: int
@@ -107,6 +113,8 @@ def load_settings(data_root: Path | None = None) -> Settings:
         rayon_threads=_int("RAYON_NUM_THREADS", 0) or None,
         default_backend=os.environ.get("MELLOR_BACKEND", "auto"),
         default_model=os.environ.get("MELLOR_MODEL", "Qwen/Qwen3-235B-A22B-Instruct-2507"),
+        default_local_model=os.environ.get("EPSRWEB_LOCAL_MODEL", "Qwen/Qwen3-4B-Instruct-2507"),
+        chat_idle_seconds=max(0, _int("EPSRWEB_CHAT_IDLE_SECONDS", 600)),
         allow_registration=_flag("EPSRWEB_ALLOW_REGISTRATION", True),
         cookie_secure=_flag("EPSRWEB_COOKIE_SECURE", False),
         session_max_age=_int("EPSRWEB_SESSION_MAX_AGE", 14 * 24 * 3600),

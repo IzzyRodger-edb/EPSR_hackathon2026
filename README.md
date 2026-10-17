@@ -183,8 +183,10 @@ cd rust && cargo build --release && cargo test --release
 cd ../python && uv sync --all-extras
 uv run python examples/05_experimental_water.py --quick
 
-# the web app with the agent
-cd ../webapp && uv sync --extra agent && uv run epsrweb
+# the web app with the agent, on a hosted model (token: https://huggingface.co/settings/tokens)
+cd ../webapp && uv sync --extra agent
+export HF_TOKEN=hf_your_token_here
+uv run epsrweb
 ```
 
 ## Acknowledgements

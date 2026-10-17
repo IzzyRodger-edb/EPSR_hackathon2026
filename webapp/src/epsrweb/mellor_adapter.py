@@ -10,12 +10,13 @@ the engine has never been compiled.
 
 from __future__ import annotations
 
-import importlib
+import importlib.util
 import logging
 from pathlib import Path
 from typing import Callable, Sequence
 
 from . import demo, plots, storage
+from .config import Settings
 
 LOG = logging.getLogger(__name__)
 
@@ -87,10 +88,44 @@ def figure_captions() -> dict[str, str]:
 
 
 def backend_string(backend: str, model: str | None) -> str:
-    """Build the string `mellor.llm.backend.make_backend` expects."""
-    if backend in {"hf-api", "transformers"} and model:
+    """Build the string `mellor.llm.backend.make_backend` expects.
+
+    `auto:<model>` is accepted by `make_backend` like the other two: it resolves
+    `auto` first and then uses the model given. Pass the model from
+    `choose_model`, which picks it for wherever `auto` will run.
+    """
+    if backend in {"hf-api", "transformers", "auto"} and model:
         return f"{backend}:{model}"
     return backend
+
+
+def uses_local_model(backend: str) -> bool:
+    """Whether this backend choice runs the language model on this machine.
+
+    Mirrors `make_backend`: `auto` means the local model whenever torch and
+    transformers are importable. Demonstration mode runs no model at all.
+    """
+    if backend == "transformers":
+        return mellor_status()["available"] is True
+    if backend == "auto":
+        return mellor_status()["available"] is True and local_model_available()
+    return False
+
+
+def choose_model(settings: Settings, backend: str, typed: str | None = None) -> str:
+    """The model id a run or a chat with this backend uses.
+
+    A model typed in the form is honoured for the two explicit backends. `auto`
+    always takes the default for wherever it runs: the small local model on this
+    machine's GPU, or the hosted default otherwise. That also keeps older runs
+    safe, whose rows carry the hosted default even when they ran locally.
+    """
+    typed = (typed or "").strip()
+    if backend in {"hf-api", "transformers"} and typed:
+        return typed
+    if backend == "transformers" or (backend in {"auto", "library"} and local_model_available()):
+        return settings.default_local_model
+    return settings.default_model
 
 
 def _run_with_agent(
@@ -225,23 +260,39 @@ def run_pipeline(
     return outcome
 
 
-def chat(run_dir: Path, message: str, *, backend: str = "auto", model: str | None = None) -> str:
+def make_chat_backend(spec: str) -> object:
+    """A Mellor backend for `spec`, to be kept and passed to `chat` as `llm`.
+
+    Building it is cheap; the local model loads on its first use and then stays
+    in memory for as long as the backend object lives.
+    """
+    from mellor.llm.backend import make_backend
+
+    return make_backend(spec)
+
+
+def chat(run_dir: Path, message: str, *, backend: str = "auto", model: str | None = None,
+         llm: object | None = None) -> str:
     """Answer a follow-up question about a finished run.
 
     Rebuilds the session from its folder, as integration.md section 4.2 requires
     for a new process. The earlier conversation is not restored into the model's
-    context; the results are, through its tools.
+    context; the results are, through its tools. `llm` is a backend from
+    `make_chat_backend`, reused across questions so that the model loads once;
+    without it one is built from `backend` and `model` for this question alone.
+    The app calls this from the chat process only (`chat_worker`).
     """
     status = mellor_status()
     if not status["available"]:
         return _demo_answer(run_dir, message)
     from mellor.llm.agent import Mellor
-    from mellor.llm.backend import make_backend
     from mellor.llm.tools import Session
 
     session = Session(work_dir=run_dir)
     session.load_existing()
-    agent = Mellor(make_backend(backend_string(backend, model)), session)
+    if llm is None:
+        llm = make_chat_backend(backend_string(backend, model))
+    agent = Mellor(llm, session)
     return str(agent.chat(message))
 
 
@@ -268,8 +319,12 @@ def _demo_answer(run_dir: Path, message: str) -> str:
 
 
 def local_model_available() -> bool:
-    """Whether a `transformers` backend could run here (torch is importable)."""
-    return importlib.util.find_spec("torch") is not None
+    """Whether a `transformers` backend could run here.
+
+    The same test `make_backend` applies for `auto`: torch and transformers are
+    importable. Neither is imported, so the web server stays free of them.
+    """
+    return all(importlib.util.find_spec(name) is not None for name in ("torch", "transformers"))
 
 
 def backend_problem(backend: str, *, user_token: bool, server_token: bool) -> str | None:

@@ -21,6 +21,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 from starlette.concurrency import run_in_threadpool
 
 from . import auth, db, events, mellor_adapter, overleaf, runviews, security, storage
+from .chat import ChatBusy, ChatFailed
 
 LOG = logging.getLogger(__name__)
 router = APIRouter()
@@ -149,12 +150,13 @@ async def create_run(
         return auth.redirect("/new", error=str(exc))
 
     run_title = title.strip() or (infos[0].title if infos else run_id)
+    model_id = mellor_adapter.choose_model(settings, backend, model)
     with db.session(settings.db_path) as conn:
         conn.execute(
             "INSERT INTO runs (id, user_id, title, status, prompt, backend, model, quick, "
             "system, created_at) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?, ?)",
             (run_id, user.id, run_title[:200], prompt.strip() or None, backend,
-             model.strip() or settings.default_model, 1 if quick else 0,
+             model_id, 1 if quick else 0,
              system.strip() or None, storage.utcnow()),
         )
 
@@ -182,7 +184,7 @@ async def create_run(
         "data_files": [str(p) for p in saved],
         "prompt": prompt.strip(),
         "backend": backend,
-        "model": model.strip() or settings.default_model,
+        "model": model_id,
         "system": system.strip(),
         "quick": bool(quick),
         "rayon_threads": settings.rayon_threads,
@@ -254,7 +256,7 @@ async def run_events(request: Request, run_id: str) -> StreamingResponse:
         seq = 0
         idle = 0
         while True:
-            if await request.is_disconnected():
+            if await request.is_disconnected() or request.app.state.shutting_down.is_set():
                 return
             new = await run_in_threadpool(events.read_events, run_dir, seq)
             for event in new:
@@ -399,12 +401,22 @@ async def chat(request: Request, run_id: str) -> JSONResponse:
         raise HTTPException(status.HTTP_409_CONFLICT, "Wait for the run to finish.")
 
     settings = request.app.state.settings
+    backend = row["backend"] if row["backend"] != "library" else "auto"
     try:
+        # Answered in the chat process, which keeps its model loaded between
+        # questions and takes one question at a time (chat.py).
         answer = await run_in_threadpool(
-            mellor_adapter.chat, run_dir, message,
-            backend=row["backend"] if row["backend"] != "library" else "auto",
-            model=row["model"] or settings.default_model,
+            request.app.state.jobs.chat.ask, run_dir, message,
+            backend=backend, model=mellor_adapter.choose_model(settings, backend, row["model"]),
         )
+    except ChatBusy as exc:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(exc))
+    except ChatFailed as exc:
+        if request.app.state.shutting_down.is_set():
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE,
+                                "The server is shutting down.")
+        LOG.warning("chat failed for %s: %s", run_id, exc)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"{type(exc).__name__}: {exc}")
     except Exception as exc:
         LOG.exception("chat failed for %s", run_id)
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"{type(exc).__name__}: {exc}")

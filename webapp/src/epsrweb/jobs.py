@@ -8,7 +8,10 @@ so this manager starts a `multiprocessing.Process` per job and keeps a handle on
 it.
 
 The manager owns no results. It moves rows of the `runs` table between states
-and lets the worker write the run folder.
+and lets the worker write the run folder. It also owns the chat process
+(`chat.ChatService`), because the two compete for one thing: the local model
+fits on the GPU once, so a run that needs it waits for a question in flight, and
+a question that needs it is refused while a run holds it.
 """
 
 from __future__ import annotations
@@ -20,7 +23,8 @@ from collections import deque
 from pathlib import Path
 from typing import Any
 
-from . import db, events, storage, worker
+from . import chat as chat_module
+from . import db, events, mellor_adapter, processes, storage, worker
 from .config import Settings
 
 LOG = logging.getLogger(__name__)
@@ -42,6 +46,12 @@ class JobManager:
         self._wake = threading.Event()
         self._stopping = threading.Event()
         self._thread: threading.Thread | None = None
+        #: The job at the head of the queue needs the local model, and a question
+        #: is using it. Chat refuses new local questions meanwhile, so the job
+        #: cannot be kept waiting by a stream of them.
+        self._waiting_for_model = False
+        self.chat = chat_module.ChatService(settings, lock=self._lock,
+                                            model_claimed=self._model_claimed)
 
     # ------------------------------------------------------------------ lifecycle
 
@@ -51,14 +61,24 @@ class JobManager:
         self._thread.start()
 
     def stop(self, *, terminate_running: bool = False) -> None:
+        """Stop the scheduler and the chat process; with `terminate_running`, the
+        running jobs as well, together with the EPSR scripts they started.
+
+        Safe to call twice: the app's shutdown calls it, and `__main__` calls it
+        again for the case where a second Ctrl+C forces uvicorn out before the
+        shutdown runs. The scheduler is stopped first, so a job killed here is not
+        reaped as `failed`; `recover` marks it `interrupted` at the next start-up.
+        """
         self._stopping.set()
         self._wake.set()
+        if self._thread and self._thread is not threading.current_thread():
+            self._thread.join(timeout=5.0)
         if terminate_running:
             with self._lock:
                 for run_id, process in list(self._running.items()):
                     self._kill(run_id, process)
-        if self._thread:
-            self._thread.join(timeout=5.0)
+                    del self._running[run_id]
+        self.chat.stop()
 
     def recover(self) -> None:
         """Mark runs that were in flight when the server stopped.
@@ -129,6 +149,7 @@ class JobManager:
             try:
                 self._reap()
                 self._dispatch()
+                self.chat.reap_idle()
             except Exception:
                 LOG.exception("job scheduler error")
             self._wake.wait(_POLL_SECONDS)
@@ -136,8 +157,25 @@ class JobManager:
 
     def _dispatch(self) -> None:
         with self._lock:
+            self._waiting_for_model = False
             while self._queue and len(self._running) < self.settings.max_workers:
+                if self._uses_local_model(self._queue[0]) and not self.chat.release():
+                    # A question is being answered with the local model. Start
+                    # when it is done (the next pass), rather than load a second
+                    # copy onto the GPU.
+                    self._waiting_for_model = True
+                    break
                 self._start(self._queue.popleft())
+
+    @staticmethod
+    def _uses_local_model(job: dict[str, Any]) -> bool:
+        return mellor_adapter.uses_local_model(job.get("backend") or "auto")
+
+    def _model_claimed(self) -> bool:
+        """True while a run holds the local model or waits for it. Under the lock."""
+        return self._waiting_for_model or any(
+            self._uses_local_model(job) for job in self._job_meta.values()
+        )
 
     def _start(self, job: dict[str, Any]) -> None:
         run_id = job["run_id"]
@@ -193,12 +231,9 @@ class JobManager:
         self._finish(run_id, "failed", error=error)
 
     def _kill(self, run_id: str, process: Any) -> None:
+        """Stop a worker and the EPSR script it runs (they share a process group)."""
         LOG.info("terminating the worker of run %s (pid %s)", run_id, process.pid)
-        process.terminate()
-        process.join(timeout=10.0)
-        if process.is_alive():
-            process.kill()
-            process.join(timeout=5.0)
+        processes.stop(process)
 
     def _finish(self, run_id: str, status: str, *, result: dict | None = None,
                 error: str | None = None) -> None:

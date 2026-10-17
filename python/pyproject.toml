@@ -18,10 +18,21 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-plot = ["matplotlib>=3.7"]
+# matplotlib figures (epsr.plot) and the refinement analysis (epsr.vis)
+plot = ["matplotlib>=3.7", "scipy>=1.10"]
+# 3D configuration viewer and movies (epsr.vis.viewer)
+viewer = ["pyvista>=0.43", "imageio>=2.30", "imageio-ffmpeg>=0.5"]
 pandas = ["pandas>=2.0"]
 progress = ["tqdm>=4.60"]
-all = ["matplotlib>=3.7", "pandas>=2.0", "tqdm>=4.60"]
+all = [
+    "matplotlib>=3.7",
+    "scipy>=1.10",
+    "pyvista>=0.43",
+    "imageio>=2.30",
+    "imageio-ffmpeg>=0.5",
+    "pandas>=2.0",
+    "tqdm>=4.60",
+]
 
 [dependency-groups]
 dev = [
@@ -90,3 +101,22 @@ warn_unused_ignores = true
 disallow_untyped_defs = true
 ignore_missing_imports = true
 files = ["epsr"]
+
+[[tool.mypy.overrides]]
+# The modules of epsr.vis shared with the standalone visualisation toolkit
+# (visualisation/python_visualisation_toolkit) are only partly annotated and are not
+# type-checked yet; epsr.vis.__init__ and epsr.vis.wrapper (wrapper glue) are.
+module = [
+    "epsr.vis.cli",
+    "epsr.vis.live",
+    "epsr.vis.metrics",
+    "epsr.vis.outputs",
+    "epsr.vis.plots",
+    "epsr.vis.recorder",
+    "epsr.vis.report",
+    "epsr.vis.style",
+    "epsr.vis.systems",
+    "epsr.vis.trajectory",
+    "epsr.vis.viewer",
+]
+ignore_errors = true

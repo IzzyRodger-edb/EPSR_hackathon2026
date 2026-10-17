@@ -15,7 +15,9 @@ EXAMPLE_SCRIPTS = sorted((PYTHON_DIR / "examples").glob("0*.py"))
 #: Command-line arguments that keep the longer examples short under test.
 SHORT_RUN_ARGUMENTS = {
     "02_refinement_loop": ["3"],  # number of EPSR runs
-    "05_experimental_water": ["--quick"],  # 10 iterations per EPSR run
+    # 10 iterations per EPSR run; no 3D image (pyvista needs an OpenGL context)
+    "05_experimental_water": ["--quick", "--no-3d"],
+    "06_experimental_SiO2": ["--quick", "--no-3d"],
 }
 
 
@@ -48,4 +50,5 @@ def test_examples_found() -> None:
         "03_perturb_potential",
         "04_tools",
         "05_experimental_water",
+        "06_experimental_SiO2",
     ]

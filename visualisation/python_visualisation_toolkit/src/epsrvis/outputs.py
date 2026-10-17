@@ -13,8 +13,8 @@ from pathlib import Path
 
 import numpy as np
 
-
 # ---------------------------------------------------------------- EPSR output files
+
 
 @dataclass
 class EpsrTable:
@@ -50,8 +50,18 @@ def read_epsr_table(path: str | Path) -> EpsrTable:
 
 
 # Column meaning of the .EPSR.erg file (one line per iteration, written in epsr.rs).
-ERG_COLUMNS = ("energy", "pressure", "rfactor_raw", "ep_amplitude", "number_density",
-               "r_space_coeff", "quality_factor", "parabola_a", "parabola_b", "parabola_c")
+ERG_COLUMNS = (
+    "energy",
+    "pressure",
+    "rfactor_raw",
+    "ep_amplitude",
+    "number_density",
+    "r_space_coeff",
+    "quality_factor",
+    "parabola_a",
+    "parabola_b",
+    "parabola_c",
+)
 
 
 def read_erg(path: str | Path) -> dict[str, np.ndarray]:
@@ -73,7 +83,7 @@ class OutputFolder:
     prefix: str
 
     @classmethod
-    def find(cls, path: str | Path) -> "OutputFolder":
+    def find(cls, path: str | Path) -> OutputFolder:
         path = Path(path)
         u = sorted(path.glob("*.EPSR.u01"))
         if not u:
@@ -107,3 +117,40 @@ TABLES = {
     "l": "running integral 4*pi*rho*int r^2 (g_inter(r) - 1) dr per pair",
     "z": "running coordination number N_ab(r) from g_inter, per ordered pair (a-b, b-a)",
 }
+
+
+# ---------------------------------------------------------------- reference (experimental) data
+
+
+def read_isis_gr(path: str | Path) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Read a partial g(r) file of the ISIS Disordered Materials Database.
+
+    Format (e.g. ``h2o298aoogor.txt``, Soper, Chem. Phys. 258 (2000) 121):
+    three header lines, a column-title line, then ``bin  r  g(r)  std``.
+    Returns (r [Å], g, error).
+    """
+    rows = []
+    with open(path, encoding="latin-1") as fh:
+        for line in fh:
+            parts = line.split()
+            try:
+                rows.append([float(x) for x in parts[:4]])
+            except ValueError:
+                continue  # header lines
+    a = np.array([r for r in rows if len(r) == 4])
+    # the files end with an all-zero terminator row: keep the part where r keeps increasing
+    stop = np.flatnonzero(np.diff(a[:, 1]) <= 0)
+    if stop.size:
+        a = a[: stop[0] + 1]
+    return a[:, 1], a[:, 2], a[:, 3]
+
+
+def load_reference_partials(
+    files: dict[str, str | Path],
+) -> dict[str, tuple[np.ndarray, np.ndarray]]:
+    """``{pair label: file}`` -> ``{pair label: (r, g)}`` for the viewer and :func:`epsrvis.plots.partials_vs_reference`."""
+    out = {}
+    for pair, f in files.items():
+        r, g, _ = read_isis_gr(f)
+        out[pair] = (r, g)
+    return out

@@ -244,6 +244,45 @@ epsr.plot.history(hist, ["r_factor", "energy"])
 
 Each function accepts `ax=` to draw into existing axes and returns the axes.
 
+### Following a refinement iteration by iteration: `epsr.vis`
+
+EPSR writes its result files, and computes the R-factor, only at the end of each
+run, so `epsr.plot` shows the final state. `epsr.vis` records **every iteration**
+and analyses the whole refinement. Replace `Simulation.run()` and `epsr.refine`
+by their recorded versions. They run the same iterations
+(`Simulation.iterations()`), so the folder ends up exactly as without recording
+(`tests/test_vis.py` checks this file by file).
+
+```python
+from epsr import vis
+
+recorder = vis.TrajectoryRecorder(case="water")      # case: settings in vis.systems
+vis.run_recorded(project.simulation(), recorder)     # instead of simulation.run()
+history = vis.refine_recorded(project, 2, recorder,  # instead of epsr.refine(...)
+                              overrides={"niter": 100},
+                              initial_overrides={"ereq": 3.0})
+trajectory = recorder.trajectory()                   # arrays [iteration, ...]
+recorder.save("work/trajectory")                     # vis.Trajectory.load(...) later
+
+vis.make_report(trajectory, "figures/")              # 9 figures + summary.csv/.md
+fit = vis.metrics.fit_metrics(trajectory)            # R-factor, R², chi² per iteration
+vis.plots.partials_vs_reference(trajectory, vis.load_reference_partials({...}))
+```
+
+The figures show convergence (energy, pressure, R-factor, R², EP amplitude
+against `ereq`, density, MC acceptance), the F(Q) fits and residuals, the
+partials, the empirical potential, coordination numbers and bond angles. With
+the `viewer` extra, `epsr.vis.viewer.ConfigurationViewer(trajectory).show()`
+opens a 3D view of the configuration next to the partial g(r), with a slider
+over the iterations. `screenshot()` and `movie()` (GIF or MP4) work off-screen.
+`examples/05_experimental_water.py` and `examples/06_experimental_SiO2.py`
+end with these figures.
+
+`epsr.vis` needs the `plot` extra (matplotlib, scipy). It is the visualisation
+toolkit of `visualisation/python_visualisation_toolkit` (standalone package
+`epsrvis`, with documented examples). The shared modules are identical in both
+places.
+
 ## 9. Parallel runs
 
 **Inside one simulation.** The engine parallelises its expensive loops (energies,

@@ -7,12 +7,11 @@ the vertical lines mark where a new invocation (stage) starts.
 
 from __future__ import annotations
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.figure import Figure
 
-from . import metrics as M
-from . import style
+from . import metrics, style
 from .systems import Case, get_case
 from .trajectory import Trajectory
 
@@ -20,6 +19,7 @@ style.apply()
 
 
 # ---------------------------------------------------------------- helpers
+
 
 def case_of(traj: Trajectory) -> Case:
     return get_case(traj.case, traj.atom_types)
@@ -43,7 +43,7 @@ def stage_steps(traj: Trajectory) -> list[int]:
     """Middle and last step of every run of 10 or more iterations (skips the noisy random start)."""
     starts = [k for k, _, _ in traj.run_starts] + [traj.nsteps]
     out = []
-    for a, b in zip(starts[:-1], starts[1:]):
+    for a, b in zip(starts[:-1], starts[1:], strict=True):
         if b - a >= 10:
             out += [a + (b - a) // 2 - 1, b - 1]
     return out or [traj.nsteps - 1]
@@ -51,7 +51,9 @@ def stage_steps(traj: Trajectory) -> list[int]:
 
 def step_label(traj: Trajectory, k: int) -> str:
     h = traj.history
-    return f"iteration {int(h['step'][k])} (run {int(h['run'][k])}, ereq {h['ereq'][k]:g})"
+    return (
+        f"iteration {int(h['step'][k])} (run {int(h['run'][k])}, ereq {h['ereq'][k]:g})"
+    )
 
 
 def _mark_stages(ax, traj: Trajectory, case: Case, label: bool) -> None:
@@ -62,23 +64,34 @@ def _mark_stages(ax, traj: Trajectory, case: Case, label: bool) -> None:
         if k > 0:
             ax.axvline(x[k] - 0.5, color=style.MUTED, lw=0.8, ls=(0, (3, 3)), zorder=0)
         end = starts[n + 1][0] if n + 1 < len(starts) else traj.nsteps
-        if label and (end - k) >= 0.05 * traj.nsteps:  # skip labels of very short runs (scratch start)
+        if (
+            label and (end - k) >= 0.05 * traj.nsteps
+        ):  # skip labels of very short runs (scratch start)
             name = case.stages.get(run, f"run {run}")
             if ereq > 0:
                 name += f", ereq {ereq:g}"
-            ax.text(x[k] + 1, 1.01, name, transform=ax.get_xaxis_transform(), fontsize=7,
-                    color=style.INK_2, va="bottom")
+            ax.text(
+                x[k] + 1,
+                1.01,
+                name,
+                transform=ax.get_xaxis_transform(),
+                fontsize=7,
+                color=style.INK_2,
+                va="bottom",
+            )
         if label:
             ax.set_title(ax.get_title(loc="left"), loc="left", pad=16)
 
 
-def _robust_ylim(ax, ys: list[np.ndarray], skip_frac: float = 0.08, pad: float = 0.12) -> bool:
+def _robust_ylim(
+    ax, ys: list[np.ndarray], skip_frac: float = 0.08, pad: float = 0.12
+) -> bool:
     """Scale the y axis to the values after the first ``skip_frac`` of the steps.
 
     The scratch start has overlapping atoms (energies ~1e9) that would flatten
     everything else; returns True when early values are off-scale.
     """
-    vals = np.concatenate([np.asarray(y)[int(len(y) * skip_frac):] for y in ys])
+    vals = np.concatenate([np.asarray(y)[int(len(y) * skip_frac) :] for y in ys])
     vals = vals[np.isfinite(vals)]
     if vals.size == 0:
         return False
@@ -90,18 +103,28 @@ def _robust_ylim(ax, ys: list[np.ndarray], skip_frac: float = 0.08, pad: float =
 
 
 def _offscale_note(ax, text="earlier values off-scale (random start)"):
-    ax.text(0.99, 0.96, text, transform=ax.transAxes, ha="right", va="top", fontsize=7, color=style.MUTED)
+    ax.text(
+        0.99,
+        0.96,
+        text,
+        transform=ax.transAxes,
+        ha="right",
+        va="top",
+        fontsize=7,
+        color=style.MUTED,
+    )
 
 
 # ---------------------------------------------------------------- convergence dashboard
+
 
 def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Figure:
     """Small multiples of the key metrics against EPSR iteration."""
     case = case_of(traj)
     h = traj.history
     x = traj.steps
-    fit = M.fit_metrics(traj)
-    acc = M.acceptance(traj)
+    fit = metrics.fit_metrics(traj)
+    acc = metrics.acceptance(traj)
     fig, axes = plt.subplots(4, 2, figsize=(11, 11), sharex=True)
     ax = axes.ravel()
 
@@ -117,8 +140,15 @@ def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Fig
     a = ax[1]
     a.plot(x, h["foldsb"], color=style.series(0))
     if np.all(h["foldsb"] == 0):
-        a.text(0.5, 0.6, "no intramolecular terms (atomic system)", transform=a.transAxes, ha="center",
-               color=style.MUTED, fontsize=8)
+        a.text(
+            0.5,
+            0.6,
+            "no intramolecular terms (atomic system)",
+            transform=a.transAxes,
+            ha="center",
+            color=style.MUTED,
+            fontsize=8,
+        )
     else:
         _robust_ylim(a, [h["foldsb"]])
     a.set_title("Intramolecular energy")
@@ -138,10 +168,24 @@ def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Fig
     for d, name in enumerate(traj.datasets):
         a.plot(x, fit["rfactor"][:, d], color=style.series(d), label=name)
     if np.any(np.isfinite(fit["rfactor_inst_tot"])):
-        a.plot(x, fit["rfactor_inst_tot"], color=style.INK_2, lw=1.0, ls=(0, (2, 2)),
-               label="current configuration (mean)")
+        a.plot(
+            x,
+            fit["rfactor_inst_tot"],
+            color=style.INK_2,
+            lw=1.0,
+            ls=(0, (2, 2)),
+            label="current configuration (mean)",
+        )
     ends = [k for k in key_steps(traj) if np.nan_to_num(h["rfactot"][k]) > 0]
-    a.plot(x[ends], h["rfactot"][ends], "D", ms=5, color=style.INK, mfc="none", label="EPSR total (.out)")
+    a.plot(
+        x[ends],
+        h["rfactot"][ends],
+        "D",
+        ms=5,
+        color=style.INK,
+        mfc="none",
+        label="EPSR total (.out)",
+    )
     a.set_yscale("log")
     a.set_title("R-factor  ⟨(data − sim)²⟩")
     a.legend(loc="upper right")
@@ -150,14 +194,24 @@ def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Fig
     a = ax[4]
     for d, name in enumerate(traj.datasets):
         a.plot(x, fit["r2"][:, d], color=style.series(d), label=name)
-    a.set_ylim(max(-0.05, min(0.0, np.nanmin(fit["r2"][int(0.08 * len(x)):]) - 0.05)), 1.0)
+    a.set_ylim(
+        max(-0.05, min(0.0, np.nanmin(fit["r2"][int(0.08 * len(x)) :]) - 0.05)), 1.0
+    )
     a.set_title("R² of the F(Q) fit")
     a.legend(loc="lower right")
 
     # 6 EP amplitude vs requested
     a = ax[5]
     a.plot(x, h["energabs"], color=style.series(0), label="EP amplitude (energabs)")
-    a.step(x, h["ereq"], where="mid", color=style.INK_2, lw=1.0, ls=(0, (4, 2)), label="ereq (requested)")
+    a.step(
+        x,
+        h["ereq"],
+        where="mid",
+        color=style.INK_2,
+        lw=1.0,
+        ls=(0, (4, 2)),
+        label="ereq (requested)",
+    )
     a.set_title("Empirical potential amplitude")
     a.set_ylabel("kJ/mol")
     a.legend(loc="upper left")
@@ -165,7 +219,7 @@ def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Fig
     # 7 density
     a = ax[6]
     if masses:
-        a.plot(x, M.mass_density(traj, masses), color=style.series(0))
+        a.plot(x, metrics.mass_density(traj, masses), color=style.series(0))
         a.set_ylabel("g/cm³")
         a.set_title("Density")
     else:
@@ -173,11 +227,19 @@ def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Fig
         a.set_ylabel("atoms/Å³")
         a.set_title("Atomic number density")
     rho = h["rho"]
-    a.text(0.01, 0.04, f"ρ = {rho[-1]:.5f} atoms/Å³, box {h['box'][-1]:.3f} Å", transform=a.transAxes,
-           fontsize=7, color=style.INK_2)
+    a.text(
+        0.01,
+        0.04,
+        f"ρ = {rho[-1]:.5f} atoms/Å³, box {h['box'][-1]:.3f} Å",
+        transform=a.transAxes,
+        fontsize=7,
+        color=style.INK_2,
+    )
     y = a.lines[0].get_ydata()
     c = float(np.mean(y))
-    a.set_ylim(c * (1 - 0.02), c * (1 + 0.02))  # constant-volume MC: a flat line, shown at ±2 %
+    a.set_ylim(
+        c * (1 - 0.02), c * (1 + 0.02)
+    )  # constant-volume MC: a flat line, shown at ±2 %
 
     # 8 MC acceptance
     a = ax[7]
@@ -185,16 +247,29 @@ def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Fig
     trans = acc.get("whole-molecule translation", np.full(len(x), np.nan))
     if acc and np.allclose(np.nan_to_num(rot, nan=-1), np.nan_to_num(trans, nan=-1)):
         # rotation and translation are one combined move, accepted or rejected together
-        acc = {"whole-molecule move (rotation + translation)": trans,
-               **{k: v for k, v in acc.items() if k not in ("whole-molecule rotation", "whole-molecule translation")}}
+        acc = {
+            "whole-molecule move (rotation + translation)": trans,
+            **{
+                k: v
+                for k, v in acc.items()
+                if k not in ("whole-molecule rotation", "whole-molecule translation")
+            },
+        }
     i = 0
     for name, v in acc.items():
         if np.any(np.isfinite(v)):
             a.plot(x, v, color=style.series(i), label=name, lw=1.2)
             i += 1
     if not a.lines:
-        a.text(0.5, 0.5, "Monte Carlo counters not recorded", transform=a.transAxes, ha="center",
-               color=style.MUTED, fontsize=8)
+        a.text(
+            0.5,
+            0.5,
+            "Monte Carlo counters not recorded",
+            transform=a.transAxes,
+            ha="center",
+            color=style.MUTED,
+            fontsize=8,
+        )
     a.set_ylim(0, 1)
     a.set_title("Monte Carlo acceptance ratio")
     if a.lines:
@@ -204,12 +279,15 @@ def convergence(traj: Trajectory, masses: dict[str, float] | None = None) -> Fig
         _mark_stages(a_, traj, case, label=k < 2)
     for a_ in axes[-1]:
         a_.set_xlabel("EPSR iteration")
-    fig.suptitle(f"{case.title} — convergence", x=0.01, ha="left", fontsize=12, fontweight="bold")
+    fig.suptitle(
+        f"{case.title} — convergence", x=0.01, ha="left", fontsize=12, fontweight="bold"
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     return fig
 
 
 # ---------------------------------------------------------------- F(Q)
+
 
 def fq_fit(traj: Trajectory, steps: list[int] | None = None) -> Figure:
     """Measured vs simulated F(Q) for each data set (rows) at selected steps (columns).
@@ -218,10 +296,16 @@ def fq_fit(traj: Trajectory, steps: list[int] | None = None) -> Figure:
     """
     steps = steps or key_steps(traj)
     nd = len(traj.datasets)
-    fit = M.fit_metrics(traj)
+    fit = metrics.fit_metrics(traj)
     q = traj.q
-    fig, axes = plt.subplots(nd, len(steps), figsize=(3.6 * len(steps), 2.9 * nd), squeeze=False,
-                             sharex=True, sharey="row")
+    fig, axes = plt.subplots(
+        nd,
+        len(steps),
+        figsize=(3.6 * len(steps), 2.9 * nd),
+        squeeze=False,
+        sharex=True,
+        sharey="row",
+    )
     for d in range(nd):
         sl = traj.q_slice(d)
         data = traj.fq_data[-1, d, sl]
@@ -229,12 +313,34 @@ def fq_fit(traj: Trajectory, steps: list[int] | None = None) -> Figure:
         for j, s in enumerate(steps):
             a = axes[d, j]
             sim = traj.fq_sim[s, d, sl]
-            a.plot(q[sl], traj.fq_data[s, d, sl], "o", ms=2.2, color=style.INK, label="data", zorder=3)
+            a.plot(
+                q[sl],
+                traj.fq_data[s, d, sl],
+                "o",
+                ms=2.2,
+                color=style.INK,
+                label="data",
+                zorder=3,
+            )
             a.plot(q[sl], sim, color=style.series(d), label="EPSR", zorder=4)
-            a.plot(q[sl], traj.fq_data[s, d, sl] - sim - off, color=style.INK_2, lw=1.0, label="data − EPSR")
+            a.plot(
+                q[sl],
+                traj.fq_data[s, d, sl] - sim - off,
+                color=style.INK_2,
+                lw=1.0,
+                label="data − EPSR",
+            )
             a.axhline(-off, color=style.MUTED, lw=0.6)
-            a.text(0.98, 0.95, f"R = {fit['rfactor'][s, d]:.2e}\nR² = {fit['r2'][s, d]:.3f}",
-                   transform=a.transAxes, ha="right", va="top", fontsize=7.5, color=style.INK_2)
+            a.text(
+                0.98,
+                0.95,
+                f"R = {fit['rfactor'][s, d]:.2e}\nR² = {fit['r2'][s, d]:.3f}",
+                transform=a.transAxes,
+                ha="right",
+                va="top",
+                fontsize=7.5,
+                color=style.INK_2,
+            )
             if d == 0:
                 a.set_title(step_label(traj, s), fontsize=8.5)
             if j == 0:
@@ -242,8 +348,13 @@ def fq_fit(traj: Trajectory, steps: list[int] | None = None) -> Figure:
             if d == nd - 1:
                 a.set_xlabel("Q (Å⁻¹)")
     axes[0, 0].legend(loc="lower right", fontsize=7)
-    fig.suptitle(f"{case_of(traj).title} — fit to the measured structure factors", x=0.01, ha="left",
-                 fontsize=12, fontweight="bold")
+    fig.suptitle(
+        f"{case_of(traj).title} — fit to the measured structure factors",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.97))
     return fig
 
@@ -258,15 +369,35 @@ def fq_evolution(traj: Trajectory, steps: list[int] | None = None) -> Figure:
     for d in range(nd):
         a = axes[0, d]
         sl = traj.q_slice(d)
-        for c, s in zip(cols, steps):
-            a.plot(q[sl], traj.fq_sim[s, d, sl], color=c, lw=1.2, label=f"iter {int(traj.steps[s])}")
-        a.plot(q[sl], traj.fq_data[-1, d, sl], "o", ms=1.8, color=style.INK, label="data", zorder=5)
+        for c, s in zip(cols, steps, strict=True):
+            a.plot(
+                q[sl],
+                traj.fq_sim[s, d, sl],
+                color=c,
+                lw=1.2,
+                label=f"iter {int(traj.steps[s])}",
+            )
+        a.plot(
+            q[sl],
+            traj.fq_data[-1, d, sl],
+            "o",
+            ms=1.8,
+            color=style.INK,
+            label="data",
+            zorder=5,
+        )
         a.set_title(traj.datasets[d])
         a.set_xlabel("Q (Å⁻¹)")
         if d == 0:
             a.set_ylabel("F(Q)")
     axes[0, -1].legend(loc="upper right", fontsize=7)
-    fig.suptitle("Simulated F(Q) through the refinement", x=0.01, ha="left", fontsize=12, fontweight="bold")
+    fig.suptitle(
+        "Simulated F(Q) through the refinement",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     return fig
 
@@ -280,9 +411,17 @@ def residual_map(traj: Trajectory) -> Figure:
         a = axes[0, d]
         sl = traj.q_slice(d)
         res = np.asarray(traj.fq_data[:, d, sl]) - np.asarray(traj.fq_sim[:, d, sl])
-        lim = np.nanpercentile(np.abs(res[int(0.1 * len(res)):]), 99) or 1e-3
-        im = a.pcolormesh(q[sl], traj.steps, res, cmap=style.DIVERGING, vmin=-lim, vmax=lim, shading="nearest",
-                          rasterized=True)
+        lim = np.nanpercentile(np.abs(res[int(0.1 * len(res)) :]), 99) or 1e-3
+        im = a.pcolormesh(
+            q[sl],
+            traj.steps,
+            res,
+            cmap=style.DIVERGING,
+            vmin=-lim,
+            vmax=lim,
+            shading="nearest",
+            rasterized=True,
+        )
         for k, _, _ in traj.run_starts[1:]:
             a.axhline(traj.steps[k] - 0.5, color=style.INK_2, lw=0.6, ls=(0, (3, 3)))
         a.set_title(traj.datasets[d])
@@ -291,12 +430,19 @@ def residual_map(traj: Trajectory) -> Figure:
         if d == 0:
             a.set_ylabel("EPSR iteration")
         fig.colorbar(im, ax=a, label="data − EPSR", shrink=0.85)
-    fig.suptitle("Where in Q the fit is still wrong", x=0.01, ha="left", fontsize=12, fontweight="bold")
+    fig.suptitle(
+        "Where in Q the fit is still wrong",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     return fig
 
 
 # ---------------------------------------------------------------- partials and potentials
+
 
 def partials(traj: Trajectory, steps: list[int] | None = None) -> Figure:
     """Partial g(r) (inter + intra, top) and intermolecular partial S(Q) (bottom) per pair."""
@@ -307,8 +453,14 @@ def partials(traj: Trajectory, steps: list[int] | None = None) -> Figure:
     r, q = traj.r, traj.q
     for ip, pair in enumerate(traj.pairs):
         a = axes[0, ip]
-        for c, s in zip(cols, steps):
-            a.plot(r, traj.gr_total(s)[ip], color=c, lw=1.2, label=f"iter {int(traj.steps[s])}")
+        for c, s in zip(cols, steps, strict=True):
+            a.plot(
+                r,
+                traj.gr_total(s)[ip],
+                color=c,
+                lw=1.2,
+                label=f"iter {int(traj.steps[s])}",
+            )
         a.axhline(1, color=style.MUTED, lw=0.6)
         a.set_xlim(0, min(12, r[-1]))
         g = traj.gr_total(steps[-1])[ip]
@@ -316,29 +468,40 @@ def partials(traj: Trajectory, steps: list[int] | None = None) -> Figure:
         a.set_title(f"g(r)  {pair}")
         a.set_xlabel("r (Å)")
         b = axes[1, ip]
-        for c, s in zip(cols, steps):
+        for c, s in zip(cols, steps, strict=True):
             b.plot(q, traj.sq_inter[s, ip], color=c, lw=1.2)
         b.set_xlim(0, min(20, q[-1]))
         b.set_title(f"S(Q) intermolecular  {pair}")
         b.set_xlabel("Q (Å⁻¹)")
     axes[0, -1].legend(loc="upper right", fontsize=7)
-    fig.suptitle("Partial pair distribution functions and structure factors", x=0.01, ha="left",
-                 fontsize=12, fontweight="bold")
+    fig.suptitle(
+        "Partial pair distribution functions and structure factors",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     return fig
 
 
 def potentials(traj: Trajectory, steps: list[int] | None = None) -> Figure:
     """Empirical potential per pair through the refinement (top) and its effect on g(r) (bottom)."""
-    steps = steps or [k for k in stage_steps(traj) if traj.history["ereq"][k] > 0] or stage_steps(traj)
+    steps = (
+        steps
+        or [k for k in stage_steps(traj) if traj.history["ereq"][k] > 0]
+        or stage_steps(traj)
+    )
     cols = style.progress_colors(len(steps))
     np_ = len(traj.pairs)
     r = traj.r
     fig, axes = plt.subplots(2, np_, figsize=(4.4 * np_, 6.0), squeeze=False)
     for ip, pair in enumerate(traj.pairs):
         a = axes[0, ip]
-        for c, s in zip(cols, steps):
-            a.plot(r, traj.ep[s, ip], color=c, lw=1.2, label=f"iter {int(traj.steps[s])}")
+        for c, s in zip(cols, steps, strict=True):
+            a.plot(
+                r, traj.ep[s, ip], color=c, lw=1.2, label=f"iter {int(traj.steps[s])}"
+            )
         a.axhline(0, color=style.MUTED, lw=0.6)
         a.set_title(f"Empirical potential  {pair}")
         if ip == 0:
@@ -348,10 +511,18 @@ def potentials(traj: Trajectory, steps: list[int] | None = None) -> Figure:
         r_ref = [k for k in range(traj.nsteps) if traj.history["ereq"][k] == 0]
         if r_ref:
             g0 = traj.gr_total(r_ref[-1])[ip]
-            b.plot(r, g0, color=style.INK_2, lw=1.0, ls=(0, (4, 2)),
-                   label=f"reference only (iter {int(traj.steps[r_ref[-1]])})")
+            b.plot(
+                r,
+                g0,
+                color=style.INK_2,
+                lw=1.0,
+                ls=(0, (4, 2)),
+                label=f"reference only (iter {int(traj.steps[r_ref[-1]])})",
+            )
         g1 = traj.gr_total(traj.nsteps - 1)[ip]
-        b.plot(r, g1, color=style.series(ip), label=f"with EP (iter {int(traj.steps[-1])})")
+        b.plot(
+            r, g1, color=style.series(ip), label=f"with EP (iter {int(traj.steps[-1])})"
+        )
         b.axhline(1, color=style.MUTED, lw=0.6)
         b.set_xlim(0, min(10, r[-1]))
         b.set_ylim(-0.1, min(np.nanmax(g1[r > 0.5]) * 1.15, 6))
@@ -363,44 +534,65 @@ def potentials(traj: Trajectory, steps: list[int] | None = None) -> Figure:
     axes[0, -1].legend(loc="upper right", fontsize=7)
     for a in axes[0]:
         a.set_xlim(0, min(12, r[-1]))
-    fig.suptitle("Empirical potential", x=0.01, ha="left", fontsize=12, fontweight="bold")
+    fig.suptitle(
+        "Empirical potential", x=0.01, ha="left", fontsize=12, fontweight="bold"
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     return fig
 
 
 # ---------------------------------------------------------------- structure
 
+
 def shells(traj: Trajectory, every: int = 2) -> Figure:
     """First-shell peak position, height and coordination number of each pair vs iteration."""
     case = case_of(traj)
-    sh = M.shell_history(traj, total=False, every=every)
+    sh = metrics.shell_history(traj, total=False, every=every)
     x = traj.steps[sh["_steps"]]
     fig, axes = plt.subplots(1, 3, figsize=(13, 3.6), sharex=True)
     for ip, pair in enumerate(traj.pairs):
         d = sh[pair]
         rc = sh["_r_min_fixed"][ip]
-        for a, key in zip(axes, ("r_peak", "g_peak", "n_coord")):
-            a.plot(x, d[key], color=style.series(ip), lw=1.3,
-                   label=f"{pair} (r < {rc:.2f} Å)" if key == "n_coord" else pair)
+        for a, key in zip(axes, ("r_peak", "g_peak", "n_coord"), strict=True):
+            a.plot(
+                x,
+                d[key],
+                color=style.series(ip),
+                lw=1.3,
+                label=f"{pair} (r < {rc:.2f} Å)" if key == "n_coord" else pair,
+            )
     axes[0].set_title("First intermolecular peak position (Å)")
     axes[1].set_title("First intermolecular peak height g(r)")
     axes[2].set_title("Coordination number (to final first minimum)")
     for a in axes:
         a.set_xlabel("EPSR iteration")
         _mark_stages(a, traj, case, label=False)
-        vals = np.concatenate([l.get_ydata()[len(x) // 10:] for l in a.lines if len(l.get_ydata())])
+        vals = np.concatenate(
+            [
+                line.get_ydata()[len(x) // 10 :]
+                for line in a.lines
+                if len(line.get_ydata())
+            ]
+        )
         vals = vals[np.isfinite(vals)]
         if vals.size:
             span = vals.max() - vals.min() or 1
             a.set_ylim(vals.min() - 0.1 * span, vals.max() + 0.1 * span)
     axes[2].legend(loc="best")
-    fig.suptitle("First coordination shell (intermolecular g(r))", x=0.01, ha="left", fontsize=12,
-                 fontweight="bold")
+    fig.suptitle(
+        "First coordination shell (intermolecular g(r))",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     return fig
 
 
-def structure_from_coordinates(traj: Trajectory, steps: list[int] | None = None) -> Figure | None:
+def structure_from_coordinates(
+    traj: Trajectory, steps: list[int] | None = None
+) -> Figure | None:
     """Coordination-number and bond-angle distributions from the atom positions."""
     case = case_of(traj)
     if not (case.coordination or case.angles):
@@ -412,24 +604,39 @@ def structure_from_coordinates(traj: Trajectory, steps: list[int] | None = None)
     panels = len(case.coordination) + len(case.angles)
     fig, axes = plt.subplots(1, panels, figsize=(4.0 * panels, 3.6), squeeze=False)
     axes = axes[0]
-    for c, s in zip(cols, steps):
+    for c, s in zip(cols, steps, strict=True):
         pos = np.asarray(traj.positions[s], dtype=float)
         box = traj.box(s)
         for k, (a_, b_, cut, inter, desc) in enumerate(case.coordination):
-            n, frac = M.coordination_distribution(pos, box, labels, a_, b_, cut,
-                                                  exclude_molecule=mol if inter else None)
+            n, frac = metrics.coordination_distribution(
+                pos, box, labels, a_, b_, cut, exclude_molecule=mol if inter else None
+            )
             w = 0.8 / len(steps)
             off = (steps.index(s) - (len(steps) - 1) / 2) * w
-            axes[k].bar(n + off, frac, width=w * 0.9, color=c, label=f"iter {int(traj.steps[s])}")
+            axes[k].bar(
+                n + off,
+                frac,
+                width=w * 0.9,
+                color=c,
+                label=f"iter {int(traj.steps[s])}",
+            )
             axes[k].set_title(desc, fontsize=9)
             axes[k].set_xlabel("number of neighbours")
             axes[k].set_xticks(n)
         for k, (outer, centre, cut, mode, desc) in enumerate(case.angles):
             a = axes[len(case.coordination) + k]
-            th, hist, _ = M.bond_angle_distribution(
-                pos, box, labels, centre, outer, cut,
+            th, hist, _ = metrics.bond_angle_distribution(
+                pos,
+                box,
+                labels,
+                centre,
+                outer,
+                cut,
                 exclude_molecule=mol if mode == "inter" else None,
-                intramolecular_only=mode == "intra", molecule=mol, bins=60)
+                intramolecular_only=mode == "intra",
+                molecule=mol,
+                bins=60,
+            )
             a.plot(th, hist, color=c, lw=1.4, label=f"iter {int(traj.steps[s])}")
             a.set_title(desc, fontsize=9)
             a.set_xlabel("angle (°)")
@@ -437,8 +644,13 @@ def structure_from_coordinates(traj: Trajectory, steps: list[int] | None = None)
         a.grid(axis="x", visible=False)
     axes[0].set_ylabel("fraction")
     axes[-1].legend(loc="upper left", fontsize=7)
-    fig.suptitle("Local structure from the atomic configuration", x=0.01, ha="left", fontsize=12,
-                 fontweight="bold")
+    fig.suptitle(
+        "Local structure from the atomic configuration",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.92))
     return fig
 
@@ -446,7 +658,7 @@ def structure_from_coordinates(traj: Trajectory, steps: list[int] | None = None)
 def displacement(traj: Trajectory) -> Figure:
     """How far the atoms have moved since the first iteration (configuration decorrelation)."""
     case = case_of(traj)
-    steps, msd = M.mean_squared_displacement(traj)
+    steps, msd = metrics.mean_squared_displacement(traj)
     fig, a = plt.subplots(figsize=(6, 3.4))
     a.plot(traj.steps[steps], np.sqrt(msd), color=style.series(0))
     a.set_xlabel("EPSR iteration")
@@ -459,26 +671,37 @@ def displacement(traj: Trajectory) -> Figure:
 
 # ---------------------------------------------------------------- animation
 
+
 def fq_animation(traj: Trajectory, path, every: int = 2, fps: int = 12):
     """GIF of the F(Q) fit and the partial g(r), one frame per ``every`` iterations."""
     from matplotlib.animation import FuncAnimation, PillowWriter
 
     nd, np_ = len(traj.datasets), len(traj.pairs)
     q, r = traj.q, traj.r
-    fit = M.fit_metrics(traj)
-    fig, axes = plt.subplots(2, max(nd, np_), figsize=(4.2 * max(nd, np_), 6.2), squeeze=False)
+    fit = metrics.fit_metrics(traj)
+    fig, axes = plt.subplots(
+        2, max(nd, np_), figsize=(4.2 * max(nd, np_), 6.2), squeeze=False
+    )
     sim_lines, txt, gr_lines = [], [], []
     for d in range(nd):
         a = axes[0, d]
         sl = traj.q_slice(d)
-        a.plot(q[sl], traj.fq_data[-1, d, sl], "o", ms=1.8, color=style.INK, label="data")
-        (ln,) = a.plot(q[sl], traj.fq_sim[0, d, sl], color=style.series(d), label="EPSR")
+        a.plot(
+            q[sl], traj.fq_data[-1, d, sl], "o", ms=1.8, color=style.INK, label="data"
+        )
+        (ln,) = a.plot(
+            q[sl], traj.fq_sim[0, d, sl], color=style.series(d), label="EPSR"
+        )
         sim_lines.append((ln, sl))
         lo, hi = np.nanmin(traj.fq_data[-1, d, sl]), np.nanmax(traj.fq_data[-1, d, sl])
         a.set_ylim(lo - 0.3 * (hi - lo), hi + 0.3 * (hi - lo))
         a.set_title(traj.datasets[d])
         a.set_xlabel("Q (Å⁻¹)")
-        txt.append(a.text(0.98, 0.95, "", transform=a.transAxes, ha="right", va="top", fontsize=8))
+        txt.append(
+            a.text(
+                0.98, 0.95, "", transform=a.transAxes, ha="right", va="top", fontsize=8
+            )
+        )
     for ip, pair in enumerate(traj.pairs):
         a = axes[1, ip]
         (ln,) = a.plot(r, traj.gr_total(0)[ip], color=style.series(ip))
@@ -489,7 +712,7 @@ def fq_animation(traj: Trajectory, path, every: int = 2, fps: int = 12):
         a.set_xlim(0, min(10, r[-1]))
         a.set_title(f"g(r)  {pair}")
         a.set_xlabel("r (Å)")
-    for a in axes.ravel()[nd:max(nd, np_)]:
+    for a in axes.ravel()[nd : max(nd, np_)]:
         a.set_visible(False)
     for a in axes[1, np_:]:
         a.set_visible(False)
@@ -502,7 +725,9 @@ def fq_animation(traj: Trajectory, path, every: int = 2, fps: int = 12):
     def update(s):
         for d, (ln, sl) in enumerate(sim_lines):
             ln.set_ydata(traj.fq_sim[s, d, sl])
-            txt[d].set_text(f"R = {fit['rfactor'][s, d]:.2e}   R² = {fit['r2'][s, d]:.3f}")
+            txt[d].set_text(
+                f"R = {fit['rfactor'][s, d]:.2e}   R² = {fit['r2'][s, d]:.3f}"
+            )
         g = traj.gr_total(s)
         for ip, ln in enumerate(gr_lines):
             ln.set_ydata(g[ip])
@@ -516,29 +741,36 @@ def fq_animation(traj: Trajectory, path, every: int = 2, fps: int = 12):
 
 # ---------------------------------------------------------------- summary table
 
-def summary_rows(traj: Trajectory, masses: dict[str, float] | None = None) -> list[dict]:
+
+def summary_rows(
+    traj: Trajectory, masses: dict[str, float] | None = None
+) -> list[dict]:
     """One row of key numbers at the end of each run."""
-    fit = M.fit_metrics(traj)
+    fit = metrics.fit_metrics(traj)
     h = traj.history
     rows = []
     for s in key_steps(traj):
-        n = M.running_coordination(traj, s, total=False)
+        n = metrics.running_coordination(traj, s, total=False)
         g = np.asarray(traj.gr_inter[s], dtype=float)
         row = {
-            "iteration": int(h["step"][s]), "run": int(h["run"][s]), "ereq": float(h["ereq"][s]),
-            "energy_inter": float(h["energd"][s]), "energy_intra": float(h["foldsb"][s]),
-            "pressure": float(h["pressd"][s]), "ep_amplitude": float(h["energabs"][s]),
+            "iteration": int(h["step"][s]),
+            "run": int(h["run"][s]),
+            "ereq": float(h["ereq"][s]),
+            "energy_inter": float(h["energd"][s]),
+            "energy_intra": float(h["foldsb"][s]),
+            "pressure": float(h["pressd"][s]),
+            "ep_amplitude": float(h["energabs"][s]),
             "rho_atoms": float(h["rho"][s]),
             "rfactor_total": float(fit["rfactor_tot"][s]),
         }
         if masses:
-            row["density_g_cm3"] = float(M.mass_density(traj, masses)[s])
+            row["density_g_cm3"] = float(metrics.mass_density(traj, masses)[s])
         for d, name in enumerate(traj.datasets):
             row[f"rfactor[{name}]"] = float(fit["rfactor"][s, d])
             row[f"R2[{name}]"] = float(fit["r2"][s, d])
             row[f"chi2[{name}]"] = float(fit["chi2"][s, d])
         for ip, pair in enumerate(traj.pairs):
-            fs = M.first_shell(traj.r, g[ip], n[ip])
+            fs = metrics.first_shell(traj.r, g[ip], n[ip])
             row[f"r_peak[{pair}]"] = fs["r_peak"]
             row[f"N_coord[{pair}]"] = fs["n_coord"]
             row[f"r_min[{pair}]"] = fs["r_min"]
@@ -547,6 +779,7 @@ def summary_rows(traj: Trajectory, masses: dict[str, float] | None = None) -> li
 
 
 # ---------------------------------------------------------------- final EPSR output files only
+
 
 def final_outputs(folder) -> Figure:
     """Overview of a finished EPSR run from its own output files (no trajectory needed).
@@ -600,6 +833,80 @@ def final_outputs(folder) -> Figure:
     a.set_title("Energy per molecule (.erg)")
     a.set_xlabel("line of .erg (iteration)")
     a.set_ylabel("kJ/mol")
-    fig.suptitle(f"{f.prefix}: final EPSR output", x=0.01, ha="left", fontsize=12, fontweight="bold")
+    fig.suptitle(
+        f"{f.prefix}: final EPSR output",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.95))
+    return fig
+
+
+# ---------------------------------------------------------------- comparison with reference partials
+
+
+def partials_vs_reference(
+    traj: Trajectory,
+    reference: dict,
+    step: int = -1,
+    total: bool = True,
+    calc_alpha: float = 0.4,
+    source: str = "experiment",
+    rmax: float = 10.0,
+) -> Figure:
+    """Calculated partial g(r) against reference (e.g. experimental) partials, one panel per pair.
+
+    ``reference`` is ``{pair label: (r, g)}`` (see :func:`epsrvis.outputs.load_reference_partials`).
+    The reference is solid, the calculated g(r) the same colour with ``calc_alpha``.
+    ``total=True`` adds the intramolecular part, as measured partials include it.
+    """
+    s = step % traj.nsteps
+    g = traj.gr_total(s) if total else np.asarray(traj.gr_inter[s], dtype=float)
+    r = traj.r
+    pairs = [p for p in traj.pairs if p in reference] or traj.pairs
+    fig, axes = plt.subplots(
+        1, len(pairs), figsize=(4.6 * len(pairs), 3.9), squeeze=False
+    )
+    for a, pair in zip(axes[0], pairs, strict=True):
+        ip = traj.pairs.index(pair)
+        c = style.series(ip)
+        a.plot(
+            r,
+            g[ip],
+            color=c,
+            lw=3.0,
+            alpha=calc_alpha,
+            label=f"EPSR (iter {int(traj.steps[s])})",
+        )
+        if pair in reference:
+            rr, gg = reference[pair]
+            a.plot(rr, gg, color=c, lw=1.6, label=source)
+        a.axhline(1, color=style.MUTED, lw=0.6)
+        a.set_xlim(0, rmax)
+        m = (
+            r > 1.2
+        )  # scale to the intermolecular structure; intramolecular peaks may be clipped
+        top = max(
+            np.nanmax(g[ip][m]),
+            (
+                np.nanmax(reference[pair][1][np.asarray(reference[pair][0]) > 1.2])
+                if pair in reference
+                else 0
+            ),
+        )
+        a.set_ylim(-0.1, top * 1.15)
+        a.set_title(f"g(r)  {pair}")
+        a.set_xlabel("r (Å)")
+        a.legend(loc="upper right", fontsize=8)
+    axes[0, 0].set_ylabel("g(r)" + (" (inter + intra)" if total else ""))
+    fig.suptitle(
+        f"Partial pair distribution functions: EPSR vs {source}",
+        x=0.01,
+        ha="left",
+        fontsize=12,
+        fontweight="bold",
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     return fig

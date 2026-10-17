@@ -5,7 +5,7 @@ Rust engine is validated with, plus wrapper-specific behaviour.
 
 ```bash
 cd python
-uv run pytest -n auto                 # everything: 217 tests (2 opt-in), about 5.5 minutes on 4 cores
+uv run pytest -n auto                 # everything: 222 tests (2 opt-in), about 5.5 minutes on 4 cores
 uv run pytest -m "not slow"           # skip case replays and experimental-data runs: about 1 minute
 uv run pytest -m experimental          # only the refinements of real neutron data
 uv run pytest tests/test_ex_cases.py -k "ex20 or ex50"    # selected verification cases
@@ -43,8 +43,9 @@ Fortran did not also fail the test.
 | `test_refine.py` | the run loop, `.erg` growth, callbacks, early stopping, overrides, snapshots, CSV and pandas export |
 | `test_tools.py` | `nwts` rebuilds the shipped `.wts` files byte for byte, keyword tables, `write_keyword_file` round trip, interactive answers, the deliberate `makeato` crash maps to `EpsrUnsupportedError` |
 | `test_threads.py` | GIL release, parallel runs equal sequential runs, `refine_many`, tools from several threads; byte-identical results with 1 and 4 engine (rayon) threads for a cubic and a triclinic box; concurrent cubic and triclinic runs sharing the rayon pool equal their sequential runs |
-| `test_examples.py` | the five example scripts run (the long ones in their short mode) |
+| `test_examples.py` | the six example scripts run (the long ones in their short mode, without the 3D image) |
 | `test_plot.py` | the plotting helpers draw |
+| `test_vis.py` | `epsr.vis`: a recorded run or refinement leaves every file identical to an unrecorded one; per-iteration R-factors equal EPSR's; the report and save/load work |
 | `test_experimental_data.py` | water and silica built from scratch and refined against real neutron data; see the next section |
 | `test_cu_btc.py` | the Cu-BTC crystal read from a PDB file, refined with Bragg peaks against real neutron data, compared with the archived Fortran results after every EPSR run; see the next section |
 

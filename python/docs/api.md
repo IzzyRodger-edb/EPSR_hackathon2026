@@ -192,6 +192,27 @@ Repeated labels in a table header get a `#2` suffix (`.z01` lists each pair twic
 `history(hist, columns=("r_factor", "energy", "ep_amplitude"), *, axes=None)`.
 Each returns the axes it drew on.
 
+## epsr.vis
+
+Analysis of a refinement iteration by iteration (`plot` extra; the 3D viewer
+needs the `viewer` extra). See the user guide, section 8.
+
+| name | purpose |
+|---|---|
+| `TrajectoryRecorder(case="", record_positions=True)` | collects one snapshot per iteration; `.trajectory()`, `.save(folder)`, `.nsteps` |
+| `run_recorded(sim, recorder, *, iteration_callback=None) -> Summary` | `sim.run()`, recorded |
+| `refine_recorded(project, n_runs, recorder, *, overrides, initial_overrides, callback, iteration_callback, verbose) -> History` | `epsr.refine`, recorded |
+| `record_run(sim, recorder, ereq=None, pcof=None, callback=None)` | the lower-level loop used by `run_recorded` |
+| `Trajectory.load(folder)` / `.save(folder)` | per-iteration arrays `fq_data, fq_err, fq_sim, fq_inst` [step, dataset, Q], `gr_inter, gr_intra, ep, ref_pot` [step, pair, r], `sq_inter, sq_intra` [step, pair, Q], `positions` [step, atom, 3], and `history` (convergence numbers per step) |
+| `make_report(trajectory, folder, figures=None, gif=False)` | figures `01_convergence` ... `09_displacement`, `summary.csv`, `summary.md` |
+| `metrics` | `fit_metrics` (R-factor, R², chi² per iteration), `acceptance`, `running_coordination`, `shell_history`, `coordination_distribution`, `bond_angle_distribution`, `tetrahedral_order`, `mean_squared_displacement`, `neighbour_pairs` |
+| `plots` | one function per figure, plus `partials_vs_reference`, `fq_animation`, `final_outputs` |
+| `read_isis_gr`, `load_reference_partials` | experimental partial g(r) files of the ISIS Disordered Materials Database |
+| `viewer.ConfigurationViewer(trajectory, gr="inter", slab=None, color_by="type", reference=None, off_screen=False, window_size=(1600, 820))` | pyvista 3D configuration + partial g(r): `show()`, `screenshot(path, step)`, `movie(path, every, fps)` |
+| `live.LiveMonitor(every=5)` | `iteration_callback` that redraws the R-factor and the F(Q) fits during a run |
+
+`python -m epsr.vis report|view|snapshot|movie|final ...` is the command line.
+
 ## Errors
 
 `EpsrError`; `EpsrIOError(EpsrError, OSError)`; `EpsrInputError(EpsrError,

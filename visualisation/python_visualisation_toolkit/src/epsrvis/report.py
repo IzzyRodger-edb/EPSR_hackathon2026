@@ -13,15 +13,33 @@ from .trajectory import Trajectory
 
 #: Figure name -> (function, what it shows).  ``make_report`` writes ``<name>.png``.
 FIGURES = {
-    "01_convergence": (plots.convergence, "energies, pressure, R-factor, R², EP amplitude, density, MC acceptance"),
-    "02_fq_fit": (plots.fq_fit, "measured vs simulated F(Q) and their difference at the end of each run"),
+    "01_convergence": (
+        plots.convergence,
+        "energies, pressure, R-factor, R², EP amplitude, density, MC acceptance",
+    ),
+    "02_fq_fit": (
+        plots.fq_fit,
+        "measured vs simulated F(Q) and their difference at the end of each run",
+    ),
     "03_fq_evolution": (plots.fq_evolution, "simulated F(Q) through the refinement"),
     "04_residual_map": (plots.residual_map, "data − simulation over Q and iteration"),
-    "05_partials": (plots.partials, "partial g(r) and S(Q) at the middle and end of each run"),
+    "05_partials": (
+        plots.partials,
+        "partial g(r) and S(Q) at the middle and end of each run",
+    ),
     "06_potentials": (plots.potentials, "empirical potential, and its effect on g(r)"),
-    "07_first_shell": (plots.shells, "first-shell peak position, height and coordination number vs iteration"),
-    "08_local_structure": (plots.structure_from_coordinates, "coordination and bond-angle distributions"),
-    "09_displacement": (plots.displacement, "RMS atom displacement since the first iteration"),
+    "07_first_shell": (
+        plots.shells,
+        "first-shell peak position, height and coordination number vs iteration",
+    ),
+    "08_local_structure": (
+        plots.structure_from_coordinates,
+        "coordination and bond-angle distributions",
+    ),
+    "09_displacement": (
+        plots.displacement,
+        "RMS atom displacement since the first iteration",
+    ),
 }
 
 
@@ -37,16 +55,29 @@ def masses_for(traj: Trajectory) -> dict[str, float] | None:
 def summary_markdown(rows: list[dict]) -> str:
     """The rows of :func:`epsrvis.plots.summary_rows` as a Markdown table (one column per row)."""
     keys = list(rows[0])
-    out = ["| quantity | " + " | ".join(f"iter {r['iteration']}" for r in rows) + " |",
-           "|---|" + "---|" * len(rows)]
+    out = [
+        "| quantity | " + " | ".join(f"iter {r['iteration']}" for r in rows) + " |",
+        "|---|" + "---|" * len(rows),
+    ]
     for k in keys[1:]:
-        fmt = (lambda v: f"{v:.3e}") if k.startswith(("rfactor", "chi2")) else (lambda v: f"{v:.4g}")
+        fmt = (
+            (lambda v: f"{v:.3e}")
+            if k.startswith(("rfactor", "chi2"))
+            else (lambda v: f"{v:.4g}")
+        )
         out.append(f"| {k} | " + " | ".join(fmt(r[k]) for r in rows) + " |")
     return "\n".join(out) + "\n"
 
 
-def make_report(traj: Trajectory, out_dir: str | Path, figures=None, gif: bool = False, gif_every: int = 3,
-                dpi: int = 150, verbose: bool = True) -> dict[str, Path]:
+def make_report(
+    traj: Trajectory,
+    out_dir: str | Path,
+    figures=None,
+    gif: bool = False,
+    gif_every: int = 3,
+    dpi: int = 150,
+    verbose: bool = True,
+) -> dict[str, Path]:
     """Write the figures of :data:`FIGURES` (or the subset ``figures``), ``summary.csv`` and ``summary.md``.
 
     Returns {name: path} of everything written.  With ``gif=True`` also writes

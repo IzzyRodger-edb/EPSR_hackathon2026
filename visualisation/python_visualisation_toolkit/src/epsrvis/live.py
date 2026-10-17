@@ -36,7 +36,9 @@ class LiveMonitor:
         style.apply()
         nd = len(traj.datasets)
         if self.fig is None:
-            self.fig, self.axes = plt.subplots(1, nd + 1, figsize=(4.2 * (nd + 1), 3.4), squeeze=False)
+            self.fig, self.axes = plt.subplots(
+                1, nd + 1, figsize=(4.2 * (nd + 1), 3.4), squeeze=False
+            )
         axes = self.axes[0]
         for a in axes:
             a.cla()
@@ -46,9 +48,21 @@ class LiveMonitor:
             axes[0].plot(x, fit["rfactor"][:, d], color=style.series(d), label=name)
             sl = traj.q_slice(d)
             a = axes[d + 1]
-            a.plot(traj.q[sl], traj.fq_data[-1, d, sl], "o", ms=1.8, color=style.INK, label="data")
-            a.plot(traj.q[sl], traj.fq_sim[-1, d, sl], color=style.series(d), label="EPSR")
-            a.set_title(f"{name}: R = {fit['rfactor'][-1, d]:.2e}, R² = {fit['r2'][-1, d]:.3f}", fontsize=9)
+            a.plot(
+                traj.q[sl],
+                traj.fq_data[-1, d, sl],
+                "o",
+                ms=1.8,
+                color=style.INK,
+                label="data",
+            )
+            a.plot(
+                traj.q[sl], traj.fq_sim[-1, d, sl], color=style.series(d), label="EPSR"
+            )
+            a.set_title(
+                f"{name}: R = {fit['rfactor'][-1, d]:.2e}, R² = {fit['r2'][-1, d]:.3f}",
+                fontsize=9,
+            )
             a.set_xlabel("Q (Å⁻¹)")
         axes[0].set_yscale("log")
         axes[0].set_title(f"R-factor, iteration {int(x[-1])}")

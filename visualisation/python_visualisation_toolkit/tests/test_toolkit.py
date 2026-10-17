@@ -101,3 +101,17 @@ def test_report(silica, tmp_path):
     written = make_report(silica.subset(range(0, 300, 10)), tmp_path, verbose=False)
     assert len([k for k in written if k.endswith(".png") or k[:2].isdigit()]) == 9
     assert (tmp_path / "summary.md").read_text().startswith("| quantity |")
+
+
+def test_reference_partials(water, tmp_path):
+    """ISIS database partials: header and the zero terminator row are dropped; the comparison figure works."""
+    from conftest import ROOT
+    from epsrvis import load_reference_partials, read_isis_gr
+
+    exp = ROOT / "presentation_assets" / "experimental_data"
+    r, g, err = read_isis_gr(exp / "h2o298aoogor.txt")
+    assert np.all(np.diff(r) > 0) and r[-1] > 17 and abs(g[-1] - 1) < 0.05
+    assert 2.6 < r[np.argmax(g)] < 2.9  # first O-O peak of water
+    ref = load_reference_partials({"OW-OW": exp / "h2o298aoogor.txt", "OW-HW": exp / "h2o298aohgor.txt"})
+    fig = plots.partials_vs_reference(water, ref)
+    assert len(fig.axes) == 2

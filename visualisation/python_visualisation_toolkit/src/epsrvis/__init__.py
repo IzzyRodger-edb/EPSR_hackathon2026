@@ -17,7 +17,7 @@ Main entry points
 :mod:`epsrvis.viewer`        pyvista 3D configuration + partial g(r)
 """
 
-from .outputs import OutputFolder, read_epsr_table, read_erg
+from .outputs import OutputFolder, load_reference_partials, read_epsr_table, read_erg, read_isis_gr
 from .recorder import TrajectoryRecorder, record_run
 from .report import make_report
 from .trajectory import Trajectory
@@ -25,4 +25,4 @@ from .trajectory import Trajectory
 __version__ = "0.1.0"
 
 __all__ = ["Trajectory", "TrajectoryRecorder", "record_run", "make_report", "OutputFolder",
-           "read_epsr_table", "read_erg"]
+           "read_epsr_table", "read_erg", "read_isis_gr", "load_reference_partials"]

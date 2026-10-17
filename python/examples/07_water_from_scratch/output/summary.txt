@@ -1,0 +1,22 @@
+Reference potential read back from the box (per atom type):
+  OW: epsilon 0.6503 kJ/mol, sigma 3.1655 Å, charge -0.820 e, mass 15.9994 amu
+  HW: epsilon 0.0000 kJ/mol, sigma 0.0000 Å, charge +0.410 e, mass 2.0000 amu
+Mixed pair parameters (Lorentz-Berthelot) and Coulomb prefactor:
+  OW-OW: eps_ij 0.6503 kJ/mol, sigma_ij 3.1655 Å, 1390·q_i·q_j +934.64 kJ mol⁻¹ Å
+  OW-HW: eps_ij 0.0000 kJ/mol, sigma_ij 1.5827 Å, 1390·q_i·q_j -467.32 kJ mol⁻¹ Å
+  HW-HW: eps_ij 0.0000 kJ/mol, sigma_ij 0.0000 Å, 1390·q_i·q_j +233.66 kJ mol⁻¹ Å
+
+R-factor: 6.136e-04 on the reference potential
+          2.221e-04 after refinement with the empirical potential
+  SLS18502-D2O             fitted over Q = 0.20 to 29.90 1/Å
+  SLS18500-HDO5050         fitted over Q = 0.20 to 29.90 1/Å
+  SLS18498-H2O             fitted over Q = 0.20 to 29.90 1/Å
+OW-OW first peak at 2.79 Å (nearest-neighbour waters)
+OW-HW first peak at 1.83 Å (hydrogen bond)
+
+300 EPSR iterations recorded; figures in /home/izzyr/EPSR_hackathon2026/python/examples/07_water_from_scratch/output/figures
+  SLS18502-D2O             R² of the fit:  -6.302 (first iteration) -> 0.973 (last)
+  SLS18500-HDO5050         R² of the fit:  -1.838 (first iteration) -> 0.846 (last)
+  SLS18498-H2O             R² of the fit:   0.839 (first iteration) -> 0.945 (last)
+  3.60 hydrogen bonds per molecule
+  3D configuration + partial g(r): 11_configuration.png

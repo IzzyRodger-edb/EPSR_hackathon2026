@@ -24,6 +24,9 @@ Two worked examples come with data:
 | [example_H2O/](example_H2O/README.md) | 1000 water molecules | H₂O, D₂O, HDO neutron data (SANDALS) |
 | [example_SiO2/](example_SiO2/README.md) | 1500 Si + 3000 O, amorphous silica | one neutron data set (NIMROD) |
 
+[presentation_assets/](presentation_assets/README.md) has full-HD MP4 movies and stills of both, with the water g(r)
+compared against experimental partials (Soper 2000).
+
 ---
 
 ## 1. Installation
@@ -32,7 +35,7 @@ The project is managed with [uv](https://docs.astral.sh/uv/):
 
 ```bash
 cd visualisation/python_visualisation_toolkit
-uv sync --extra viewer          # numpy, scipy, matplotlib + pyvista, imageio (3D viewer), pytest
+uv sync --extra viewer          # numpy, scipy, matplotlib + pyvista, imageio, imageio-ffmpeg (3D viewer, MP4), pytest
 uv run pytest                   # 7 tests, ~6 s
 ```
 
@@ -75,11 +78,11 @@ uv run epsrvis final   example_H2O/data/epsr_output --out final.png   # plain EP
 | `trajectory.py` | `Trajectory`: the per-iteration record; `load()`/`save()` of the folder format (§5) |
 | `recorder.py` | `TrajectoryRecorder`, `record_run()`: record a running wrapper `Simulation` (§4) |
 | `metrics.py` | `fit_metrics` (R-factor, R², χ²), `acceptance`, `mass_density`, `running_coordination`, `first_shell`, `shell_history`, `coordination_distribution`, `bond_angle_distribution`, `tetrahedral_order`, `mean_squared_displacement`, `neighbour_pairs` |
-| `plots.py` | one matplotlib function per figure (table in §6), `fq_animation`, `final_outputs`, `summary_rows` |
+| `plots.py` | one matplotlib function per figure (table in §6), `fq_animation`, `final_outputs`, `partials_vs_reference`, `summary_rows` |
 | `report.py` | `make_report()`: every figure + `summary.csv`/`summary.md`; `FIGURES` lists them |
-| `viewer.py` | `ConfigurationViewer`: pyvista 3D configuration + linked g(r) chart; `show`, `screenshot`, `movie` |
+| `viewer.py` | `ConfigurationViewer`: pyvista 3D configuration + linked g(r) chart, optionally with reference (experimental) partials; `show`, `screenshot`, `movie` (GIF or MP4) |
 | `live.py` | `LiveMonitor`: redraw R-factor and F(Q) while the wrapper runs |
-| `outputs.py` | `read_epsr_table` (`.?01` files), `read_erg`, `OutputFolder`, `TABLES` (what each file holds) |
+| `outputs.py` | `read_epsr_table` (`.?01` files), `read_erg`, `OutputFolder`, `TABLES` (what each file holds); `read_isis_gr`, `load_reference_partials` (ISIS Disordered Materials Database partials) |
 | `systems.py` | per-system settings: elements, colours, bonds, coordination/angle analyses, stage names |
 | `style.py` | colour palette and matplotlib style |
 | `cli.py` | the `epsrvis` command |
@@ -215,7 +218,28 @@ bonds to draw, the coordination and angle analyses, and the stage names. An
 unknown case still works: elements are guessed from the atom-type labels, and
 the structural analyses are skipped.
 
-## 9. Relation to `visualisation/`
+## 9. Integration in the wrapper (`epsr.vis`)
+
+This toolkit is integrated in the Python wrapper as **`epsr.vis`**
+(`python/epsr/vis/`). The modules `trajectory`, `recorder`, `metrics`, `plots`,
+`report`, `viewer`, `live`, `outputs`, `systems`, `style` and `cli` are
+**identical** in both places. Change them in one place and copy them to the
+other; `cmp` should report no difference. Only the wrapper copy has
+`epsr/vis/wrapper.py`: `run_recorded` and `refine_recorded`, the recorded
+versions of `Simulation.run()` and `epsr.refine`. The wrapper's examples
+`05_experimental_water.py` and `06_experimental_SiO2.py` use them and end with
+these figures.
+
+The recorder works with the real wrapper API: `control.niter`,
+`summary.fortran`, `potential.empirical()`, `potential.params.ereq` and
+`current_sq()`. Two points about that API:
+- The wrapper writes `fort.35` itself on the last `iterate()`, so the recorder
+  does not write it again.
+- `Simulation.current_sq()`/`current_gr()` return the **intramolecular** part at
+  index 0, although their docstrings say intermolecular. The recorder detects
+  which half is which, so it stays correct either way.
+
+## 10. Relation to `visualisation/`
 
 `visualisation/src/epsr_vis` is the first version of these tools. This toolkit
 adds the recorder for the wrapper, the in-memory `Trajectory`, tests and the

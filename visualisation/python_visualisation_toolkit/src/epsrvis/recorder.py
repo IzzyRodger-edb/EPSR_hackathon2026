@@ -79,6 +79,7 @@ SUMMARY_ALIASES = {
 
 # ---------------------------------------------------------------- duck-typed access
 
+
 def _value(obj, *names, args=()):
     """First of ``names`` found on ``obj``: called with ``args`` if callable, else returned."""
     for n in names:
@@ -117,12 +118,68 @@ def _per_index(obj, names, n):
 
 
 def _summary_get(summary, name):
+    fortran = getattr(
+        summary, "fortran", None
+    )  # epsr.Summary keeps the engine's dict (Fortran names)
+    if isinstance(fortran, dict) and name in fortran:
+        return fortran[name]
     for alias in SUMMARY_ALIASES[name]:
         if isinstance(summary, dict) and alias in summary:
             return summary[alias]
         if not isinstance(summary, dict) and hasattr(summary, alias):
             return getattr(summary, alias)
     return None
+
+
+def _niter(sim) -> int:
+    """Iterations of this run: ``sim.niter`` or ``sim.control.niter`` (epsr.Simulation)."""
+    if hasattr(sim, "niter"):
+        return int(_value(sim, "niter"))
+    return int(sim.control.niter)
+
+
+def _potentials(sim, kind: str, npairs: int):
+    """Empirical (``kind="empirical"``) or reference potential, [pair, r]."""
+    try:
+        return _per_index(sim, (f"{kind}_potential",), npairs)
+    except AttributeError:
+        pot = sim.potential  # epsr.Simulation: sim.potential.empirical() / .reference()
+        return np.asarray(getattr(pot, kind)(), dtype=np.float32)
+
+
+def _ereq_of(sim) -> float | None:
+    """Requested EP amplitude from the simulation, if it exposes it (epsr: potential.params.ereq)."""
+    try:
+        return float(sim.potential.params.ereq)
+    except AttributeError:
+        return None
+
+
+def _weights_from_running_average(sim, nd: int) -> np.ndarray | None:
+    """Neutron weights [dataset, 2*npairs] such that simulated_fq = w . [sq_intra; sq_inter].
+
+    Wrappers that expose the current-configuration partials (``current_sq()``) but
+    not the weights: solve the (exact, overdetermined) linear system from the
+    running averages, which use the same weights.  Returns None if it does not fit
+    (e.g. Q-dependent X-ray weights).
+    """
+    try:
+        a = np.vstack(
+            [
+                np.asarray(_value(sim, "sq_intra"), float),
+                np.asarray(_value(sim, "sq_inter"), float),
+            ]
+        )
+    except (AttributeError, TypeError):
+        return None
+    w = np.zeros((nd, a.shape[0]))
+    for d in range(nd):
+        y = np.asarray(_value(sim, "simulated_fq", args=(d,)), float)
+        sol, *_ = np.linalg.lstsq(a.T, y, rcond=None)
+        if np.max(np.abs(a.T @ sol - y)) > 1e-4 * max(1.0, np.max(np.abs(y))):
+            return None
+        w[d] = sol
+    return w
 
 
 def read_keyword(path: str | Path, keyword: str) -> str | None:
@@ -141,6 +198,7 @@ def read_keyword(path: str | Path, keyword: str) -> str | None:
 
 
 # ---------------------------------------------------------------- recorder
+
 
 class TrajectoryRecorder:
     """Collects one snapshot per EPSR iteration; see the module docstring.
@@ -166,6 +224,7 @@ class TrajectoryRecorder:
         self._run = 0
         self._iter = 0
         self._ereq = 0.0
+        self._weights = None
 
     # ---- metadata, once
     def _init_meta(self, sim) -> None:
@@ -176,21 +235,35 @@ class TrajectoryRecorder:
         labels = [str(x).strip() for x in _value(sim, "atom_labels")]
         mol = np.zeros(len(labels), dtype=int)
         for im, rng in enumerate(_value(sim, "molecule_atoms")):
-            lo, hi = (rng.start, rng.stop) if isinstance(rng, range) else (rng[0], rng[1])
+            lo, hi = (
+                (rng.start, rng.stop) if isinstance(rng, range) else (rng[0], rng[1])
+            )
             mol[lo:hi] = im
         names = []
+        datasets = _optional(sim, "datasets")
         for d in range(nd):
+            if datasets is not None and hasattr(datasets[d], "name"):
+                names.append(datasets[d].name)  # epsr.Dataset
+                continue
             n = _optional(sim, "get_parameter", args=("datafile", d))
             names.append(str(n).split()[0] if n else f"dataset{d + 1}")
         self.meta = {
             "case": self.case,
-            "nq": len(q), "nr": len(r), "natom": len(labels), "nmol": int(mol.max()) + 1 if len(mol) else 0,
-            "npairs": len(pairs), "ndata": nd,
-            "q": q.tolist(), "r": r.tolist(),
+            "nq": len(q),
+            "nr": len(r),
+            "natom": len(labels),
+            "nmol": int(mol.max()) + 1 if len(mol) else 0,
+            "npairs": len(pairs),
+            "ndata": nd,
+            "q": q.tolist(),
+            "r": r.tolist(),
             "atom_types": [str(t).strip() for t in _value(sim, "atom_types")],
             "pairs": pairs,
             "datasets": names,
-            "q_range": [list(map(int, _value(sim, "data_q_range", args=(d,)))) for d in range(nd)],
+            "q_range": [
+                list(map(int, _value(sim, "data_q_range", args=(d,))))
+                for d in range(nd)
+            ],
             "atom_labels": labels,
             "molecule_of_atom": mol.tolist(),
         }
@@ -198,10 +271,14 @@ class TrajectoryRecorder:
             self._initial_positions = self._positions(sim)
 
     def _positions(self, sim):
-        return np.asarray(_value(sim, "positions", "atom_positions"), dtype=np.float32).reshape(-1, 3)
+        return np.asarray(
+            _value(sim, "positions", "atom_positions"), dtype=np.float32
+        ).reshape(-1, 3)
 
     # ---- per run / per iteration
-    def start_run(self, sim, ereq: float | None = None, pcof: str | Path | None = None) -> None:
+    def start_run(
+        self, sim, ereq: float | None = None, pcof: str | Path | None = None
+    ) -> None:
         """Call after creating the ``Simulation`` of a new ``epsr`` invocation.
 
         ``ereq`` (requested EP amplitude) lives in the ``.pcof``, not in the
@@ -212,13 +289,20 @@ class TrajectoryRecorder:
         else:
             nq, nr = len(_value(sim, "q", "q_grid")), len(_value(sim, "r", "r_grid"))
             if (nq, nr) != (self.meta["nq"], self.meta["nr"]):
-                raise ValueError("Q or r grid changed between runs; start a new recorder")
+                raise ValueError(
+                    "Q or r grid changed between runs; start a new recorder"
+                )
         self._run += 1
         self._iter = 0
         if ereq is None and pcof is not None:
             v = read_keyword(pcof, "ereq")
             ereq = float(v) if v is not None else 0.0
+        if ereq is None:
+            ereq = _ereq_of(sim)
         self._ereq = float(ereq or 0.0)
+        self._weights = (
+            None  # current-configuration weights, solved on the first record of the run
+        )
 
     def record(self, sim) -> None:
         """Snapshot the simulation; call after every ``sim.iterate(i)``."""
@@ -229,25 +313,56 @@ class TrajectoryRecorder:
         nd, npairs = m["ndata"], m["npairs"]
         a = self._arr
         a.setdefault("fq_data", []).append(_per_index(sim, ("data_fq",), nd))
-        a.setdefault("fq_err", []).append(_per_index(sim, ("data_errors",), nd) if hasattr(sim, "data_errors")
-                                          else np.zeros((nd, m["nq"]), np.float32))
+        a.setdefault("fq_err", []).append(
+            _per_index(sim, ("data_errors",), nd)
+            if hasattr(sim, "data_errors")
+            else np.zeros((nd, m["nq"]), np.float32)
+        )
         a.setdefault("fq_sim", []).append(_per_index(sim, ("simulated_fq",), nd))
         inst = None
         if hasattr(sim, "simulated_fq_current"):
             inst = _per_index(sim, ("simulated_fq_current",), nd)
-        a.setdefault("fq_inst", []).append(inst if inst is not None else np.full((nd, m["nq"]), np.nan, np.float32))
+        elif hasattr(sim, "current_sq"):
+            if self._weights is None:
+                self._weights = _weights_from_running_average(sim, nd)
+            if self._weights is not None:
+                cur = np.asarray(_value(sim, "current_sq"), float)  # (2, npairs, nq)
+                # Which half is intramolecular?  (The epsr binding returns the engine's
+                # order, intra first, although its docstring says inter first.)  The
+                # intramolecular structure hardly changes, so the half closest to the
+                # running-average intra S(Q) is the intra one.
+                sq_intra = np.asarray(_value(sim, "sq_intra"), float)
+                k = int(
+                    np.argmin(
+                        [
+                            np.abs(cur[0] - sq_intra).sum(),
+                            np.abs(cur[1] - sq_intra).sum(),
+                        ]
+                    )
+                )
+                inst = (self._weights @ np.vstack([cur[k], cur[1 - k]])).astype(
+                    np.float32
+                )
+        a.setdefault("fq_inst", []).append(
+            inst if inst is not None else np.full((nd, m["nq"]), np.nan, np.float32)
+        )
         a.setdefault("gr_inter", []).append(_per_index(sim, ("gr_inter",), npairs))
         a.setdefault("gr_intra", []).append(_per_index(sim, ("gr_intra",), npairs))
         a.setdefault("sq_inter", []).append(_per_index(sim, ("sq_inter",), npairs))
         a.setdefault("sq_intra", []).append(_per_index(sim, ("sq_intra",), npairs))
-        a.setdefault("ep", []).append(_per_index(sim, ("empirical_potential",), npairs))
-        a.setdefault("ref_pot", []).append(_per_index(sim, ("reference_potential",), npairs))
+        a.setdefault("ep", []).append(_potentials(sim, "empirical", npairs))
+        a.setdefault("ref_pot", []).append(_potentials(sim, "reference", npairs))
         if self.record_positions:
             a.setdefault("pos", []).append(self._positions(sim))
 
         summary = _value(sim, "summary")
         box = float(_value(sim, "box_size"))
-        row = {"step": len(a["fq_sim"]), "run": self._run, "iter": self._iter, "ereq": self._ereq}
+        row = {
+            "step": len(a["fq_sim"]),
+            "run": self._run,
+            "iter": self._iter,
+            "ereq": self._ereq,
+        }
         for key in SUMMARY_ALIASES:
             v = _summary_get(summary, key)
             if key == "rfacd":
@@ -258,7 +373,9 @@ class TrajectoryRecorder:
         row["rho"] = m["natom"] / box**3
         counters = _optional(sim, "mc_counters")
         if counters is not None:
-            c = np.asarray(counters).reshape(2, 4)  # rows: attempts, rejects; cols: intra, internal rot, rotation, translation
+            c = np.asarray(counters).reshape(
+                2, 4
+            )  # rows: attempts, rejects; cols: intra, internal rot, rotation, translation
             for j, mv in enumerate(("intra", "irot", "rot", "trans")):
                 row[f"{mv}_att"], row[f"{mv}_rej"] = int(c[0, j]), int(c[1, j])
         steps = _optional(sim, "step_sizes")
@@ -284,32 +401,50 @@ class TrajectoryRecorder:
         arrays = {k: np.stack(v) for k, v in self._arr.items()}
         meta = dict(self.meta)
         meta["arrays"] = {k: list(v.shape[1:]) for k, v in arrays.items()}
-        return Trajectory(meta=meta, history=hist, arrays=arrays, initial_positions=self._initial_positions)
+        return Trajectory(
+            meta=meta,
+            history=hist,
+            arrays=arrays,
+            initial_positions=self._initial_positions,
+        )
 
     def save(self, path: str | Path) -> Path:
         """Write the recording in the trajectory folder format."""
         return self.trajectory().save(path)
 
 
-def record_run(sim, recorder: TrajectoryRecorder, ereq: float | None = None,
-               pcof: str | Path | None = None, callback=None) -> TrajectoryRecorder:
+def record_run(
+    sim,
+    recorder: TrajectoryRecorder,
+    ereq: float | None = None,
+    pcof: str | Path | None = None,
+    callback=None,
+) -> TrajectoryRecorder:
     """One full ``epsr`` invocation, recorded: ``iterate(1..=niter)`` + ``write_fort35()``.
 
     Equivalent to ``sim.run()`` for the simulation files.  ``callback(sim, recorder)``
-    is called after each iteration, e.g. to update a live plot.
+    is called after each iteration, e.g. to update a live plot.  With
+    ``epsr.Simulation`` the last ``iterate`` already writes ``fort.35``.
     """
     recorder.start_run(sim, ereq=ereq, pcof=pcof)
-    niter = int(_value(sim, "niter"))
-    for i in range(1, niter + 1):
+    niter = _niter(sim)
+    first = int(getattr(sim, "last_iteration", 0)) + 1
+    for i in range(first, niter + 1):
         sim.iterate(i)
         recorder.record(sim)
         if callback is not None:
             callback(sim, recorder)
     fin = getattr(sim, "write_fort35", None)
-    if callable(fin):
+    if callable(fin) and not getattr(sim, "completed", False):
         fin()
     return recorder
 
 
-__all__ = ["SimulationLike", "TrajectoryRecorder", "record_run", "read_keyword", "SUMMARY_ALIASES",
-           "HISTORY_COLUMNS"]
+__all__ = [
+    "SimulationLike",
+    "TrajectoryRecorder",
+    "record_run",
+    "read_keyword",
+    "SUMMARY_ALIASES",
+    "HISTORY_COLUMNS",
+]

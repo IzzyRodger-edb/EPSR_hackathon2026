@@ -14,8 +14,8 @@ from scipy.spatial import cKDTree
 
 from .trajectory import Trajectory
 
-
 # ---------------------------------------------------------------- fit quality
+
 
 def fit_metrics(traj: Trajectory) -> dict[str, np.ndarray]:
     """Per-step goodness of fit of the simulated F(Q) to each data set.
@@ -35,10 +35,16 @@ def fit_metrics(traj: Trajectory) -> dict[str, np.ndarray]:
         sl = traj.q_slice(d)
         data = np.asarray(traj.fq_data[:, d, sl], dtype=float)
         sim = np.asarray(traj.fq_sim[:, d, sl], dtype=float)
-        inst = (np.asarray(traj.fq_inst[:, d, sl], dtype=float) if traj.fq_inst is not None
-                else np.full_like(data, np.nan))
-        err = (np.asarray(traj.fq_err[:, d, sl], dtype=float) if traj.fq_err is not None
-               else np.zeros_like(data))
+        inst = (
+            np.asarray(traj.fq_inst[:, d, sl], dtype=float)
+            if traj.fq_inst is not None
+            else np.full_like(data, np.nan)
+        )
+        err = (
+            np.asarray(traj.fq_err[:, d, sl], dtype=float)
+            if traj.fq_err is not None
+            else np.zeros_like(data)
+        )
         res = data - sim
         out["rfactor"][:, d] = np.mean(res**2, axis=1)
         out["rfactor_inst"][:, d] = np.mean((data - inst) ** 2, axis=1)
@@ -63,8 +69,12 @@ def acceptance(traj: Trajectory) -> dict[str, np.ndarray]:
     out = {}
     if "rot_att" not in h:
         return out
-    for move, name in (("rot", "whole-molecule rotation"), ("trans", "whole-molecule translation"),
-                       ("intra", "intramolecular shake"), ("irot", "internal rotation")):
+    for move, name in (
+        ("rot", "whole-molecule rotation"),
+        ("trans", "whole-molecule translation"),
+        ("intra", "intramolecular shake"),
+        ("irot", "internal rotation"),
+    ):
         att, rej = h[f"{move}_att"].astype(float), h[f"{move}_rej"].astype(float)
         with np.errstate(divide="ignore", invalid="ignore"):
             out[name] = np.where(att > 0, 1.0 - rej / att, np.nan)
@@ -80,6 +90,7 @@ def mass_density(traj: Trajectory, masses: dict[str, float]) -> np.ndarray:
 
 # ---------------------------------------------------------------- g(r) features
 
+
 def shell_volumes(r: np.ndarray) -> np.ndarray:
     """4/3 pi (r_hi^3 - r_lo^3) for each r bin, as EPSR's ``uniform`` (first bin half width)."""
     dr = r[1] - r[0]
@@ -89,7 +100,9 @@ def shell_volumes(r: np.ndarray) -> np.ndarray:
     return v
 
 
-def running_coordination(traj: Trajectory, step: int, total: bool = False) -> np.ndarray:
+def running_coordination(
+    traj: Trajectory, step: int, total: bool = False
+) -> np.ndarray:
     """N_ab(r) for each pair [pair, r]: average number of b atoms within r of an a atom.
 
     With ``total=False`` (EPSR's ``.z01`` convention) only intermolecular
@@ -105,8 +118,14 @@ def running_coordination(traj: Trajectory, step: int, total: bool = False) -> np
     return out
 
 
-def first_shell(r: np.ndarray, g: np.ndarray, coord: np.ndarray, rmin: float = 0.5,
-                threshold: float = 0.3, window: float = 1.2) -> dict:
+def first_shell(
+    r: np.ndarray,
+    g: np.ndarray,
+    coord: np.ndarray,
+    rmin: float = 0.5,
+    threshold: float = 0.3,
+    window: float = 1.2,
+) -> dict:
     """Position/height of the first g(r) peak, the following minimum and N(r_min).
 
     The minimum is the lowest point of the smoothed g(r) within ``window`` Å after the peak.
@@ -121,7 +140,12 @@ def first_shell(r: np.ndarray, g: np.ndarray, coord: np.ndarray, rmin: float = 0
         ip += 1
     after = np.where((r > r[ip]) & (r <= r[ip] + window))[0]
     im = int(after[np.argmin(gs[after])]) if after.size else ip
-    return dict(r_peak=float(r[ip]), g_peak=float(g[ip]), r_min=float(r[im]), n_coord=float(coord[im]))
+    return dict(
+        r_peak=float(r[ip]),
+        g_peak=float(g[ip]),
+        r_min=float(r[im]),
+        n_coord=float(coord[im]),
+    )
 
 
 def _smooth(y: np.ndarray, w: int = 5) -> np.ndarray:
@@ -129,7 +153,9 @@ def _smooth(y: np.ndarray, w: int = 5) -> np.ndarray:
     return np.convolve(y, k, mode="same")
 
 
-def shell_history(traj: Trajectory, total: bool = False, every: int = 1) -> dict[str, dict[str, np.ndarray]]:
+def shell_history(
+    traj: Trajectory, total: bool = False, every: int = 1
+) -> dict[str, dict[str, np.ndarray]]:
     """First-shell features of each pair over the run: {pair: {r_peak, g_peak, r_min, n_coord}}.
 
     ``n_coord`` is integrated to the first minimum of the *last* step for every
@@ -137,10 +163,18 @@ def shell_history(traj: Trajectory, total: bool = False, every: int = 1) -> dict
     """
     steps = np.arange(0, traj.nsteps, every)
     last = traj.nsteps - 1
-    g_last = traj.gr_total(last) if total else np.asarray(traj.gr_inter[last], dtype=float)
+    g_last = (
+        traj.gr_total(last) if total else np.asarray(traj.gr_inter[last], dtype=float)
+    )
     n_last = running_coordination(traj, last, total=total)
-    rmin_fixed = [first_shell(traj.r, g_last[ip], n_last[ip])["r_min"] for ip in range(len(traj.pairs))]
-    out = {p: {k: np.zeros(len(steps)) for k in ("r_peak", "g_peak", "r_min", "n_coord")} for p in traj.pairs}
+    rmin_fixed = [
+        first_shell(traj.r, g_last[ip], n_last[ip])["r_min"]
+        for ip in range(len(traj.pairs))
+    ]
+    out = {
+        p: {k: np.zeros(len(steps)) for k in ("r_peak", "g_peak", "r_min", "n_coord")}
+        for p in traj.pairs
+    }
     for j, s in enumerate(steps):
         g = traj.gr_total(s) if total else np.asarray(traj.gr_inter[s], dtype=float)
         n = running_coordination(traj, s, total=total)
@@ -156,12 +190,15 @@ def shell_history(traj: Trajectory, total: bool = False, every: int = 1) -> dict
 
 # ---------------------------------------------------------------- from coordinates
 
+
 def wrapped(pos: np.ndarray, box: float) -> np.ndarray:
     """Positions folded into [0, L) for periodic neighbour searches."""
     return np.mod(np.asarray(pos, dtype=float) + 0.5 * box, box)
 
 
-def neighbour_pairs(pos: np.ndarray, box: float, labels: np.ndarray, a: str, b: str, cutoff: float):
+def neighbour_pairs(
+    pos: np.ndarray, box: float, labels: np.ndarray, a: str, b: str, cutoff: float
+):
     """All (i, j, distance) with label(i)=a, label(j)=b, minimum-image distance < cutoff."""
     w = wrapped(pos, box)
     w = np.minimum(w, np.nextafter(box, 0))  # cKDTree needs data strictly < boxsize
@@ -193,8 +230,18 @@ def coordination_distribution(pos, box, labels, a, b, cutoff, exclude_molecule=N
     return n, frac[: len(n)]
 
 
-def bond_angle_distribution(pos, box, labels, centre, outer, cutoff, bins=90, exclude_molecule=None,
-                            intramolecular_only=False, molecule=None):
+def bond_angle_distribution(
+    pos,
+    box,
+    labels,
+    centre,
+    outer,
+    cutoff,
+    bins=90,
+    exclude_molecule=None,
+    intramolecular_only=False,
+    molecule=None,
+):
     """Distribution of outer-centre-outer angles (degrees) for neighbours within ``cutoff``.
 
     Use ``intramolecular_only=True`` with ``molecule`` to restrict to atoms of the
@@ -213,7 +260,7 @@ def bond_angle_distribution(pos, box, labels, centre, outer, cutoff, bins=90, ex
     angles = []
     starts = np.searchsorted(i, np.unique(i))
     ends = np.append(starts[1:], len(i))
-    for s, e in zip(starts, ends):
+    for s, e in zip(starts, ends, strict=True):
         if e - s < 2:
             continue
         c = pos[i[s]]
@@ -228,7 +275,9 @@ def bond_angle_distribution(pos, box, labels, centre, outer, cutoff, bins=90, ex
     return 0.5 * (edges[1:] + edges[:-1]), hist, angles
 
 
-def mean_squared_displacement(traj: Trajectory, every: int = 1) -> tuple[np.ndarray, np.ndarray]:
+def mean_squared_displacement(
+    traj: Trajectory, every: int = 1
+) -> tuple[np.ndarray, np.ndarray]:
     """MSD (Å^2) of the atoms relative to the first EPSR step, unwrapped across the box.
 
     EPSR is Monte Carlo, so this is not a dynamical quantity: it shows how far the
@@ -242,8 +291,8 @@ def mean_squared_displacement(traj: Trajectory, every: int = 1) -> tuple[np.ndar
     for k, s in enumerate(steps):
         cur = np.asarray(traj.positions[s], dtype=float)
         d = cur - prev
-        L = traj.box(s)
-        d -= L * np.round(d / L)
+        side = traj.box(s)
+        d -= side * np.round(d / side)
         disp += d
         prev = cur
         out[k] = np.mean(np.sum(disp**2, axis=1))

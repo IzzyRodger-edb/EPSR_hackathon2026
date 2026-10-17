@@ -18,7 +18,8 @@ uv sync --all-extras        # creates .venv, compiles the Rust engine, installs 
 ```
 
 `uv sync` rebuilds the extension whenever the Rust engine or the bindings change.
-The extras are `plot` (matplotlib), `pandas` and `progress` (tqdm).
+The extras are `plot` (matplotlib, scipy), `viewer` (pyvista, for 3D views and
+movies), `pandas` and `progress` (tqdm).
 
 ## Run
 
@@ -43,8 +44,9 @@ analysis programs run as `epsr.tools.run(folder, "nwts", ["sample.NWTS.dat"])`.
 
 | command | purpose |
 |---|---|
-| `uv run python examples/05_experimental_water.py --quick` | refine water against real data (about 30 s) |
-| `uv run pytest -n auto` | the test suite (217 tests, about 5 minutes on 4 cores) |
+| `uv run python examples/05_experimental_water.py --quick` | refine water against real data (about 45 s) |
+| `uv run python examples/06_experimental_SiO2.py --quick` | refine amorphous silica against real data (about 1 minute) |
+| `uv run pytest -n auto` | the test suite (222 tests, about 5 minutes on 4 cores) |
 | `uv run pytest -m "not slow"` | the quick tests (about 1 minute) |
 | `uv run isort . && uv run black . && uv run ruff check . && uv run mypy` | format, lint, type-check |
 
@@ -93,10 +95,12 @@ After the full schedule the R-factor falls from 6.1×10⁻⁴ (reference potenti
 ### Amorphous silica against NIMROD data
 
 1500 Si + 3000 O at 0.0664 atoms/Å³, built with `mixato` and refined with `ereq` 50.
-Inputs in [`../validation/silica_bulk`](../validation/silica_bulk); it runs as a test:
+Inputs in [`../validation/silica_bulk`](../validation/silica_bulk):
 
 ```bash
-uv run pytest tests/test_experimental_data.py -k silica
+uv run python examples/06_experimental_SiO2.py            # full schedule, about 12 minutes
+uv run python examples/06_experimental_SiO2.py --quick    # 10 iterations per run, about 1 minute
+uv run pytest tests/test_experimental_data.py -k silica   # the same calculation as a test
 ```
 
 ![Silica: partial g(r) from the Fortran, the Rust CLI and the Python wrapper](../validation/silica_bulk/gr_agreement.png)
@@ -115,9 +119,21 @@ uv run pytest tests/test_cu_btc.py
 
 ![Cu-BTC: partial g(r) from the Fortran, the Rust CLI and the Python wrapper](../validation/cu-btc/gr_agreement.png)
 
+### Figures of the whole refinement
+
+Both experimental examples record every EPSR iteration with `epsr.vis` and end
+with figures of the refinement in `work/<example>_figures/`:
+- convergence (energy, pressure, R-factor and R² per data set, EP amplitude, MC acceptance);
+- F(Q) fits and residual maps, partials, the empirical potential, coordination numbers and bond angles;
+- the 3D configuration next to the partial g(r);
+- for water, the partial g(r) against the experimental partials of Soper (2000);
+- for silica, the formation of the tetrahedral network.
+
+Add `--no-3d` to skip the 3D image, e.g. on a machine without OpenGL.
+
 ## More
 
-* [docs/user_guide.md](docs/user_guide.md): the workflow, overrides, perturbing the potential, tools, parallel runs.
+* [docs/user_guide.md](docs/user_guide.md): the workflow, overrides, perturbing the potential, tools, plotting and `epsr.vis`, parallel runs.
 * [docs/api.md](docs/api.md): every public class and function.
 * [docs/architecture.md](docs/architecture.md) and [docs/testing.md](docs/testing.md): how the wrapper is built and verified.
 * [examples/](examples): `01` to `04` show a single run, a refinement loop, potential perturbation and the tools on the DMSO/water test case.

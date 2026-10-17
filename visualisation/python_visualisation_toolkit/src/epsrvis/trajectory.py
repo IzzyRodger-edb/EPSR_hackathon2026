@@ -45,7 +45,11 @@ ARRAYS = {
     "sq_intra": ("pair", "q", "intramolecular partial S(Q), running average"),
     "ep": ("pair", "r", "empirical potential (kJ/mol)"),
     "ref_pot": ("pair", "r", "reference potential, Lennard-Jones + Coulomb (kJ/mol)"),
-    "pos": ("atom", "xyz", "atom positions (Å); box centred on the origin, molecules whole"),
+    "pos": (
+        "atom",
+        "xyz",
+        "atom positions (Å); box centred on the origin, molecules whole",
+    ),
 }
 
 #: history.tsv columns.  Names follow the Rust ``Summary`` fields.
@@ -82,8 +86,19 @@ HISTORY_COLUMNS = {
     "rfacd": "EPSR R-factor per data set (comma separated in the file)",
 }
 
-_INT_COLS = {"step", "run", "iter", "intra_att", "intra_rej", "irot_att", "irot_rej",
-             "rot_att", "rot_rej", "trans_att", "trans_rej"}
+_INT_COLS = {
+    "step",
+    "run",
+    "iter",
+    "intra_att",
+    "intra_rej",
+    "irot_att",
+    "irot_rej",
+    "rot_att",
+    "rot_rej",
+    "trans_att",
+    "trans_rej",
+}
 
 
 @dataclass
@@ -104,7 +119,7 @@ class Trajectory:
 
     # ---------------------------------------------------------------- I/O
     @classmethod
-    def load(cls, path: str | Path) -> "Trajectory":
+    def load(cls, path: str | Path) -> Trajectory:
         """Open a trajectory folder (arrays are memory-mapped, read-only)."""
         path = Path(path)
         meta = json.loads((path / "meta.json").read_text())
@@ -116,11 +131,15 @@ class Trajectory:
             if not f.exists():
                 continue
             mm = np.memmap(f, dtype="<f4", mode="r")
-            n = min(mm.size // (a * b), nsteps)  # a run still being recorded can be ahead of history.tsv
+            n = min(
+                mm.size // (a * b), nsteps
+            )  # a run still being recorded can be ahead of history.tsv
             arrays[name] = mm[: n * a * b].reshape(n, a, b)
         init = path / "pos_initial.f32"
         pos0 = np.fromfile(init, dtype="<f4").reshape(-1, 3) if init.exists() else None
-        return cls(meta=meta, history=history, arrays=arrays, path=path, initial_positions=pos0)
+        return cls(
+            meta=meta, history=history, arrays=arrays, path=path, initial_positions=pos0
+        )
 
     def save(self, path: str | Path) -> Path:
         """Write the trajectory in the folder format (readable by :meth:`load`)."""
@@ -133,7 +152,9 @@ class Trajectory:
         for name, a in self.arrays.items():
             np.ascontiguousarray(a, dtype="<f4").tofile(path / f"{name}.f32")
         if self.initial_positions is not None:
-            np.ascontiguousarray(self.initial_positions, dtype="<f4").tofile(path / "pos_initial.f32")
+            np.ascontiguousarray(self.initial_positions, dtype="<f4").tofile(
+                path / "pos_initial.f32"
+            )
         return path
 
     # ---------------------------------------------------------------- labels and sizes
@@ -191,7 +212,11 @@ class Trajectory:
         """(first step index, run number, ereq) of each EPSR invocation."""
         run = self.history["run"]
         ereq = self.history.get("ereq", np.zeros(self.nsteps))
-        return [(k, int(run[k]), float(ereq[k])) for k in range(self.nsteps) if k == 0 or run[k] != run[k - 1]]
+        return [
+            (k, int(run[k]), float(ereq[k]))
+            for k in range(self.nsteps)
+            if k == 0 or run[k] != run[k - 1]
+        ]
 
     def concentrations(self) -> dict[str, float]:
         """Atom fraction of each atom type."""
@@ -223,26 +248,38 @@ class Trajectory:
             g = g + np.asarray(self.arrays["gr_intra"][step], dtype=float)
         return g
 
-    def subset(self, steps) -> "Trajectory":
+    def subset(self, steps) -> Trajectory:
         """A new in-memory trajectory with only the given step indices."""
         idx = np.asarray(steps)
         hist = {k: np.asarray(v)[idx] for k, v in self.history.items()}
         arrs = {k: np.asarray(v)[idx] for k, v in self.arrays.items()}
-        return Trajectory(meta=self.meta, history=hist, arrays=arrs, initial_positions=self.initial_positions)
+        return Trajectory(
+            meta=self.meta,
+            history=hist,
+            arrays=arrs,
+            initial_positions=self.initial_positions,
+        )
 
 
 # ---------------------------------------------------------------- history.tsv
+
 
 def read_history(path: str | Path) -> dict[str, np.ndarray]:
     lines = Path(path).read_text().splitlines()
     head = lines[0].split("\t")
     rows = [ln.split("\t") for ln in lines[1:] if ln.strip()]
-    rows = [r for r in rows if len(r) == len(head)]  # the last line may be incomplete while recording
+    rows = [
+        r for r in rows if len(r) == len(head)
+    ]  # the last line may be incomplete while recording
     out: dict[str, np.ndarray] = {}
     for j, name in enumerate(head):
         col = [r[j] for r in rows]
         if name == "rfacd":
-            out[name] = np.array([[float(x) for x in c.split(",")] for c in col]) if col else np.zeros((0, 0))
+            out[name] = (
+                np.array([[float(x) for x in c.split(",")] for c in col])
+                if col
+                else np.zeros((0, 0))
+            )
         elif name in _INT_COLS:
             out[name] = np.array([int(float(x)) for x in col], dtype=int)
         else:
@@ -251,7 +288,9 @@ def read_history(path: str | Path) -> dict[str, np.ndarray]:
 
 
 def write_history(path: str | Path, history: dict[str, np.ndarray]) -> None:
-    cols = [c for c in HISTORY_COLUMNS if c in history] + [c for c in history if c not in HISTORY_COLUMNS]
+    cols = [c for c in HISTORY_COLUMNS if c in history] + [
+        c for c in history if c not in HISTORY_COLUMNS
+    ]
     n = len(history["step"])
     with open(path, "w") as fh:
         fh.write("\t".join(cols) + "\n")

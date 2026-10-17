@@ -56,7 +56,12 @@ CASES = {
             ("HW", "OW", 1.25, "intra", "H–O–H (intramolecular)"),
             ("OW", "OW", 3.35, "inter", "O···O···O (tetrahedrality)"),
         ],
-        stages={1: "scratch", 2: "reference potential", 3: "EP refinement", 4: "EP refinement"},
+        stages={
+            1: "scratch",
+            2: "reference potential",
+            3: "EP refinement",
+            4: "EP refinement",
+        },
     ),
     "silica_bulk": Case(
         title="Amorphous SiO$_2$: 1500 Si + 3000 O (NIMROD)",
@@ -70,7 +75,12 @@ CASES = {
             ("O", "Si", 2.0, "all", "O–Si–O"),
             ("Si", "O", 2.0, "all", "Si–O–Si"),
         ],
-        stages={1: "scratch", 2: "reference potential", 3: "EP refinement", 4: "EP refinement"},
+        stages={
+            1: "scratch",
+            2: "reference potential",
+            3: "EP refinement",
+            4: "EP refinement",
+        },
     ),
 }
 

@@ -17,8 +17,7 @@ from __future__ import annotations
 import numpy as np
 import pyvista as pv
 
-from . import metrics as M
-from . import style
+from . import metrics, style
 from .systems import get_case
 from .trajectory import Trajectory
 
@@ -42,12 +41,30 @@ class ConfigurationViewer:
     color_by : "type" | "coordination"
         "coordination" colours the centre atoms of the case's first coordination
         analysis (e.g. Si by number of O neighbours) and greys out the others.
+    reference : dict or None
+        Experimental (or other reference) partial g(r) to draw in the chart:
+        ``{pair label: (r, g)}`` with labels as in ``traj.pairs`` (e.g.
+        ``"OW-HW"``); see :func:`epsrvis.outputs.read_isis_gr`.  Each is drawn
+        solid in the pair's colour; the calculated g(r) of that pair is then
+        drawn with ``calc_opacity``.  Use ``gr="total"`` when the reference
+        includes intramolecular correlations (measured partials do).
+    calc_opacity : float
+        Opacity (0-1) of the calculated g(r) of pairs that have a reference.
     """
 
-    def __init__(self, traj: Trajectory, gr: str = "inter", slab: float | None = None,
-                 bonds: bool = True, color_by: str = "type", off_screen: bool = False,
-                 atom_scale: float = 0.6,
-                 window_size=(1600, 820)):
+    def __init__(
+        self,
+        traj: Trajectory,
+        gr: str = "inter",
+        slab: float | None = None,
+        bonds: bool = True,
+        color_by: str = "type",
+        off_screen: bool = False,
+        atom_scale: float = 0.6,
+        reference: dict | None = None,
+        calc_opacity: float = 0.4,
+        window_size=(1600, 820),
+    ):
         self.traj = traj
         self.case = get_case(traj.case, traj.atom_types)
         self.gr_mode = gr
@@ -56,11 +73,20 @@ class ConfigurationViewer:
         self.color_by = color_by
         self.labels = traj.atom_labels
         self.mol = traj.molecule_of_atom
+        self.reference = reference or {}
+        self.calc_opacity = calc_opacity
         self.step = traj.nsteps - 1
-        self.pl = pv.Plotter(shape=(1, 2), off_screen=off_screen, window_size=window_size,
-                             border=False)
-        self._sphere = {t: pv.Sphere(radius=atom_scale * self.case.radius(t), theta_resolution=14, phi_resolution=10)
-                        for t in traj.atom_types}
+        self.pl = pv.Plotter(
+            shape=(1, 2), off_screen=off_screen, window_size=window_size, border=False
+        )
+        self._sphere = {
+            t: pv.Sphere(
+                radius=atom_scale * self.case.radius(t),
+                theta_resolution=14,
+                phi_resolution=10,
+            )
+            for t in traj.atom_types
+        }
         self._atom_meshes: dict[str, pv.PolyData] = {}
         self._bond_mesh: pv.PolyData | None = None
         self._lines = []
@@ -84,7 +110,9 @@ class ConfigurationViewer:
         return pts.glyph(geom=self._sphere[t], scale=False, orient=False)
 
     def _coordination(self, pos, a, b, cut, inter):
-        i, j, _ = M.neighbour_pairs(pos, self.traj.box(self.step), self.labels, a, b, cut)
+        i, j, _ = metrics.neighbour_pairs(
+            pos, self.traj.box(self.step), self.labels, a, b, cut
+        )
         if inter:
             keep = self.mol[i] != self.mol[j]
             i = i[keep]
@@ -94,7 +122,7 @@ class ConfigurationViewer:
         box = self.traj.box(self.step)
         segs = []
         for a, b, cut, intra in self.case.bonds:
-            i, j, _ = M.neighbour_pairs(pos, box, self.labels, a, b, cut)
+            i, j, _ = metrics.neighbour_pairs(pos, box, self.labels, a, b, cut)
             keep = vis[i] & vis[j]
             if intra:
                 keep &= self.mol[i] == self.mol[j]
@@ -111,7 +139,11 @@ class ConfigurationViewer:
         return pv.PolyData(pos.astype(float), lines=lines)
 
     def _gr(self, step: int) -> np.ndarray:
-        return self.traj.gr_total(step) if self.gr_mode == "total" else np.asarray(self.traj.gr_inter[step])
+        return (
+            self.traj.gr_total(step)
+            if self.gr_mode == "total"
+            else np.asarray(self.traj.gr_inter[step])
+        )
 
     # ---------------------------------------------------------------- scene
     def _build(self):
@@ -124,28 +156,83 @@ class ConfigurationViewer:
             mesh = self._atoms(pos, vis, t)
             self._atom_meshes[t] = mesh
             if "neighbours" in mesh.array_names:
-                pl.add_mesh(mesh, scalars="neighbours", cmap="viridis", clim=[-0.5, 6.5], n_colors=7,
-                            annotations={float(i): str(i) for i in range(7)},
-                            smooth_shading=True,
-                            scalar_bar_args=dict(title=f"{self.case.coordination[0][1]} around {t}", color="white",
-                                                 n_labels=0, vertical=True, position_x=0.9,
-                                                 position_y=0.25, width=0.04, height=0.45))
+                pl.add_mesh(
+                    mesh,
+                    scalars="neighbours",
+                    cmap="viridis",
+                    clim=[-0.5, 6.5],
+                    n_colors=7,
+                    annotations={float(i): str(i) for i in range(7)},
+                    smooth_shading=True,
+                    scalar_bar_args=dict(
+                        title=f"{self.case.coordination[0][1]} around {t}",
+                        color="white",
+                        n_labels=0,
+                        vertical=True,
+                        position_x=0.9,
+                        position_y=0.25,
+                        width=0.04,
+                        height=0.45,
+                    ),
+                )
             else:
-                op = 0.35 if (self.color_by == "coordination" and self.case.coordination
-                              and t != self.case.coordination[0][0]) else 1.0
-                pl.add_mesh(mesh, color=self.case.color(t), smooth_shading=True, opacity=op,
-                            specular=0.3, name=f"atoms_{t}")
+                op = (
+                    0.35
+                    if (
+                        self.color_by == "coordination"
+                        and self.case.coordination
+                        and t != self.case.coordination[0][0]
+                    )
+                    else 1.0
+                )
+                pl.add_mesh(
+                    mesh,
+                    color=self.case.color(t),
+                    smooth_shading=True,
+                    opacity=op,
+                    specular=0.3,
+                    name=f"atoms_{t}",
+                )
         if self.draw_bonds and self.case.bonds:
             self._bond_mesh = self._bonds(pos, vis)
-            pl.add_mesh(self._bond_mesh, color="#bdbcb6", line_width=2.5, render_lines_as_tubes=True,
-                        name="bonds")
-        L = traj.box(self.step)
-        pl.add_mesh(pv.Box(bounds=(-L / 2, L / 2) * 3).outline(), color="#c3c2b7", line_width=1.5)
-        legend = [[f"{t} atoms" if t == self.case.element[t] else f"{t} ({self.case.element[t]})", self.case.color(t)]
-                  for t in traj.atom_types]
-        pl.add_legend(legend, bcolor=BACKGROUND, border=False, size=(0.13, 0.045 * len(legend)), loc="upper right",
-                      face="circle")
-        self._title = pl.add_text(self._title_text(), position="lower_left", font_size=10, color="white")
+            pl.add_mesh(
+                self._bond_mesh,
+                color="#bdbcb6",
+                line_width=2.5,
+                render_lines_as_tubes=True,
+                name="bonds",
+            )
+        side = traj.box(self.step)
+        pl.add_mesh(
+            pv.Box(bounds=(-side / 2, side / 2) * 3).outline(),
+            color="#c3c2b7",
+            line_width=1.5,
+        )
+        legend = [
+            [
+                (
+                    f"{t} atoms"
+                    if t == self.case.element[t]
+                    else f"{t} ({self.case.element[t]})"
+                ),
+                self.case.color(t),
+            ]
+            for t in traj.atom_types
+        ]
+        pl.add_legend(
+            legend,
+            bcolor=BACKGROUND,
+            border=False,
+            size=(0.13, 0.045 * len(legend)),
+            loc="upper right",
+            face="circle",
+        )
+        self._title = pl.add_text(
+            self._title_text(),
+            position="lower_left",
+            font_size=int(round(10 * self.pl.window_size[1] / 820)),
+            color="white",
+        )
         pl.camera_position = "iso"
         pl.camera.zoom(1.15)
 
@@ -154,15 +241,64 @@ class ConfigurationViewer:
         chart = pv.Chart2D()
         g = self._gr(self.step)
         r = traj.r
-        for ip, pair in enumerate(traj.pairs):
-            self._lines.append(chart.line(r, g[ip], color=style.series(ip), width=2.5, label=pair))
         chart.line([r[0], r[-1]], [1, 1], color="#8a8985", width=1.0, style="--")
+        for ip, pair in enumerate(traj.pairs):
+            has_ref = pair in self.reference
+            line = chart.line(
+                r,
+                g[ip],
+                color=style.series(ip),
+                width=3.0 if has_ref else 2.5,
+                label=f"{pair} EPSR" if has_ref else pair,
+            )
+            if has_ref:
+                line.pen.SetOpacity(
+                    int(round(255 * self.calc_opacity))
+                )  # calculated: translucent
+            self._lines.append(line)
+        for ip, pair in enumerate(traj.pairs):
+            if pair in self.reference:
+                rr, gg = self.reference[pair]
+                chart.line(
+                    np.asarray(rr, float),
+                    np.asarray(gg, float),
+                    color=style.series(ip),
+                    width=2.0,
+                    label=f"{pair} experiment",
+                )
         chart.x_label = "r (Å)"
-        chart.y_label = "g(r)" + (" (inter + intra)" if self.gr_mode == "total" else " (intermolecular)")
-        chart.title = "Partial pair distribution functions"
+        chart.y_label = "g(r)" + (
+            " (inter + intra)" if self.gr_mode == "total" else " (intermolecular)"
+        )
+        chart.title = "Partial pair distribution functions" + (
+            " (solid: experiment, faded: EPSR)" if self.reference else ""
+        )
         chart.x_range = [0, min(10.0, float(r[-1]))]
-        gmax = max(float(np.nanmax(self._gr(s)[:, r > 0.5])) for s in (0, traj.nsteps - 1))
-        chart.y_range = [-0.1, min(gmax * 1.1, 6.0 if self.gr_mode == "total" else gmax * 1.1)]
+        if self.reference:
+            # scale to the intermolecular structure; intramolecular peaks (e.g. the O-H bond) are clipped
+            gmax = max(
+                float(np.nanmax(self._gr(traj.nsteps - 1)[:, r > 1.2])),
+                *(
+                    float(np.nanmax(np.asarray(gg)[np.asarray(rr) > 1.2]))
+                    for rr, gg in self.reference.values()
+                ),
+            )
+            chart.y_range = [-0.05, gmax * 1.12]
+        else:
+            gmax = max(
+                float(np.nanmax(self._gr(s)[:, r > 0.5])) for s in (0, traj.nsteps - 1)
+            )
+            chart.y_range = [
+                -0.1,
+                min(gmax * 1.1, 6.0 if self.gr_mode == "total" else gmax * 1.1),
+            ]
+        # text sizes follow the window height (VTK defaults suit ~800 px)
+        scale = self.pl.window_size[1] / 820
+        for ax in (chart.x_axis, chart.y_axis):
+            ax.label_size = int(round(16 * scale))
+            ax.tick_label_size = int(round(14 * scale))
+        chart.GetTitleProperties().SetFontSize(int(round(15 * scale)))
+        chart.GetLegend().SetLabelSize(int(round(13 * scale)))
         self.chart = chart
         pl.add_chart(chart)
         pl.subplot(0, 0)
@@ -172,11 +308,13 @@ class ConfigurationViewer:
         s = self.step
         fit = getattr(self, "_fit", None)
         if fit is None:
-            self._fit = fit = M.fit_metrics(self.traj)
+            self._fit = fit = metrics.fit_metrics(self.traj)
         stage = self.case.stages.get(int(h["run"][s]), f"run {int(h['run'][s])}")
-        return (f"{self.traj.case}: EPSR iteration {int(h['step'][s])} ({stage}, ereq {h['ereq'][s]:g})\n"
-                f"E_inter {h['energd'][s]:.2f} kJ/mol, P {h['pressd'][s]:.2f} kbar\n"
-                f"R-factor {fit['rfactor_tot'][s]:.2e}, EP amplitude {h['energabs'][s]:.2f} kJ/mol")
+        return (
+            f"{self.traj.case}: EPSR iteration {int(h['step'][s])} ({stage}, ereq {h['ereq'][s]:g})\n"
+            f"E_inter {h['energd'][s]:.2f} kJ/mol, P {h['pressd'][s]:.2f} kbar\n"
+            f"R-factor {fit['rfactor_tot'][s]:.2e}, EP amplitude {h['energabs'][s]:.2f} kJ/mol"
+        )
 
     def set_step(self, step: int):
         """Show recorded step index ``step`` (negative counts from the end)."""
@@ -200,9 +338,18 @@ class ConfigurationViewer:
         """Interactive window; the slider selects the EPSR iteration."""
         self.pl.subplot(0, 0)
         self.pl.add_slider_widget(
-            lambda v: self.set_step(int(round(v)) - 1), rng=[1, self.traj.nsteps], value=self.step + 1,
-            title="EPSR iteration", pointa=(0.1, 0.93), pointb=(0.6, 0.93), style="modern", fmt="%.0f",
-            interaction_event="always", color="white", title_color="white")
+            lambda v: self.set_step(int(round(v)) - 1),
+            rng=[1, self.traj.nsteps],
+            value=self.step + 1,
+            title="EPSR iteration",
+            pointa=(0.1, 0.93),
+            pointb=(0.6, 0.93),
+            style="modern",
+            fmt="%.0f",
+            interaction_event="always",
+            color="white",
+            title_color="white",
+        )
         self.pl.show()
 
     def screenshot(self, path, step: int = -1):
@@ -210,16 +357,25 @@ class ConfigurationViewer:
         self.pl.render()
         self.pl.screenshot(str(path))
 
-    def movie(self, path, every: int = 5, fps: int = 10, steps=None):
-        """GIF (or .mp4 with imageio-ffmpeg) of the configuration and g(r) through the refinement."""
-        steps = list(steps) if steps is not None else list(range(0, self.traj.nsteps, every))
+    def movie(self, path, every: int = 5, fps: int = 10, steps=None, quality: int = 9):
+        """GIF, or MP4 (H.264, needs imageio-ffmpeg), of the configuration and g(r) through the refinement.
+
+        ``quality`` (0-10) applies to MP4 only.  For a 1920x1080 MP4, create the
+        viewer with ``window_size=(1920, 1080)``.
+        """
+        steps = (
+            list(steps)
+            if steps is not None
+            else list(range(0, self.traj.nsteps, every))
+        )
         if steps[-1] != self.traj.nsteps - 1:
             steps.append(self.traj.nsteps - 1)
         path = str(path)
         if path.endswith(".gif"):
             self.pl.open_gif(path, fps=fps)
         else:
-            self.pl.open_movie(path, framerate=fps)
+            # macro_block_size 8: 1080-pixel heights encode without rescaling
+            self.pl.open_movie(path, framerate=fps, quality=quality, macro_block_size=8)
         self.pl.subplot(0, 0)
         for s in steps:
             self.set_step(s)

@@ -123,7 +123,15 @@ on a glibc Linux machine.
 All are CPU-bound and suit rayon. Suggested implementation order: **#3 first** (lowest
 risk, proves the harness and the GEOM fix is not even needed there), then #1, #2, #4, #5.
 
-### 1. `atogen` intermolecular histogram — high gain, medium risk
+> **Status 2026-10-17: candidates #1–#6 are all implemented and committed.** Each was
+> verified byte-identical against serial HEAD at `RAYON_NUM_THREADS=1` and `=8` via the
+> self-consistency protocol above. Measured on a quiet machine, the chi² change alone
+> took potential refinement from 1.40 s to 0.44 s at 8 threads (iteration 5.35 s →
+> 3.90 s); later timings were taken under heavy background load and are not comparable.
+> Remaining work: final reference-hash validation on a glibc Linux machine, a non-cubic
+> ex-case run to exercise the GEOM worker sync, and the conditional targets in #7.
+
+### 1. `atogen` intermolecular histogram — high gain, medium risk — **DONE**
 
 `structure.rs:500-596`. Brute-force upper-triangle loop over all atom pairs
 (~5M distance evaluations with `sqrt`+`nint` on the test case, **no cell list**), once
@@ -139,7 +147,7 @@ per iteration (more if lattice refinement is on). Likely a dominant phase.
 - **Risk:** medium — several scratch arrays to privatise and the RNG pre-draw to get
   exactly right, but the merge is order-insensitive by construction.
 
-### 2. `fit_expansion` chi² evaluation — high gain, medium risk
+### 2. `fit_expansion` chi² evaluation — high gain, medium risk — **DONE**
 
 `potential.rs:409-413` and `428-431`, inside the EP-coefficient Monte Carlo fit.
 Possibly the single largest phase: ≥1000 steps × 3 datasets per iteration, each step
@@ -166,7 +174,7 @@ pattern (a)+(c) for free.
   order, serial write-back; rayon 1.12 added to `epsr-core`. Verified byte-identical
   across serial HEAD / 1 thread / 8 threads (self-consistency protocol above).
 
-### 4. `fmolec1` all-pairs stored energies — medium gain, medium risk
+### 4. `fmolec1` all-pairs stored energies — medium gain, medium risk — **DONE**
 
 `energy.rs:439-554`. Full molecule-pair energy pass over the cell neighbourhood, 1–2×
 per iteration (plus after shake cycles).
@@ -181,7 +189,7 @@ per iteration (plus after shake cycles).
   Requires the GEOM fix.
 - **Risk:** medium — the serial ordering pass must be exactly faithful.
 
-### 5. `press` energy/virial recomputation — medium gain, medium risk
+### 5. `press` energy/virial recomputation — medium gain, medium risk — **DONE**
 
 `energy.rs:596-699`. Recomputes all stored-neighbour pair energies and the virial, once
 per iteration; similar cost to `fmolec1`.
@@ -191,7 +199,7 @@ per iteration; similar cost to `fmolec1`.
   `self.erg.ergold/ergnew/nbref`; per-`im` partials for `sumc` (`f32`) and `presst`
   (`f64`) reduced serially in `im` order — pattern (c). Requires the GEOM fix.
 
-### 6. `stog` (S(Q) → g(r)) — small gain, low risk
+### 6. `stog` (S(Q) → g(r)) — small gain, low risk — **DONE**
 
 `structure.rs:125-152`. Called 4 times in `write_results`, last iteration only.
 Parallel over r-bin `j` with a per-thread `sum` buffer; `gofr` writes are disjoint.

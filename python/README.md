@@ -1,19 +1,61 @@
 # epsr-py: Python interface to the Rust EPSR engine
 
-`epsr` lets you run and inspect **EPSR** (Empirical Potential Structure Refinement,
-A. K. Soper) from Python. The heavy lifting is done by the Rust translation of the
-original Fortran in [`../rust`](../rust), which reproduces the Fortran output
-byte for byte; this package adds a Pythonic API, numpy arrays, a refinement loop,
-potential perturbation, the 35 setup and analysis tools, and plotting helpers.
+`epsr` runs and inspects EPSR (Empirical Potential Structure Refinement, A. K. Soper)
+from Python. The engine is the Rust translation of the original Fortran in
+[`../rust`](../rust), used unchanged through its public API; it reproduces the
+Fortran output byte for byte.
 
-## Example: refining liquid water against real neutron data
+## Install
 
-This builds 1000 water molecules from scratch and refines them against the SANDALS
-neutron data for H2O, D2O and HDO (50:50) in
-[`../experimental_data/water/data`](../experimental_data/water/data). The setup
-inputs (molecule template, neutron-weight files, EPSR input file) are those of
-[`../validation/water`](../validation/water). Run it from the `python/` folder
-after [installing](#installation):
+You need a Rust toolchain (stable, 1.85 or later), Python 3.10 or later and
+[uv](https://docs.astral.sh/uv/).
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh        # if uv is not installed
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+cd python
+uv sync --all-extras        # creates .venv, compiles the Rust engine, installs epsr
+```
+
+`uv sync` rebuilds the extension whenever the Rust engine or the bindings change.
+The extras are `plot` (matplotlib), `pandas` and `progress` (tqdm).
+
+## Run
+
+One EPSR run on a copy of a simulation folder:
+
+```python
+import epsr
+
+project = epsr.Project.from_template("../EPSR-test", "work/dmso")  # copy: EPSR rewrites its inputs
+simulation = project.simulation(overrides={"ntimes": 5})           # read .EPSR.inp, .ato, .pcof, data
+summary = simulation.run()                                         # one EPSR run (Rust, GIL released)
+
+summary.r_factor                           # fit quality
+simulation.gr_inter("O1", "H1")            # partial g(r) as a float32 numpy array
+simulation.potential.empirical()           # (n_pairs, nr) empirical potential, kJ/mol
+history = epsr.refine(project, n_runs=20)  # repeated runs with a convergence history
+```
+
+Every run overwrites `.ato`, `.pcof`, `.EPSR.inp` and `.EPSR.inpa` and appends to
+`.erg`; that is how EPSR carries its state from run to run. The 35 setup and
+analysis programs run as `epsr.tools.run(folder, "nwts", ["sample.NWTS.dat"])`.
+
+| command | purpose |
+|---|---|
+| `uv run python examples/05_experimental_water.py --quick` | refine water against real data (about 30 s) |
+| `uv run pytest -n auto` | the test suite (217 tests, about 5 minutes on 4 cores) |
+| `uv run pytest -m "not slow"` | the quick tests (about 1 minute) |
+| `uv run isort . && uv run black . && uv run ruff check . && uv run mypy` | format, lint, type-check |
+
+## Examples on real experimental data
+
+Three systems from the Dissolve examples in [`../experimental_data`](../experimental_data)
+are built from scratch and refined against measured neutron data. Each has been run
+by the original Fortran EPSR, by the Rust CLI and by this wrapper, and every output
+file of the three is byte-identical; the plots below overlay their partial g(r).
+
+### Water: 1000 H₂O against SANDALS H₂O, D₂O and HDO data
 
 ```bash
 uv run python examples/05_experimental_water.py            # full schedule, about 4 minutes
@@ -23,150 +65,59 @@ uv run python examples/05_experimental_water.py --quick    # 10 iterations per r
 The core of [examples/05_experimental_water.py](examples/05_experimental_water.py):
 
 ```python
-import shutil
-from pathlib import Path
-
-import epsr
-from epsr import tools
-
 work = Path("work/water")
-
-# 1. Setup inputs plus the measured data, in a fresh folder.
-epsr.copy_folder("../validation/water", work, overwrite=True)
+epsr.copy_folder("../validation/water", work, overwrite=True)        # setup inputs
 for data_file in Path("../experimental_data/water/data").glob("*.mint01"):
-    shutil.copy2(data_file, work / data_file.name)
+    shutil.copy2(data_file, work / data_file.name)                  # measured data
 
-# 2. Build the box with the EPSR setup programs.
-tools.run(work, "makemole", ["Water"])
-tools.run(work, "mixato", answers=["1", "Water", "1000", "0.1", "waterbox"])
+tools.run(work, "makemole", ["Water"])                              # molecule template
+tools.run(work, "mixato", answers=["1", "Water", "1000", "0.1", "waterbox"])  # the box
 tools.run(work, "randomise", ["waterbox"])
 (work / "Water.mol").unlink()  # fmole refuses to run while the .mol is present
-tools.run(work, "fmole", ["waterbox", "100"])
+tools.run(work, "fmole", ["waterbox", "100"])                       # relax the geometry
 for sample in ("H2O", "D2O", "HDO"):
-    tools.nwts(work, f"{sample}.NWTS.dat")
+    tools.nwts(work, f"{sample}.NWTS.dat")                          # neutron weights
 
-# 3. Scratch start, then equilibrate on the reference potential.
 project = epsr.Project(work, "waterbox.EPSR.inp")
-project.simulation().run()
-project.simulation(overrides={"niter": 99}).run()
-
-# 4. Switch on the empirical potential (ereq 3 kJ/mol) and refine twice.
-history = epsr.refine(
-    project,
-    n_runs=2,
-    overrides={"niter": 100},
-    initial_overrides={"ereq": 3.0},
-)
-
-# 5. Inspect the result.
-simulation = project.simulation()
-print(history.r_factor[-1])           # overall R-factor of the fit
-simulation.fit(0)                     # data and simulated F(Q) of the D2O dataset
-simulation.gr_inter("OW", "HW")       # O...H partial g(r): hydrogen-bond peak at 1.8 Å
-simulation.potential.empirical()      # the refined empirical potential, kJ/mol
-epsr.plot.fits(simulation)            # data and fits, with the `plot` extra
+project.simulation().run()                                          # scratch start
+project.simulation(overrides={"niter": 99}).run()                   # reference potential only
+history = epsr.refine(project, n_runs=2, overrides={"niter": 100},
+                      initial_overrides={"ereq": 3.0})              # empirical potential on
 ```
 
-Output of the full schedule:
+After the full schedule the R-factor falls from 6.1×10⁻⁴ (reference potential) to
+2.3×10⁻⁴, with the O···H hydrogen-bond peak at 1.80 Å and the O–O peak at 2.79 Å.
 
-```
-R-factor: 6.136e-04 on the reference potential
-          2.268e-04 after refinement with the empirical potential
-  SLS18502-D2O       fitted over Q = 0.20 to 29.90 1/Å
-  SLS18500-HDO5050   fitted over Q = 0.20 to 29.90 1/Å
-  SLS18498-H2O       fitted over Q = 0.20 to 29.90 1/Å
-OW-OW first peak at 2.79 Å (nearest-neighbour waters)
-OW-HW first peak at 1.80 Å (hydrogen bond)
-```
+![Water: partial g(r) from the Fortran, the Rust CLI and the Python wrapper](../validation/water/gr_agreement.png)
 
-The same workflow for amorphous silica and for the Cu-BTC metal-organic framework
-(a crystal read from a PDB file, with Bragg peaks), and the check that every output
-file is identical to the original Fortran EPSR, are described in
-[docs/testing.md](docs/testing.md#tests-on-real-experimental-data).
+### Amorphous silica against NIMROD data
 
-## Installation
-
-The project is managed with [uv](https://docs.astral.sh/uv/) and built with
-[maturin](https://www.maturin.rs/). You need a Rust toolchain (stable, ≥ 1.85) and
-Python ≥ 3.10.
+1500 Si + 3000 O at 0.0664 atoms/Å³, built with `mixato` and refined with `ereq` 50.
+Inputs in [`../validation/silica_bulk`](../validation/silica_bulk); it runs as a test:
 
 ```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh     # if uv is not installed
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-cd python
-uv sync --all-extras          # creates .venv, compiles the Rust engine, installs epsr
-uv run python examples/05_experimental_water.py --quick   # the example above
+uv run pytest tests/test_experimental_data.py -k silica
 ```
 
-| command | purpose |
-|---|---|
-| `uv sync` | install `epsr` with numpy only |
-| `uv sync --all-extras` | also matplotlib, pandas and tqdm |
-| `uv run maturin develop --release --uv` | fast rebuild after editing `src/*.rs` |
-| `uv run pytest -n auto` | the full test suite (about 5.5 minutes on 4 cores) |
-| `uv run pytest -m "not slow"` | skip the 115 verification-case replays and the experimental-data refinements (about 1 minute) |
-| `uv run pytest -m experimental` | refine real water, silica and Cu-BTC neutron data from `experimental_data/` (about 4 minutes) |
-| `uv run isort . && uv run black .` | format the Python code (import order, then layout) |
-| `uv run ruff check . && uv run mypy` | lint and type check |
-| `uv build` | wheel and sdist in `dist/` |
+![Silica: partial g(r) from the Fortran, the Rust CLI and the Python wrapper](../validation/silica_bulk/gr_agreement.png)
 
-`uv sync` rebuilds the extension automatically when the Rust engine or the
-bindings change.
+### Cu-BTC (HKUST-1), a crystal with Bragg peaks, against NIMROD data
 
-## Things to know before you start
+One 624-atom unit cell of the metal-organic framework, converted from the Dissolve
+input to a PDB file, read with `readpdb`, given the Dissolve force field with
+`changeato`, and refined with Bragg peaks up to 5 Å⁻¹. Inputs and the conversion
+notes are in [`../validation/cu-btc`](../validation/cu-btc); it runs as a test that
+compares every file with the archived Fortran results after every EPSR run:
 
-* **EPSR rewrites its input files.** Every run overwrites `.ato`, `.pcof`,
-  `.EPSR.inp` and `.EPSR.inpa`, appends to `.erg` and writes all result files in the
-  simulation folder. Even creating a `Simulation` rewrites the `.qdr` file. This is
-  how EPSR carries its state from run to run. Always work on a copy:
-  `epsr.Project.from_template(original, work)`.
-* **One `Simulation` is one EPSR run.** It reads the folder, runs `niter`
-  iterations (Monte Carlo cycles plus an empirical-potential update) and saves the
-  state. For the next run create a new `Simulation`, or let `epsr.refine` do the loop.
-* **Overrides are sticky.** Parameters passed as `overrides` are written back to the
-  input files, so they persist into later runs.
-* **Threads.** The engine uses all CPU cores inside each run; set `RAYON_NUM_THREADS`
-  to limit it. Results are identical at any thread count. `run()` releases the GIL,
-  so simulations on different folders can also run in parallel threads
-  (`epsr.refine_many`). Never run two on the same folder.
-* **Precision.** Arrays are float32 copies, the precision EPSR computes in.
-* **Platform.** Bit-for-bit agreement with the Fortran holds on Linux with glibc for
-  most files; a few files can differ in the last printed digit on other libm
-  versions. See [docs/testing.md](docs/testing.md).
-
-## What is in the package
-
-| module | contents |
-|---|---|
-| `epsr.Simulation` | one run: `run`, `iterate`, `iterations`, `summary`, grids `q`/`r`, partials `gr_inter`/`gr_intra`/`sq_inter`/`sq_intra`, data fits `data_fq`/`simulated_fq`/`fit`, configuration `positions`, `potential` |
-| `epsr.Potential` | `sim.potential`: empirical, reference and total potentials; EP coefficients get/set/scale/zero/perturb; potential and atom-type parameters |
-| `epsr.Project` | a simulation folder: `from_template`, `simulation`, `snapshot`, `read_table`, `history`, `files` |
-| `epsr.refine`, `epsr.refine_many`, `epsr.History` | repeated runs, convergence history, CSV/pandas export |
-| `epsr.tools` | the 35 auxiliary programs (`nwts`, `partials`, `makeato`, `mixato`, `fmole`, `sharm`, ...), keyword tables, `write_keyword_file` |
-| `epsr.io` | read-only parsers for result tables (`.g01`, `.u01`, ...), `.erg`, keyword files |
-| `epsr.plot` | matplotlib helpers: `fits`, `partials`, `potentials`, `history` |
-| `epsr.errors` | `EpsrError` and its subclasses `EpsrIOError` (an `OSError`), `EpsrInputError` (a `ValueError`) and `EpsrUnsupportedError` (a `NotImplementedError`) |
-
-## Documentation
-
-* [docs/user_guide.md](docs/user_guide.md): workflow, refinement, perturbing the potential, tools, parallel runs.
-* [docs/api.md](docs/api.md): reference for every public class and function.
-* [docs/architecture.md](docs/architecture.md): how the wrapper is built and how to extend it.
-* [docs/testing.md](docs/testing.md): the test suite, tolerances and verification results.
-* [examples/](examples): five runnable scripts: a single run on the test case, a refinement loop, potential perturbation, tools, and the water refinement against experimental data shown above.
-
-## Layout
-
-```
-python/
-├── pyproject.toml, uv.lock     project definition (maturin backend, uv lock file)
-├── Cargo.toml, src/*.rs        PyO3 bindings: the extension module epsr._core
-├── epsr/                       the Python package
-├── examples/                   runnable scripts
-├── tests/                      pytest suite (wrapper equivalents of the Rust tests)
-├── docs/                       documentation
-├── PLAN.md, PROMPT.md          the specification this package was built from
-└── CHANGES_TO_RUST.md          changes made to rust/ for the wrapper (none)
+```bash
+uv run pytest tests/test_cu_btc.py
 ```
 
-The Rust engine under `../rust` is used unchanged through its public API.
+![Cu-BTC: partial g(r) from the Fortran, the Rust CLI and the Python wrapper](../validation/cu-btc/gr_agreement.png)
+
+## More
+
+* [docs/user_guide.md](docs/user_guide.md): the workflow, overrides, perturbing the potential, tools, parallel runs.
+* [docs/api.md](docs/api.md): every public class and function.
+* [docs/architecture.md](docs/architecture.md) and [docs/testing.md](docs/testing.md): how the wrapper is built and verified.
+* [examples/](examples): `01` to `04` show a single run, a refinement loop, potential perturbation and the tools on the DMSO/water test case.

@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT"
 publish = false
 
-# Own workspace root: keeps PyO3 and Python headers out of rust/ (see PLAN.md §2).
+# Own workspace root: keeps PyO3 and Python headers out of rust/ (see docs/architecture.md).
 [workspace]
 
 [lib]

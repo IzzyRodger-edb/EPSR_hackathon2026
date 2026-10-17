@@ -20,7 +20,7 @@ For maintainers. The wrapper has two layers on top of the unchanged Rust engine.
   `summary`, and the methods `generate_ep`, `multiply_pot_coeffs`,
   `tools::run_tool`, `symtab_tools::ALL`. If an engine change ever becomes
   unavoidable, add a new accessor at the end of `rust/epsr-core/src/api.rs` and
-  record it in `CHANGES_TO_RUST.md`.
+  note it in this document. So far none was needed.
 * **No physics in Python.** Python reads results, sets inputs and drives runs.
   Parsing EPSR's text outputs with numpy is the only computation it does.
 * **EPSR semantics are kept.** One `Simulation` is one invocation of the Fortran
@@ -161,21 +161,3 @@ To expose another engine quantity:
   format) and mypy checks types. The Rust bindings use `cargo fmt` and
   `cargo clippy`.
 * **Tests.** Every change is followed by `uv run pytest -n auto`.
-
-## Deviations from PLAN.md
-
-The implementation follows `PLAN.md` except where the engine's actual behaviour
-required otherwise:
-
-| plan | implementation | reason |
-|---|---|---|
-| exceptions created in Rust with `create_exception!` | defined in `epsr/errors.py`, raised from Rust | they need multiple inheritance (`EpsrIOError` is also an `OSError`, ...) |
-| `tools.run` calls the engine directly | switches to the folder under a lock and passes `./` | the box-building programs use the current working directory, as in the Fortran |
-| test: `scale_ep(2.0)` doubles the EP | doubling is undone when the EP is already at `ereq`; tests check linear scaling below the limit and the cap above it | `generate_ep` applies the `ereq` amplitude limit after every rebuild |
-| examples use pair `("O", "H")` for water | `("O1", "H1")` | in the test case `O`/`H` are DMSO atoms, `O1`/`H1` water |
-| example 04 runs `makeato` | runs `nwts`, `partials` and `writexyz` | `makeato` deliberately reproduces a Fortran crash (empty `.ato`) |
-| PyO3 0.22 sketch, `extension-module` feature | PyO3 0.30 (`Python::detach`), no such feature | current PyO3; maturin sets the extension-module configuration |
-| — | added `_core.ep_columns`, `_core.tool_tables`, `Potential.shared_pairs`, `refine(initial_overrides=...)` | safe EP writes for pairs sharing `.pcof` coefficients; listing keyword tables; one-off overrides such as `ireset 1` |
-| — | typed tool helpers raise `FileNotFoundError` for a missing keyword file | the engine, like the Fortran, silently does nothing |
-| — | the last `iterate()` also writes `fort.35` | so that stepping through iterations writes the same files as `run()` |
-| test suite: the reference test and `nwts` | also replays all 115 `EPSR-test-ex*` cases, with a tolerance policy and CLI cross-check | the user asked for wrapper equivalents of the Rust tests |

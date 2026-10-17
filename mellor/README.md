@@ -16,11 +16,18 @@ instructions when it is. Until then:
 ## Example Usage
 
 ### 1. local model (Qwen3-4B on your GPU, free)
+```bash
 uv run mellor run ../experimental_data/water/data/*.mint01 --out work/water
+```
+
 
 ### 2. hosted model on your Hugging Face credits
+```bash
 export HF_TOKEN=hf_...
 uv run mellor run ../experimental_data/water/data/*.mint01 --out work/water --backend hf-api --model Qwen/Qwen3-235B-A22B-Instruct-2507
+```
 
 ### 3. no model at all: the validated water setup, factual summary instead of a discussion
+```bash
 uv run mellor run ../experimental_data/water/data/*.mint01 --out work/water --system water --backend scripted
+```

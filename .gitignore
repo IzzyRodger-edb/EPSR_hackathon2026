@@ -4,3 +4,4 @@ __pycache__/
 # Web app: virtualenv and per-deployment state (database, run folders, secret key)
 webapp/.venv/
 webapp/var/
+webapp/src/*.egg-info/

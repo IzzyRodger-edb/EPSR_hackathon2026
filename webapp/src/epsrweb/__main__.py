@@ -1,4 +1,4 @@
-"""`python -m epsrweb` -- run the development server.
+"""`uv run epsrweb` (or `python -m epsrweb`) -- run the development server.
 
 Jobs are started with multiprocessing's "spawn" method, so the reloader is off
 by default: a reload would orphan a running refinement.

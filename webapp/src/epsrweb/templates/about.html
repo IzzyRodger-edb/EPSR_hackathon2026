@@ -127,18 +127,15 @@
     the upload validation and the Overleaf path, and every results page is stamped as a
     demonstration. Three packages have to be importable by the server process:
   </p>
-  <pre class="code">pip install -e ./python                                  # epsr: the engine (compiles Rust)
-pip install -e ./visualisation/python_visualisation_toolkit   # epsrvis: analysis and plots
-pip install -e ./mellor                                  # the agent itself
-pip install -e ./mellor --no-deps                        # ... or without re-resolving</pre>
+  <pre class="code">cd webapp
+uv sync --extra agent      # mellor, plus epsr (the engine, compiles Rust) and epsrvis
+uv run epsrweb</pre>
   <p>
-    The first one is the one that fails. It builds a Rust extension through
-    <code>maturin</code>, which targets the same ABI as your Python interpreter: on Windows
-    that means the <strong>MSVC</strong> toolchain, so you need Visual Studio Build Tools
-    with &ldquo;Desktop development with C++&rdquo; and
-    <code>rustup default stable-x86_64-pc-windows-msvc</code>. A GNU-only Rust toolchain
-    cannot link it. On Linux and macOS a stock Rust install and a C compiler are enough.
+    The engine is the step that fails. It builds a Rust extension through
+    <code>maturin</code>, so the machine needs a Rust toolchain and a C compiler:
   </p>
+  <pre class="code">sudo apt install build-essential
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh</pre>
   <p>
     Restart the server afterwards; <code>/healthz</code> reports <code>mellor=yes</code>
     when it worked, and the banner at the top of this page disappears. Keep the repository
@@ -146,7 +143,7 @@ pip install -e ./mellor --no-deps                        # ... or without re-res
     <code>../visualisation/python_visualisation_toolkit</code> relative to its own folder.
   </p>
   <p class="quiet">
-    For the local language-model backend add <code>pip install -e "./mellor[local]"</code>,
+    For the local language-model backend add <code>uv sync --extra agent --extra local</code>,
     which pulls in torch; for the hosted backend set a Hugging Face token in
     <a href="/settings">Settings</a>. Neither is needed for the
     &ldquo;no language model&rdquo; option, which refines against a validated system.

@@ -30,25 +30,30 @@ browser ── FastAPI ── job manager ── one process per run ── mell
 
 ## Install and run
 
-Requires Python 3.10 or newer.
+Requires Python 3.10 or newer and [uv](https://docs.astral.sh/uv/)
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`). uv creates `.venv/` and installs
+from `uv.lock`; the dev group (pytest, httpx) is included by default.
 
 ```bash
 cd webapp
-python -m venv .venv
-.venv/Scripts/python -m pip install -e ".[dev]"     # Linux/macOS: .venv/bin/python
-.venv/Scripts/python -m epsrweb                      # http://127.0.0.1:8000
+uv sync
+uv run epsrweb                     # http://127.0.0.1:8000
 ```
 
 That gives you the whole app in **demonstration mode**. To make it real, three packages
 from this repository have to be importable by the server process — the agent, the engine
-and the plotting toolkit:
+and the plotting toolkit. The `agent` extra installs all three from the sibling folders
+(`../mellor`, and through it `../python` and `../visualisation/python_visualisation_toolkit`):
 
 ```bash
 cd webapp
-.venv/Scripts/python -m pip install -e ../python                                   # epsr: the engine
-.venv/Scripts/python -m pip install -e ../visualisation/python_visualisation_toolkit  # epsrvis
-.venv/Scripts/python -m pip install -e ../mellor                                  # the agent
+uv sync --extra agent              # builds epsr, the Rust engine, on first sync
+uv sync --extra agent --extra local   # ... plus torch/transformers for the local model
+uv run epsrweb
 ```
+
+Note that `uv sync` is exact: a later plain `uv sync` removes the agent again, so keep
+passing `--extra agent` (or `--all-extras`).
 
 Restart the server afterwards. `/healthz` reports `mellor=yes` when it worked, and the
 banner at the top of every page disappears. Keep the checkout intact: Mellor resolves
@@ -56,13 +61,13 @@ banner at the top of every page disappears. Keep the checkout intact: Mellor res
 
 #### The engine build is the hard step
 
-`epsr` is a Rust extension built by `maturin`, which targets the same ABI as your Python
-interpreter. **On Windows that means MSVC**: you need Visual Studio Build Tools with
-"Desktop development with C++" and `rustup default stable-x86_64-pc-windows-msvc`. A
-GNU-only Rust toolchain cannot link it — `maturin` still computes an
-`x86_64-pc-windows-msvc` target triple and the build dies in `link.exe`, and forcing the
-GNU target instead dies in the toolchain's bundled `dlltool.exe`. On Linux and macOS a
-stock Rust install and a C compiler are enough.
+`epsr` is a Rust extension that uv builds with `maturin` during the sync. It needs a Rust
+toolchain and a C compiler:
+
+```bash
+sudo apt install build-essential                                # or your distro's equivalent
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # then open a new shell
+```
 
 Until that build succeeds the app reports exactly which piece is missing — on its pages, in
 `/healthz` and in `mellor_status()` — and keeps working in demonstration mode rather than
@@ -172,7 +177,7 @@ duplicate the toolkit and rot.
 ## Tests
 
 ```bash
-PYTHONPATH=src .venv/Scripts/python -m pytest -q
+uv run pytest -q
 ```
 
 51 tests, in four groups. **Units**: passwords, sessions, CSRF, token encryption, the

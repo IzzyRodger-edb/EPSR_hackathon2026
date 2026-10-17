@@ -1,7 +1,7 @@
 """Configuration, read once from the environment.
 
 Everything the app needs to know about the machine it runs on is here. The
-defaults are chosen so that `python -m epsrweb` works on a laptop with no
+defaults are chosen so that `uv run epsrweb` works on a laptop with no
 environment set at all; everything that matters for a real deployment
 (`EPSRWEB_SECRET_KEY`, the worker count, the data root) is overridable.
 """

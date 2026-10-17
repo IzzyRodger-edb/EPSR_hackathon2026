@@ -44,10 +44,10 @@ def mellor_status() -> dict[str, object]:
     """
     for module, hint in (
         ("epsr", "the EPSR engine is not installed: build it with "
-                 "`pip install -e ./python` (needs a Rust toolchain whose linker works)"),
+                 "`uv sync --extra agent` in webapp/ (needs a Rust toolchain and a C compiler)"),
         ("epsrvis", "the plotting toolkit is not installed: "
-                    "`pip install -e ./visualisation/python_visualisation_toolkit`"),
-        ("mellor", "the agent is not installed: `pip install -e ./mellor`"),
+                    "`uv sync --extra agent` in webapp/"),
+        ("mellor", "the agent is not installed: `uv sync --extra agent` in webapp/"),
     ):
         if importlib.util.find_spec(module) is None:
             return {"available": False, "reason": hint, "missing": module}

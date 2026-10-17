@@ -684,15 +684,23 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "imageio", marker = "extra == 'all'", specifier = ">=2.30" },
+    { name = "imageio", marker = "extra == 'viewer'", specifier = ">=2.30" },
+    { name = "imageio-ffmpeg", marker = "extra == 'all'", specifier = ">=0.5" },
+    { name = "imageio-ffmpeg", marker = "extra == 'viewer'", specifier = ">=0.5" },
     { name = "matplotlib", marker = "extra == 'all'", specifier = ">=3.7" },
     { name = "matplotlib", marker = "extra == 'plot'", specifier = ">=3.7" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pandas", marker = "extra == 'all'", specifier = ">=2.0" },
     { name = "pandas", marker = "extra == 'pandas'", specifier = ">=2.0" },
+    { name = "pyvista", marker = "extra == 'all'", specifier = ">=0.43" },
+    { name = "pyvista", marker = "extra == 'viewer'", specifier = ">=0.43" },
+    { name = "scipy", marker = "extra == 'all'", specifier = ">=1.10" },
+    { name = "scipy", marker = "extra == 'plot'", specifier = ">=1.10" },
     { name = "tqdm", marker = "extra == 'all'", specifier = ">=4.60" },
     { name = "tqdm", marker = "extra == 'progress'", specifier = ">=4.60" },
 ]
-provides-extras = ["plot", "pandas", "progress", "all"]
+provides-extras = ["plot", "viewer", "pandas", "progress", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -723,6 +731,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "imageio", marker = "extra == 'viewer'", specifier = ">=2.30" },
+    { name = "imageio-ffmpeg", marker = "extra == 'viewer'", specifier = ">=0.6.0" },
     { name = "matplotlib", specifier = ">=3.7" },
     { name = "numpy", specifier = ">=1.24" },
     { name = "pyvista", marker = "extra == 'viewer'", specifier = ">=0.43" },

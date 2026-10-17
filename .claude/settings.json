@@ -1,7 +1,18 @@
 {
   "permissions": {
     "deny": [
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(sudo *)",
+      "Bash(rm -rf *)",
+      "Bash(curl *)",
+      "Bash(wget *)",
+      "Bash(cat .env*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(/**/*.pem)"
     ]
   }
 }

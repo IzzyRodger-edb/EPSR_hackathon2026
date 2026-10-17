@@ -1,7 +1,7 @@
 {
   "permissions": {
     "deny": [
-      "Bash(git commit *)",
+      "Bash(git push *)",
       "Bash(sudo *)",
       "Bash(rm -rf *)",
       "Bash(curl *)",

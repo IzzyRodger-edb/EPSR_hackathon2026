@@ -1,14 +1,19 @@
 # EPSR in Rust
 
-A Rust translation of the core of **EPSR** (Empirical Potential Structure
-Refinement, A. K. Soper), version 26 — the `epsr` command implemented by
-`fortran_src/epsr_standalone_rev3.f` and the routines it calls.  The original
-Fortran in `../fortran_src` is untouched.
+A Rust translation of the whole **EPSR** suite (Empirical Potential Structure
+Refinement, A. K. Soper), version 26: the `epsr` engine implemented by
+`fortran_src/epsr_standalone_rev3.f` and the routines it calls, plus all 35
+setup and analysis programs.  The original Fortran in `../fortran_src` is
+untouched.
 
-**Status:** on the supplied test case (`../EPSR-test`, 200 DMSO + 400 water,
-three neutron datasets) the Rust engine reproduces *every* file written by the
-Fortran program byte-for-byte, over 12 chained runs and for variants of the
-input (see [docs/VALIDATION.md](docs/VALIDATION.md)).
+**Status:** the Rust reproduces *every* file written by the Fortran
+byte-for-byte on the supplied test case (`../EPSR-test`, 200 DMSO + 400 water,
+three neutron datasets, 12 chained runs and input variants), on the 115
+`EPSR-test-ex*` feature cases (bar 5 deliberate bug fixes, see
+[../FORTRAN_BUGS.md](../FORTRAN_BUGS.md)) and at every step of 300-iteration
+refinements of water, silica and Cu-BTC against measured data
+([../validation/](../validation/README.md)).  See
+[docs/VALIDATION.md](docs/VALIDATION.md).
 
 ```
 rust/
@@ -27,7 +32,7 @@ rust/
 
 ## Build and run
 
-Requires a recent stable Rust toolchain (developed with Rust 1.99; no external crates).
+Requires a recent stable Rust toolchain (edition 2021) and a C linker; the only external crate is `rayon`.
 
 ```bash
 cd rust

@@ -128,26 +128,40 @@ pub fn stog(rho: f32, q: &F1<f32>, sofq: &F2<f32>, r: &F1<f32>, gofr: &mut F2<f3
     let qstep = q[4] - q[3];
     let sfac = 0.5 * qstep / pi / pi / rho;
     let nq = sofq.n1;
-    let mut sum: Vec<f32> = vec![0.0; nq];
+    // The r-rows are independent (per-row scratch, serial inner Q sums), so
+    // they are computed on the rayon pool and written back in row order; the
+    // result is identical at any thread count.
+    let rows: Vec<Vec<f32>> = (1..nr + 1)
+        .into_par_iter()
+        .map(|j| {
+            let mut sum: Vec<f32> = vec![0.0; nq];
+            let rr = r[j];
+            let mut row: Vec<f32> = Vec::with_capacity(npairs.max(0) as usize);
+            for inn in 1..=npairs {
+                let qmax = pi / q[nqmax[inn]];
+                for i in nqmin[inn]..=nqmax[inn] {
+                    let qq = q[i];
+                    let prod = if rr > 0.0 {
+                        let qr = qq * rr;
+                        qq * qr.sin() * lorch(qmax * qq, pi)
+                    } else {
+                        qq * qq * lorch(qmax * qq, pi)
+                    };
+                    sum[(i - 1) as usize] = sofq[(i, inn)] * prod;
+                }
+                let mut sumi: f32 = 0.0;
+                for i in nqmin[inn]..=nqmax[inn] {
+                    sumi += sum[(i - 1) as usize];
+                }
+                row.push(if rr > 0.0 { xwt[inn] + sfac * sumi / rr } else { xwt[inn] + sfac * sumi });
+            }
+            row
+        })
+        .collect();
     for j in 1..=nr {
-        let rr = r[j];
+        let row = &rows[(j - 1) as usize];
         for inn in 1..=npairs {
-            let qmax = pi / q[nqmax[inn]];
-            for i in nqmin[inn]..=nqmax[inn] {
-                let qq = q[i];
-                let prod = if rr > 0.0 {
-                    let qr = qq * rr;
-                    qq * qr.sin() * lorch(qmax * qq, pi)
-                } else {
-                    qq * qq * lorch(qmax * qq, pi)
-                };
-                sum[(i - 1) as usize] = sofq[(i, inn)] * prod;
-            }
-            let mut sumi: f32 = 0.0;
-            for i in nqmin[inn]..=nqmax[inn] {
-                sumi += sum[(i - 1) as usize];
-            }
-            gofr[(j, inn)] = if rr > 0.0 { xwt[inn] + sfac * sumi / rr } else { xwt[inn] + sfac * sumi };
+            gofr[(j, inn)] = row[(inn - 1) as usize];
         }
     }
 }

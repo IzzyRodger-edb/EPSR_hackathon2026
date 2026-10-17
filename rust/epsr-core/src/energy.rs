@@ -20,8 +20,10 @@
 //! omitted here.
 
 use crate::fortran::format::{fmt, ListWriter, FV};
+use crate::fortran::F1;
 use crate::neighbour::minimagec;
 use crate::state::State;
+use rayon::prelude::*;
 
 /// `function en_atom_inter_scale(x1,y1,z1,x2,y2,z2,stepcl,xstar,icref,npt2,scalefac)`.
 #[inline(always)]
@@ -468,6 +470,37 @@ impl State {
             }
         }
         let mut sumecoordcon: f32 = 0.0;
+        // Precompute the pair energies on the rayon pool: en_mole_pair is a
+        // pure function of the (fixed at this point) positions, and each
+        // (cell, molecule, neighbour) slot is written independently.  The
+        // stored neighbour order, the set_ergpair insertion order and the
+        // serial ftest sum below are unchanged, so the result is identical
+        // at any thread count.
+        let st: &State = self;
+        let pair_energies: Vec<Vec<Vec<f32>>> = (1..st.cells.ncell + 1)
+            .into_par_iter()
+            .map(|ic| {
+                st.sync_lattice();
+                let mut out: Vec<Vec<f32>> = Vec::new();
+                if st.cells.nmolsincell[ic] > 0 {
+                    let mut nbref: F1<i32> = F1::new(st.erg.nbref.len());
+                    let nnbref = st.cells.make_neighbour_list_from_cells(ic, &mut nbref);
+                    out.reserve(st.cells.nmolsincell[ic] as usize);
+                    for iref in 1..=st.cells.nmolsincell[ic] {
+                        let im = st.cells.molsincell[(iref, ic)];
+                        let mut e = vec![0.0f32; (nnbref + 1) as usize];
+                        for inn in 1..=nnbref {
+                            let jm = nbref[inn];
+                            if jm > im {
+                                e[inn as usize] = st.en_mole_pair(im, jm);
+                            }
+                        }
+                        out.push(e);
+                    }
+                }
+                out
+            })
+            .collect();
         let mut nbref = std::mem::take(&mut self.erg.nbref);
         let mut ergold = std::mem::take(&mut self.erg.ergold);
         for ic in 1..=self.cells.ncell {
@@ -475,12 +508,9 @@ impl State {
                 let nnbref = self.cells.make_neighbour_list_from_cells(ic, &mut nbref);
                 for iref in 1..=self.cells.nmolsincell[ic] {
                     let im = self.cells.molsincell[(iref, ic)];
+                    let e = &pair_energies[(ic - 1) as usize][(iref - 1) as usize];
                     for inn in 1..=nnbref {
-                        let jm = nbref[inn];
-                        ergold[inn] = 0.0;
-                        if jm > im {
-                            ergold[inn] = self.en_mole_pair(im, jm);
-                        }
+                        ergold[inn] = e[inn as usize];
                     }
                     // NB: the Fortran loop starts at inn=2 (the first candidate
                     // neighbour is never stored).  Reproduced as is.

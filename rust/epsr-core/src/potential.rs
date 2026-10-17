@@ -31,6 +31,7 @@ use crate::fortran::listread::{IoRes, TextFile};
 use crate::fortran::output::OutFile;
 use crate::fortran::{F1, F2};
 use crate::state::{State, MFILE};
+use rayon::prelude::*;
 
 /// `function truncate(xx, rminpt, rmaxpt)`: smooth cosine window 1 → 0 between rminpt and rmaxpt.
 pub fn truncate(xx: f32, rminpt: f32, rmaxpt: f32) -> f32 {
@@ -381,13 +382,28 @@ impl State {
             *stepr = 2.0e-6 * wtmax;
         }
         let mut chisqnew: f32;
+        // Chi-squared over the fit range.  The expand() rows are independent
+        // (the running clamp is within one row), so they are evaluated on the
+        // rayon pool; the squared residuals are then summed serially in index
+        // order, so the result is identical at any thread count.
+        let chisq = |wt: &F1<f32>| -> f32 {
+            let terms: Vec<f32> = (nmin..npt + 1)
+                .into_par_iter()
+                .with_min_len(64)
+                .map(|i| {
+                    let term = yin[i] - expand(nterms, i, expr, wt, summax);
+                    term * term
+                })
+                .collect();
+            let mut c: f32 = 0.0;
+            for t in &terms {
+                c += *t;
+            }
+            c
+        };
         if nits > 0 {
             let mut icount = 0;
-            chisqnew = 0.0;
-            for i in nmin..=npt {
-                let term = yin[i] - expand(nterms, i, expr, wt, summax);
-                chisqnew += term * term;
-            }
+            chisqnew = chisq(wt);
             let mut chisqold = chisqnew;
             let mut chisqtest: f32 = -1.0;
             let mut itry = 0;
@@ -406,11 +422,7 @@ impl State {
                             wt[ic] = wtold[ic] * (1.0 + *stepr * (2.0 * self.rng.ran1() - 1.0));
                         }
                     }
-                    chisqnew = 0.0;
-                    for i in nmin..=npt {
-                        let term = yin[i] - expand(nterms, i, expr, wt, summax);
-                        chisqnew += term * term;
-                    }
+                    chisqnew = chisq(wt);
                     let exponent = (chisqnew - chisqold) / accept;
                     let test = if exponent > 0.0 && exponent <= 20.0 {
                         (-exponent).exp() - self.rng.ran1()
@@ -424,11 +436,7 @@ impl State {
                         if icount == nfreq {
                             icount = 0;
                             smoop(ncfirst, nterms, 1, wt);
-                            chisqnew = 0.0;
-                            for i in nmin..=npt {
-                                let term = yin[i] - expand(nterms, i, expr, wt, summax);
-                                chisqnew += term * term;
-                            }
+                            chisqnew = chisq(wt);
                         }
                         chisqold = chisqnew;
                         for ic in 1..=nterms {

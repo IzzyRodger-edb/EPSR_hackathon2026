@@ -1,0 +1,14 @@
+[package]
+name = "epsr-recorder"
+version = "0.1.0"
+edition = "2021"
+description = "Runs a validation case through the epsr-core library and records a snapshot after every EPSR iteration (for the visualisation tools)"
+
+[dependencies]
+epsr-core = { path = "../../rust/epsr-core" }
+
+# standalone: not a member of the rust/ workspace
+[workspace]
+
+[profile.release]
+debug = false

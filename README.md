@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/EPSR_Mellor_logo.png" alt="EPSR/Mellor logo" width="620">
+</p>
+
 # EPSR, reinvented
 
 **EPSR** (Empirical Potential Structure Refinement, A. K. Soper) turns neutron and X-ray diffraction data into atomistic models of liquids, glasses and disordered materials. It is a standard analysis route for total-scattering data at the ISIS Neutron and Muon Source and other neutron and X-ray facilities. For 30 years it has been a Fortran program run through an interactive shell. It is hard to install and hard to script, its results are hard to reproduce, and it has no interface an agent can drive.

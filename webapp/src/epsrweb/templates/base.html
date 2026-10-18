@@ -9,6 +9,7 @@
 <script src="/static/theme.js"></script>
 <link rel="preload" href="/static/fonts/UbuntuSans-wdth-wght.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="/static/app.css">
+<link rel="icon" type="image/png" href="/static/favicon.png">
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
@@ -17,7 +18,10 @@
 
 <header class="header">
   <div class="width-container header__inner">
-    <a class="header__service" href="/">EPSR refinement <span>with the Mellor agent</span></a>
+    <a class="header__service" href="/">
+      <img class="header__mark" src="/static/logo-mark.png" alt="" width="42" height="48">
+      <span class="header__title">EPSR refinement <span class="header__tagline">with the Mellor agent</span></span>
+    </a>
     <button type="button" class="theme-toggle" id="theme-toggle" hidden>
       <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path d="M10 1a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 2v14a7 7 0 0 1 0-14z"/></svg>
       <span data-label>Dark mode</span>

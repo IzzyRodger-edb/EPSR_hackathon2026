@@ -274,6 +274,17 @@ h3, .heading-s {
 
 .narrow, .prose { max-width: 770px; }
 
+/* The full logo (templates/_logo.html): one image per theme. */
+.hero-logo { margin: 0 0 30px; }
+.hero-logo img { display: block; width: 100%; max-width: 620px; height: auto; }
+.hero-logo .logo-dark { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .hero-logo .logo-light { display: none; }
+  :root:not([data-theme="light"]) .hero-logo .logo-dark { display: block; }
+}
+:root[data-theme="dark"] .hero-logo .logo-light { display: none; }
+:root[data-theme="dark"] .hero-logo .logo-dark { display: block; }
+
 /* skip link */
 
 .skip-link {
@@ -293,17 +304,21 @@ h3, .heading-s {
   display: flex; align-items: center; justify-content: space-between; gap: 5px 15px;
   flex-wrap: wrap; padding-top: 14px; padding-bottom: 14px;
 }
-@media (min-width: 641px) { .header__inner { padding-top: 22px; padding-bottom: 22px; } }
+@media (min-width: 641px) { .header__inner { padding-top: 16px; padding-bottom: 16px; } }
 
 .header__service {
   color: var(--header-text); text-decoration: none;
   font-weight: 700; font-size: 1.25rem; line-height: 1.2;
-  display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; padding: 5px 0;
+  display: inline-flex; align-items: center; gap: 12px; padding: 5px 0;
 }
-.header__service span { font-weight: 400; font-size: 0.8em; color: var(--header-text); }
-@media (min-width: 641px) { .header__service { font-size: 1.75rem; line-height: 1.2; } }
-.header__service:hover { color: var(--header-text); text-decoration: underline; text-decoration-thickness: 3px; }
-.header__service:focus-visible span { color: var(--focus-text); }
+@media (min-width: 641px) { .header__service { font-size: 1.75rem; gap: 16px; } }
+.header__mark { display: block; flex: none; width: auto; height: 40px; }
+@media (min-width: 641px) { .header__mark { height: 48px; } }
+.header__title { display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+.header__tagline { font-weight: 400; font-size: 0.8em; }
+.header__service:hover { color: var(--header-text); }
+.header__service:hover .header__title { text-decoration: underline; text-decoration-thickness: 3px; }
+.header__service:focus-visible .header__mark { filter: invert(1); }
 
 .theme-toggle {
   background: none; border: 0; padding: 5px 0; margin: 0;
@@ -551,7 +566,8 @@ input[type=text]:focus, input[type=email]:focus, input[type=password]:focus {
 .notification-banner {
   margin-bottom: 30px; border: 5px solid var(--brand); background: var(--brand);
 }
-.notification-banner.success { border-color: var(--success); background: var(--success); }
+/* GOV.UK green in both themes: white text needs the darker shade. */
+.notification-banner.success { border-color: #00703c; background: #00703c; }
 .notification-banner__header { padding: 2px 15px 5px; }
 .notification-banner__title {
   margin: 0; padding: 0; color: #fff; font-weight: 700; font-size: 1rem; line-height: 1.25;
